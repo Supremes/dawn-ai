@@ -1,18 +1,14 @@
 # ---- Build Stage ----
-FROM eclipse-temurin:17-jdk-alpine AS builder
+FROM maven:3-eclipse-temurin-17-alpine AS builder
 
 WORKDIR /build
 
-COPY pom.xml .
-COPY .mvn/ .mvn/
-COPY mvnw .
-
 # Download dependencies first (layer cache friendly)
-RUN ./mvnw dependency:go-offline -q
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
 
 COPY src/ src/
-
-RUN ./mvnw package -DskipTests -q
+RUN mvn clean package -DskipTests -q
 
 # ---- Runtime Stage ----
 FROM eclipse-temurin:17-jre-alpine

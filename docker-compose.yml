@@ -20,7 +20,7 @@ services:
       - dawn-network
 
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:0.8.0-pg16
     environment:
       POSTGRES_DB: dawn_ai
       POSTGRES_USER: dawn
@@ -38,7 +38,7 @@ services:
       - dawn-network
 
   redis:
-    image: redis:7-alpine
+    image: redis:7
     ports:
       - "6379:6379"
     volumes:
@@ -53,7 +53,7 @@ services:
       - dawn-network
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.2.1
     ports:
       - "9090:9090"
     volumes:
@@ -62,7 +62,7 @@ services:
       - dawn-network
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.5.2
     ports:
       - "3000:3000"
     environment:
