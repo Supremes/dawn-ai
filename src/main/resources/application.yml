@@ -1,0 +1,76 @@
+spring:
+  application:
+    name: dawn-ai
+
+  # DataSource (PostgreSQL with pgvector extension)
+  datasource:
+    url: jdbc:postgresql://localhost:5432/dawn_ai
+    username: dawn
+    password: dawn123
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+  # Redis (Conversation Memory)
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 3000ms
+
+  # Spring AI - OpenAI
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:your-api-key-here}
+      chat:
+        options:
+          model: gpt-4o
+          temperature: 0.7
+          max-tokens: 2048
+      embedding:
+        options:
+          model: text-embedding-ada-002
+
+    # Vector Store - PGVector
+    vectorstore:
+      pgvector:
+        index-type: HNSW
+        distance-type: COSINE_DISTANCE
+        dimensions: 1536
+        initialize-schema: true
+
+server:
+  port: 8080
+
+# Actuator & Prometheus Metrics
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus, metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Application config
+app:
+  ai:
+    system-prompt: |
+      You are Dawn AI, a helpful and knowledgeable assistant powered by advanced AI.
+      You can help with calculations, weather queries, and answer questions based on your knowledge base.
+      Always be concise, accurate, and helpful.
+
+logging:
+  level:
+    com.dawn.ai: DEBUG
+    org.springframework.ai: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

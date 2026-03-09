@@ -1,0 +1,8 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'dawn-ai'
+    static_configs:
+      - targets: ['app:8080']
+    metrics_path: '/actuator/prometheus'
