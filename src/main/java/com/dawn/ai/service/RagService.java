@@ -1,5 +1,6 @@
 package com.dawn.ai.service;
 
+import com.dawn.ai.config.AiAvailabilityChecker;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
@@ -32,6 +33,7 @@ public class RagService {
 
     private final VectorStore vectorStore;
     private final MeterRegistry meterRegistry;
+    private final AiAvailabilityChecker aiAvailabilityChecker;
 
     private Counter ingestionCounter;
     private Counter retrievalCounter;
@@ -51,6 +53,8 @@ public class RagService {
      * In production: split large docs using TokenTextSplitter before ingestion.
      */
     public String ingest(String content, String source, String category) {
+        aiAvailabilityChecker.ensureConfigured();
+
         String docId = UUID.randomUUID().toString();
         Document doc = new Document(docId, content, Map.of(
                 "source", source != null ? source : "manual",
@@ -67,6 +71,8 @@ public class RagService {
      * TopK=5 is the default; tune based on context window budget.
      */
     public List<Document> retrieve(String query, int topK) {
+        aiAvailabilityChecker.ensureConfigured();
+
         retrievalCounter.increment();
         SearchRequest request = SearchRequest.query(query).withTopK(topK);
         List<Document> results = vectorStore.similaritySearch(request);

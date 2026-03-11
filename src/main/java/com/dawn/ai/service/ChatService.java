@@ -1,6 +1,7 @@
 package com.dawn.ai.service;
 
 import com.dawn.ai.agent.AgentOrchestrator;
+import com.dawn.ai.config.AiAvailabilityChecker;
 import com.dawn.ai.dto.ChatRequest;
 import com.dawn.ai.dto.ChatResponse;
 import lombok.RequiredArgsConstructor;
@@ -18,9 +19,12 @@ public class ChatService {
     private final AgentOrchestrator agentOrchestrator;
     private final RagService ragService;
     private final ChatClient chatClient;
+    private final AiAvailabilityChecker aiAvailabilityChecker;
 
     public ChatResponse chat(ChatRequest request) {
         long start = System.currentTimeMillis();
+
+        aiAvailabilityChecker.ensureConfigured();
 
         // Generate or reuse session ID for conversation continuity
         String sessionId = (request.getSessionId() != null && !request.getSessionId().isBlank())
@@ -49,6 +53,8 @@ public class ChatService {
 
     /** Simple one-shot chat without memory or tools */
     public String simpleChat(String message) {
+        aiAvailabilityChecker.ensureConfigured();
+
         return chatClient.prompt()
                 .user(message)
                 .call()
