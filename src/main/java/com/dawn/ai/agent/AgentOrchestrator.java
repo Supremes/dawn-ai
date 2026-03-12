@@ -56,7 +56,7 @@ public class AgentOrchestrator {
         String response = chatClient.prompt()
                 .messages(history)
                 .user(userMessage)
-                .functions("weatherTool", "calculatorTool")
+                .toolNames("weatherTool", "calculatorTool")
                 .call()
                 .content();
 

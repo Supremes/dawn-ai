@@ -74,7 +74,7 @@ public class RagService {
         aiAvailabilityChecker.ensureConfigured();
 
         retrievalCounter.increment();
-        SearchRequest request = SearchRequest.query(query).withTopK(topK);
+        SearchRequest request = SearchRequest.builder().query(query).topK(topK).build();
         List<Document> results = vectorStore.similaritySearch(request);
         log.info("[RagService] Retrieved {} docs for query='{}'", results.size(), query);
         return results;
@@ -87,7 +87,7 @@ public class RagService {
 
         StringBuilder sb = new StringBuilder("Relevant context:\n");
         for (int i = 0; i < docs.size(); i++) {
-            sb.append(String.format("[%d] %s\n", i + 1, docs.get(i).getContent()));
+            sb.append(String.format("[%d] %s\n", i + 1, docs.get(i).getText()));
         }
         return sb.toString();
     }
