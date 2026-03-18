@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReAct 实现对比 — Dawn AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --casing-bg: #E3E4DF;
+    --casing-highlight: rgba(255,255,255,0.7);
+    --panel-gap-dark: rgba(0,0,0,0.15);
+    --panel-gap-light: rgba(255,255,255,0.8);
+    --text-main: #1A1A1A;
+    --text-muted: #555555;
+    --text-label: #6A6B66;
+    --hole-fill: #1C1C1A;
+
+    --color-red:    #D03027; --shade-red:    #9B1C15;
+    --color-blue:   #0055A4; --shade-blue:   #00366D;
+    --color-yellow: #F2A900; --shade-yellow: #B88000;
+    --color-green:  #00853E; --shade-green:  #005B2A;
+    --color-orange: #C05621; --shade-orange: #8B3A14;
+
+    --screen-black: #141618;
+    --crt-green: #39ff14;
+    --crt-amber: #ffb000;
+    --crt-dim: rgba(57,255,20,0.55);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+
+  body {
+    background-color: #C8C9C4;
+    min-height: 100vh;
+    font-family: 'Inter', sans-serif;
+    color: var(--text-main);
+    padding: 40px 20px 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* ── Device Shell ── */
+  .device-panel {
+    background-color: var(--casing-bg);
+    width: 100%;
+    max-width: 1060px;
+    border-radius: 14px;
+    box-shadow:
+      0 24px 56px rgba(0,0,0,0.18),
+      0 6px 16px rgba(0,0,0,0.06),
+      inset 1px 1px 2px var(--casing-highlight),
+      inset -1px -1px 3px rgba(0,0,0,0.1);
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 32px 50px 0;
+  }
+
+  .brand {
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: -0.02em;
+  }
+
+  .model-number {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+  }
+
+  .panel-divider {
+    height: 2px;
+    width: 100%;
+    background: var(--panel-gap-dark);
+    border-bottom: 1px solid var(--panel-gap-light);
+    margin: 24px 0 0;
+  }
+
+  /* ── Hero Title ── */
+  .hero-section {
+    padding: 40px 50px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .hero-title h2 {
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+
+  .hero-title .sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-label);
+    margin-top: 8px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .verdict-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,0,0,0.07);
+    border: 1px solid rgba(0,0,0,0.1);
+    border-top-color: rgba(255,255,255,0.6);
+    border-left-color: rgba(255,255,255,0.6);
+    padding: 8px 14px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);
+  }
+
+  .dot-red    { background: var(--color-red); }
+  .dot-blue   { background: var(--color-blue); }
+  .dot-green  { background: var(--color-green); }
+  .dot-amber  { background: var(--color-yellow); }
+
+  /* ── Screen pair ── */
+  .screens-section {
+    padding: 32px 50px 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+  }
+
+  .screen-unit {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .screen-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-label);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .screen-inset {
+    background: #C8C9C4;
+    border-radius: 12px;
+    padding: 10px;
+    box-shadow:
+      inset 2px 2px 8px rgba(0,0,0,0.18),
+      inset -2px -2px 8px rgba(255,255,255,0.55);
+  }
+
+  .crt {
+    background: var(--screen-black);
+    border-radius: 8px;
+    min-height: 280px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: inset 0 0 30px rgba(0,0,0,0.9);
+    padding: 18px 16px;
+  }
+
+  /* scanline overlay */
+  .crt::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.18) 50%),
+      linear-gradient(90deg, rgba(255,0,0,0.04), rgba(0,255,0,0.02), rgba(0,0,255,0.04));
+    background-size: 100% 3px, 4px 100%;
+    z-index: 10;
+    pointer-events: none;
+    border-radius: 8px;
+  }
+
+  /* CRT glow tint */
+  .crt-current::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 40%, rgba(255,176,0,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 9;
+  }
+
+  .crt-ideal::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 40%, rgba(57,255,20,0.07) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 9;
+  }
+
+  .crt-content {
+    position: relative;
+    z-index: 5;
+    font-family: 'VT323', 'JetBrains Mono', monospace;
+  }
+
+  /* ── Flow Nodes ── */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .flow-node {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    position: relative;
+  }
+
+  .flow-node + .flow-node::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 14px;
+    width: 1px;
+    height: 8px;
+  }
+
+  .flow-amber .flow-node + .flow-node::before { background: rgba(255,176,0,0.25); }
+  .flow-green .flow-node + .flow-node::before  { background: rgba(57,255,20,0.2); }
+
+  .node-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .node-amber {
+    background: rgba(255,176,0,0.15);
+    border: 1px solid rgba(255,176,0,0.35);
+    color: var(--crt-amber);
+  }
+
+  .node-green {
+    background: rgba(57,255,20,0.12);
+    border: 1px solid rgba(57,255,20,0.3);
+    color: var(--crt-green);
+  }
+
+  .node-body {}
+
+  .node-title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  .node-amber .node-title,
+  .node-text-amber { color: var(--crt-amber); }
+
+  .node-green .node-title,
+  .node-text-green { color: var(--crt-green); }
+
+  .node-desc {
+    font-size: 12px;
+    color: rgba(255,255,255,0.45);
+    line-height: 1.4;
+    margin-top: 2px;
+  }
+
+  /* missing badge */
+  .missing-tag {
+    display: inline-block;
+    background: rgba(208,48,39,0.2);
+    border: 1px solid rgba(208,48,39,0.4);
+    color: #ff6b60;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 6px;
+    letter-spacing: 0.06em;
+    vertical-align: middle;
+  }
+
+  .present-tag {
+    display: inline-block;
+    background: rgba(57,255,20,0.12);
+    border: 1px solid rgba(57,255,20,0.35);
+    color: var(--crt-green);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 6px;
+    letter-spacing: 0.06em;
+    vertical-align: middle;
+  }
+
+  .arrow-connector {
+    display: flex;
+    align-items: center;
+    padding: 2px 0 2px 9px;
+    gap: 0;
+  }
+
+  .arrow-line-amber {
+    width: 1px;
+    height: 18px;
+    background: linear-gradient(to bottom, rgba(255,176,0,0.5), rgba(255,176,0,0.15));
+    margin: 0 0 0 13px;
+  }
+
+  .arrow-line-green {
+    width: 1px;
+    height: 18px;
+    background: linear-gradient(to bottom, rgba(57,255,20,0.45), rgba(57,255,20,0.12));
+    margin: 0 0 0 13px;
+  }
+
+  .loop-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(57,255,20,0.1);
+    border: 1px solid rgba(57,255,20,0.3);
+    color: var(--crt-green);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 3px;
+    margin-top: 10px;
+    letter-spacing: 0.04em;
+  }
+
+  .loop-badge-missing {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(208,48,39,0.1);
+    border: 1px solid rgba(208,48,39,0.3);
+    color: #ff6b60;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 3px;
+    margin-top: 10px;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Separator / table ── */
+  .inventory-section {
+    padding: 28px 50px 0;
+  }
+
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-label);
+    margin-bottom: 14px;
+  }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+  }
+
+  .data-table th {
+    text-align: left;
+    padding-bottom: 12px;
+    color: var(--text-label);
+    font-weight: 500;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--panel-gap-dark);
+    box-shadow: 0 1px 0 var(--panel-gap-light);
+  }
+
+  .data-table td {
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    vertical-align: middle;
+    font-size: 12px;
+  }
+
+  .col-feature { width: 26%; font-weight: 700; }
+  .col-current { width: 37%; color: var(--text-muted); }
+  .col-ideal   { width: 37%; }
+
+  .status-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+    box-shadow: inset 0 1px 1px rgba(0,0,0,0.25);
+  }
+
+  .sd-red    { background: var(--color-red); }
+  .sd-green  { background: var(--color-green); }
+  .sd-yellow { background: var(--color-yellow); }
+
+  /* ── Controls row ── */
+  .controls-section {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    padding: 36px 0 52px;
+  }
+
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .control-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-label);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .hardware-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    outline: none;
+  }
+
+  .btn-well {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #DADBD4;
+    box-shadow: inset 2px 2px 4px rgba(0,0,0,0.1), inset -2px -2px 4px rgba(255,255,255,0.7);
+    position: relative;
+    display: flex;
+    justify-content: center;
+  }
+
+  .btn-cap {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    position: absolute;
+    top: -2px;
+    background-color: var(--btn-color);
+    box-shadow:
+      inset 0 2px 2px rgba(255,255,255,0.4),
+      inset 0 -1px 3px rgba(0,0,0,0.2),
+      0 4px 0 var(--btn-shade),
+      0 7px 7px rgba(0,0,0,0.22);
+    transition: all 0.08s cubic-bezier(0.25,1,0.5,1);
+  }
+
+  .hardware-btn:active .btn-cap,
+  .hardware-btn.is-active .btn-cap {
+    top: 2px;
+    box-shadow:
+      inset 0 1px 2px rgba(255,255,255,0.3),
+      inset 0 -1px 2px rgba(0,0,0,0.3),
+      0 0px 0 var(--btn-shade),
+      0 2px 3px rgba(0,0,0,0.1);
+  }
+
+  .btn-red    { --btn-color: var(--color-red);    --btn-shade: var(--shade-red); }
+  .btn-blue   { --btn-color: var(--color-blue);   --btn-shade: var(--shade-blue); }
+  .btn-yellow { --btn-color: var(--color-yellow); --btn-shade: var(--shade-yellow); }
+  .btn-green  { --btn-color: var(--color-green);  --btn-shade: var(--shade-green); }
+  .btn-orange { --btn-color: var(--color-orange); --btn-shade: var(--shade-orange); }
+
+  /* ── Footer ── */
+  .panel-footer {
+    padding: 0 50px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .footer-text {
+    font-weight: 500;
+    font-size: 14px;
+    letter-spacing: -0.02em;
+  }
+
+  /* ── Highlight rows on filter ── */
+  .diff-row { transition: opacity 0.2s ease; }
+  .diff-row.dimmed { opacity: 0.25; }
+
+  /* ── Tooltip ── */
+  [data-tip] { position: relative; cursor: pointer; }
+  [data-tip]:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1a1a;
+    color: #f0f0f0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 5px 9px;
+    border-radius: 4px;
+    white-space: nowrap;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+
+  @media (max-width: 700px) {
+    .device-panel { border-radius: 0; }
+    body { padding: 0 0 40px; background: var(--casing-bg); }
+    .panel-header, .hero-section, .screens-section,
+    .inventory-section, .panel-footer { padding-left: 18px; padding-right: 18px; }
+    .screens-section { grid-template-columns: 1fr; }
+    .controls-section { gap: 18px; }
+    .hero-section { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<main class="device-panel">
+
+  <!-- Header -->
+  <header class="panel-header">
+    <div class="brand">DAWN AI / ANALYSE</div>
+    <div class="model-number">REV-01</div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero-section">
+    <div class="hero-title">
+      <h2>ReAct 实现对比</h2>
+      <div class="sub">Current impl &nbsp;vs&nbsp; Standard ReAct</div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+      <div class="verdict-badge">
+        <span class="dot dot-red"></span>
+        当前：Tool-Calling Chat
+      </div>
+      <div class="verdict-badge">
+        <span class="dot dot-green"></span>
+        目标：Reason → Act → Observe Loop
+      </div>
+    </div>
+  </section>
+
+  <div class="panel-divider"></div>
+
+  <!-- Screens -->
+  <section class="screens-section">
+
+    <!-- LEFT: Current -->
+    <div class="screen-unit">
+      <div class="screen-label">
+        <span class="dot dot-amber" style="background:var(--color-yellow);"></span>
+        AgentOrchestrator — 当前实现
+      </div>
+      <div class="screen-inset">
+        <div class="crt crt-current">
+          <div class="crt-content flow flow-amber">
+
+            <div class="flow-node">
+              <div class="node-icon node-amber">①</div>
+              <div class="node-body">
+                <div class="node-title node-text-amber">READ HISTORY</div>
+                <div class="node-desc">从 Redis 加载历史消息，构建 messages 列表</div>
+              </div>
+            </div>
+            <div class="arrow-line-amber"></div>
+
+            <div class="flow-node">
+              <div class="node-icon node-amber">②</div>
+              <div class="node-body">
+                <div class="node-title node-text-amber">CALL LLM <span class="missing-tag">单次</span></div>
+                <div class="node-desc">ChatClient.prompt().messages(history).user(msg)<br>.toolNames(...).call().content()</div>
+              </div>
+            </div>
+            <div class="arrow-line-amber"></div>
+
+            <div class="flow-node">
+              <div class="node-icon node-amber">③</div>
+              <div class="node-body">
+                <div class="node-title node-text-amber">TOOL DISPATCH <span class="missing-tag">框架代劳</span></div>
+                <div class="node-desc">工具调用由 Spring AI / 模型 function calling 自动处理<br>代码层无 Observe 步骤</div>
+              </div>
+            </div>
+            <div class="arrow-line-amber"></div>
+
+            <div class="flow-node">
+              <div class="node-icon node-amber">④</div>
+              <div class="node-body">
+                <div class="node-title node-text-amber">WRITE MEMORY</div>
+                <div class="node-desc">写入 user + assistant 消息到 Redis，返回 response</div>
+              </div>
+            </div>
+
+            <div class="loop-badge-missing">✕ &nbsp;无 while 循环 · 无终止守卫 · 无 Observe</div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Standard ReAct -->
+    <div class="screen-unit">
+      <div class="screen-label">
+        <span class="dot dot-green"></span>
+        Standard ReAct — 目标实现
+      </div>
+      <div class="screen-inset">
+        <div class="crt crt-ideal">
+          <div class="crt-content flow flow-green">
+
+            <div class="flow-node">
+              <div class="node-icon node-green">T</div>
+              <div class="node-body">
+                <div class="node-title node-text-green">THOUGHT <span class="present-tag">Reason</span></div>
+                <div class="node-desc">LLM 推理：分析目标，决定是否需要调用工具</div>
+              </div>
+            </div>
+            <div class="arrow-line-green"></div>
+
+            <div class="flow-node">
+              <div class="node-icon node-green">A</div>
+              <div class="node-body">
+                <div class="node-title node-text-green">ACTION <span class="present-tag">Act</span></div>
+                <div class="node-desc">选择工具（weatherTool / calculatorTool），生成调用参数</div>
+              </div>
+            </div>
+            <div class="arrow-line-green"></div>
+
+            <div class="flow-node">
+              <div class="node-icon node-green">O</div>
+              <div class="node-body">
+                <div class="node-title node-text-green">OBSERVATION <span class="present-tag">Observe</span></div>
+                <div class="node-desc">执行工具，将结果作为 ToolResponseMessage 注入上下文</div>
+              </div>
+            </div>
+            <div class="arrow-line-green"></div>
+
+            <div class="flow-node">
+              <div class="node-icon node-green">↺</div>
+              <div class="node-body">
+                <div class="node-title node-text-green">REPEAT or STOP</div>
+                <div class="node-desc">判断是否完成：<br>
+                  • maxIterations 守卫<br>
+                  • timeout 守卫<br>
+                  • token budget 熔断<br>
+                  • 重复动作检测
+                </div>
+              </div>
+            </div>
+
+            <div class="loop-badge">✓ &nbsp;while(!done) &nbsp;·&nbsp; Termination Guard &nbsp;·&nbsp; Full Observe</div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- Divider -->
+  <div class="panel-divider" style="margin-top: 28px;"></div>
+
+  <!-- Diff Table -->
+  <section class="inventory-section" style="padding-bottom: 0;">
+    <div class="section-label">特性差异对照表 — 点击按钮过滤</div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th class="col-feature">Feature</th>
+          <th class="col-current">当前实现</th>
+          <th class="col-ideal">标准 ReAct</th>
+        </tr>
+      </thead>
+      <tbody id="diff-table">
+        <tr class="diff-row" data-tag="missing">
+          <td class="col-feature">控制循环</td>
+          <td class="col-current"><span class="status-dot sd-red"></span>单次调用，无 while</td>
+          <td><span class="status-dot sd-green"></span>while(!done) 显式循环</td>
+        </tr>
+        <tr class="diff-row" data-tag="missing">
+          <td class="col-feature">Thought 步骤</td>
+          <td class="col-current"><span class="status-dot sd-red"></span>无显式 Thought 记录</td>
+          <td><span class="status-dot sd-green"></span>每轮记录推理链 (CoT)</td>
+        </tr>
+        <tr class="diff-row" data-tag="partial">
+          <td class="col-feature">Action 分发</td>
+          <td class="col-current"><span class="status-dot sd-yellow"></span>Spring AI function calling 自动</td>
+          <td><span class="status-dot sd-green"></span>手动解析 + 路由工具调用</td>
+        </tr>
+        <tr class="diff-row" data-tag="missing">
+          <td class="col-feature">Observation 注入</td>
+          <td class="col-current"><span class="status-dot sd-red"></span>框架内部处理，代码不可见</td>
+          <td><span class="status-dot sd-green"></span>ToolResponseMessage 显式入 history</td>
+        </tr>
+        <tr class="diff-row" data-tag="missing">
+          <td class="col-feature">终止守卫</td>
+          <td class="col-current"><span class="status-dot sd-red"></span>无 maxIterations / timeout</td>
+          <td><span class="status-dot sd-green"></span>多层 TerminationGuard</td>
+        </tr>
+        <tr class="diff-row" data-tag="missing">
+          <td class="col-feature">Token 预算</td>
+          <td class="col-current"><span class="status-dot sd-red"></span>无累计 token 统计</td>
+          <td><span class="status-dot sd-green"></span>CircuitBreaker 按 token 熔断</td>
+        </tr>
+        <tr class="diff-row" data-tag="present">
+          <td class="col-feature">会话记忆</td>
+          <td class="col-current"><span class="status-dot sd-green"></span>Redis + TTL，已实现</td>
+          <td><span class="status-dot sd-green"></span>Redis / 长期向量记忆</td>
+        </tr>
+        <tr class="diff-row" data-tag="present">
+          <td class="col-feature">Tool 注册</td>
+          <td class="col-current"><span class="status-dot sd-green"></span>toolNames() 注册，已实现</td>
+          <td><span class="status-dot sd-green"></span>动态 Tool 注册 + 描述</td>
+        </tr>
+        <tr class="diff-row" data-tag="present">
+          <td class="col-feature">RAG 增强</td>
+          <td class="col-current"><span class="status-dot sd-green"></span>PGVector + context inject</td>
+          <td><span class="status-dot sd-green"></span>向量检索 + 分层记忆</td>
+        </tr>
+        <tr class="diff-row" data-tag="present">
+          <td class="col-feature">可观测性</td>
+          <td class="col-current"><span class="status-dot sd-green"></span>Micrometer + Prometheus</td>
+          <td><span class="status-dot sd-green"></span>每步 trace + token 指标</td>
+        </tr>
+        <tr class="diff-row" data-tag="missing">
+          <td class="col-feature">重复动作检测</td>
+          <td class="col-current"><span class="status-dot sd-red"></span>无</td>
+          <td><span class="status-dot sd-green"></span>相邻轮次 action 去重</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Controls -->
+  <section class="controls-section">
+    <div class="control-group">
+      <span class="control-label">全部</span>
+      <button class="hardware-btn btn-blue is-active" id="btn-all" onclick="filter('all', this)" aria-label="Show all">
+        <div class="btn-well"><div class="btn-cap"></div></div>
+      </button>
+    </div>
+    <div class="control-group">
+      <span class="control-label">缺失</span>
+      <button class="hardware-btn btn-red" id="btn-missing" onclick="filter('missing', this)" aria-label="Show missing">
+        <div class="btn-well"><div class="btn-cap"></div></div>
+      </button>
+    </div>
+    <div class="control-group">
+      <span class="control-label">部分</span>
+      <button class="hardware-btn btn-yellow" id="btn-partial" onclick="filter('partial', this)" aria-label="Show partial">
+        <div class="btn-well"><div class="btn-cap"></div></div>
+      </button>
+    </div>
+    <div class="control-group">
+      <span class="control-label">已实现</span>
+      <button class="hardware-btn btn-green" id="btn-present" onclick="filter('present', this)" aria-label="Show present">
+        <div class="btn-well"><div class="btn-cap"></div></div>
+      </button>
+    </div>
+  </section>
+
+  <div class="panel-divider" style="margin-top: 0;"></div>
+
+  <footer class="panel-footer">
+    <div class="footer-text">Dawn AI — ReAct Gap Analysis</div>
+    <div class="model-number">DR-68</div>
+  </footer>
+
+</main>
+
+<script>
+  function filter(tag, btn) {
+    document.querySelectorAll('.hardware-btn').forEach(b => b.classList.remove('is-active'));
+    btn.classList.add('is-active');
+
+    const rows = document.querySelectorAll('.diff-row');
+    rows.forEach(row => {
+      if (tag === 'all') {
+        row.classList.remove('dimmed');
+      } else {
+        const match = row.getAttribute('data-tag') === tag;
+        row.classList.toggle('dimmed', !match);
+      }
+    });
+  }
+</script>
+
+</body>
+</html>

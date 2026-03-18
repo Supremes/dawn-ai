@@ -46,13 +46,10 @@ public class AgentOrchestrator {
     }
 
     private String doChat(String sessionId, String userMessage) {
-        // 1. Persist user message to Redis memory
-        memoryService.addMessage(sessionId, "user", userMessage);
-
-        // 2. Build conversation history for context window
+        // 1. Build conversation history without duplicating the current turn
         List<Message> history = buildHistory(sessionId);
 
-        // 3. Call LLM with Tool bindings (ReAct: Reason + Act)
+        // 2. Call LLM with prior history plus the current user turn
         String response = chatClient.prompt()
                 .messages(history)
                 .user(userMessage)
@@ -60,7 +57,8 @@ public class AgentOrchestrator {
                 .call()
                 .content();
 
-        // 4. Persist assistant reply to memory
+        // 3. Persist the completed turn after a successful model call
+        memoryService.addMessage(sessionId, "user", userMessage);
         memoryService.addMessage(sessionId, "assistant", response);
 
         log.info("[AgentOrchestrator] session={}, userMsg={}, responseLen={}",
