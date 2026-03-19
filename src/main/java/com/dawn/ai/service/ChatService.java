@@ -1,15 +1,20 @@
 package com.dawn.ai.service;
 
+import com.dawn.ai.agent.AgentResult;
 import com.dawn.ai.agent.AgentOrchestrator;
+import com.dawn.ai.agent.PlanStep;
 import com.dawn.ai.config.AiAvailabilityChecker;
 import com.dawn.ai.dto.ChatRequest;
 import com.dawn.ai.dto.ChatResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -21,19 +26,20 @@ public class ChatService {
     private final ChatClient chatClient;
     private final AiAvailabilityChecker aiAvailabilityChecker;
 
+    @Value("${app.ai.react.show-steps:false}")
+    private boolean showSteps;
+
     public ChatResponse chat(ChatRequest request) {
         long start = System.currentTimeMillis();
 
         aiAvailabilityChecker.ensureConfigured();
 
-        // Generate or reuse session ID for conversation continuity
         String sessionId = (request.getSessionId() != null && !request.getSessionId().isBlank())
                 ? request.getSessionId()
                 : UUID.randomUUID().toString();
 
         String userMessage = request.getMessage();
 
-        // If RAG is enabled, prepend retrieved context to the user message
         if (request.isRagEnabled()) {
             String context = ragService.buildContext(userMessage);
             if (!context.isBlank()) {
@@ -41,11 +47,14 @@ public class ChatService {
             }
         }
 
-        String answer = agentOrchestrator.chat(sessionId, userMessage);
+        AgentResult result = agentOrchestrator.chat(sessionId, userMessage);
 
         return ChatResponse.builder()
                 .sessionId(sessionId)
-                .answer(answer)
+                .answer(result.finalAnswer())
+                .steps(showSteps ? result.steps() : null)
+                .planSummary(formatPlanSummary(result.plan()))
+                .totalSteps(result.steps().size())
                 .durationMs(System.currentTimeMillis() - start)
                 .model("gpt-4o")
                 .build();
@@ -59,5 +68,13 @@ public class ChatService {
                 .user(message)
                 .call()
                 .content();
+    }
+
+    /** Formats the plan as a concise human-readable summary, e.g. "步骤1: weatherTool → 步骤2: 完成". */
+    private String formatPlanSummary(List<PlanStep> plan) {
+        if (plan == null || plan.isEmpty()) return "";
+        return plan.stream()
+                .map(s -> "步骤" + s.getStepNumber() + ": " + s.getAction())
+                .collect(Collectors.joining(" → "));
     }
 }
