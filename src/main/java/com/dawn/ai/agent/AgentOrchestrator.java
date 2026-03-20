@@ -37,6 +37,7 @@ public class AgentOrchestrator {
     private final ChatClient chatClient;
     private final MemoryService memoryService;
     private final TaskPlanner taskPlanner;
+    private final ToolRegistry toolRegistry;
     private final MeterRegistry meterRegistry;
 
     @Value("${app.ai.system-prompt:You are a helpful AI assistant.}")
@@ -62,7 +63,7 @@ public class AgentOrchestrator {
             // ② Optional pre-execution planning
             List<PlanStep> plan;
             if (planEnabled) {
-                plan = taskPlanner.plan(userMessage, getToolDescriptions());
+                plan = taskPlanner.plan(userMessage, toolRegistry.getDescriptions());
             } else {
                 plan = Collections.emptyList();
             }
@@ -80,7 +81,7 @@ public class AgentOrchestrator {
                     .system(systemPrompt)
                     .messages(history)
                     .user(userMessage)
-                    .toolNames("weatherTool", "calculatorTool")
+                    .toolNames(toolRegistry.getNames())
                     .call()
                     .content();
 
@@ -119,13 +120,6 @@ public class AgentOrchestrator {
             }
         }
         return messages;
-    }
-
-    private Map<String, String> getToolDescriptions() {
-        Map<String, String> tools = new LinkedHashMap<>();
-        tools.put("weatherTool", "查询指定城市的当前天气信息（温度、天气状况）");
-        tools.put("calculatorTool", "执行数学计算，支持加减乘除和括号表达式");
-        return tools;
     }
 
     /** Formats the plan into a human-readable block for the system prompt. */
