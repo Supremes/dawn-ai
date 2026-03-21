@@ -8,6 +8,8 @@ services:
       - "5005:5005"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - BASE_URL=${BASE_URL}
+      - MODEL=${MODEL}
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/dawn_ai
       - SPRING_DATASOURCE_USERNAME=dawn
       - SPRING_DATASOURCE_PASSWORD=dawn123

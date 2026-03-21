@@ -29,7 +29,7 @@ spring:
       base-url: ${BASE_URL:https://api.deepseek.com}
       chat:
         options:
-          model: deepseek-chat
+          model: ${MODEL:deepseek-chat}
           temperature: 0.7
           max-tokens: 2048
       embedding:
@@ -66,7 +66,7 @@ app:
   ai:
     react:
       max-steps: 10        # 单次对话最多工具调用次数（超出时 LLM 自行收敛）
-      show-steps: false    # 响应体中是否包含 steps 详情
+      show-steps: true    # 响应体中是否包含 steps 详情
       plan-enabled: true   # 是否启用执行前规划（关闭后跳过 TaskPlanner）
     system-prompt: |
       You are Dawn AI, a helpful and knowledgeable assistant powered by advanced AI.

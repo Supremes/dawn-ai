@@ -42,9 +42,14 @@ public class AiConfig {
 
     @Bean
     public ApplicationRunner aiStartupLogRunner() {
-        return args -> log.info("[AI Config] base-url={}, api-key={}",
-                openAiBaseUrl,
-                maskApiKey(openAiApiKey));
+        return args -> {
+            log.info("[AI Config] base-url={}, api-key={}",
+                    openAiBaseUrl,
+                    maskApiKey(openAiApiKey));
+            if (openAiBaseUrl != null && openAiBaseUrl.endsWith("/v1")) {
+                log.warn("[AI Config] base-url ends with /v1. Spring AI will append /v1/chat/completions automatically, which can produce a duplicated /v1 path for OpenAI-compatible providers.");
+            }
+        };
     }
 
     private String maskApiKey(String apiKey) {

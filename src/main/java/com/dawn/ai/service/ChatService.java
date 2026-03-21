@@ -29,6 +29,9 @@ public class ChatService {
     @Value("${app.ai.react.show-steps:false}")
     private boolean showSteps;
 
+    @Value("${spring.ai.openai.chat.options.model:qwen-plus}")
+    private String model;
+
     public ChatResponse chat(ChatRequest request) {
         long start = System.currentTimeMillis();
 
@@ -56,7 +59,7 @@ public class ChatService {
                 .planSummary(formatPlanSummary(result.plan()))
                 .totalSteps(result.steps().size())
                 .durationMs(System.currentTimeMillis() - start)
-                .model("gpt-4o")
+                .model(model)
                 .build();
     }
 
