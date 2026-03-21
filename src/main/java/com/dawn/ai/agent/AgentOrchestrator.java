@@ -1,7 +1,5 @@
 package com.dawn.ai.agent;
 
-import com.dawn.ai.agent.tools.CalculatorTool;
-import com.dawn.ai.agent.tools.WeatherTool;
 import com.dawn.ai.service.MemoryService;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -11,21 +9,25 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
- * Agent Orchestrator — the brain of the ReAct loop.
+ * Agent Orchestrator — orchestrates the full ReAct loop with planning and step tracing.
  *
- * Design Analogy:
- * Think of this as a Thread Pool Manager using ReentrantLock + Condition:
- *  - The LLM is the "main thread" that decides which "worker thread" (Tool) to invoke.
- *  - Tools are like Callable tasks submitted to an executor — they run, return results,
- *    and the LLM synthesizes the final answer from all tool outputs.
- *  - Memory history is the shared state, protected conceptually like a concurrent queue.
+ * Flow per request:
+ *  1. StepCollector.init()         — reset thread-local state
+ *  2. TaskPlanner.plan()           — pre-execution planning via a separate LLM call (optional)
+ *  3. Build system prompt          — base prompt + plan summary + max-steps instruction
+ *  4. chatClient + .toolNames()    — Spring AI handles the tool-calling loop
+ *  5. ToolExecutionAspect (AOP)    — intercepts each tool call, records it automatically
+ *  6. StepCollector.collect()      — gather all recorded steps
+ *  7. Mark plan steps completed    — correlate plan with actual tool calls
+ *  8. Persist to memory            — save turn to Redis
+ *  9. StepCollector.clear()        — prevent ThreadLocal memory leak
  */
 @Slf4j
 @Service
@@ -34,37 +36,75 @@ public class AgentOrchestrator {
 
     private final ChatClient chatClient;
     private final MemoryService memoryService;
-    private final WeatherTool weatherTool;
-    private final CalculatorTool calculatorTool;
+    private final TaskPlanner taskPlanner;
+    private final ToolRegistry toolRegistry;
     private final MeterRegistry meterRegistry;
 
-    public String chat(String sessionId, String userMessage) {
+    @Value("${app.ai.system-prompt:You are a helpful AI assistant.}")
+    private String baseSystemPrompt;
+
+    @Value("${app.ai.react.max-steps:10}")
+    private int maxSteps;
+
+    @Value("${app.ai.react.plan-enabled:true}")
+    private boolean planEnabled;
+
+    public AgentResult chat(String sessionId, String userMessage) {
         return Timer.builder("ai.agent.chat.duration")
                 .tag("session", "anonymous")
                 .register(meterRegistry)
                 .record(() -> doChat(sessionId, userMessage));
     }
 
-    private String doChat(String sessionId, String userMessage) {
-        // 1. Build conversation history without duplicating the current turn
-        List<Message> history = buildHistory(sessionId);
+    private AgentResult doChat(String sessionId, String userMessage) {
+        // ① Reset per-request step tracking
+        StepCollector.init();
+        try {
+            // ② Optional pre-execution planning
+            List<PlanStep> plan;
+            if (planEnabled) {
+                plan = taskPlanner.plan(userMessage, toolRegistry.getDescriptions());
+            } else {
+                plan = Collections.emptyList();
+            }
 
-        // 2. Call LLM with prior history plus the current user turn
-        String response = chatClient.prompt()
-                .messages(history)
-                .user(userMessage)
-                .toolNames("weatherTool", "calculatorTool")
-                .call()
-                .content();
+            // ③ Compose system prompt: base + plan summary + max-steps hint
+            String systemPrompt = baseSystemPrompt
+                    + formatPlan(plan)
+                    + String.format("%n请在回复中简短说明每次工具调用的原因。最多调用工具 %d 次。", maxSteps);
 
-        // 3. Persist the completed turn after a successful model call
-        memoryService.addMessage(sessionId, "user", userMessage);
-        memoryService.addMessage(sessionId, "assistant", response);
+            // ④ Load conversation history
+            List<Message> history = buildHistory(sessionId);
 
-        log.info("[AgentOrchestrator] session={}, userMsg={}, responseLen={}",
-                sessionId, userMessage.substring(0, Math.min(50, userMessage.length())), response.length());
+            // ⑤ LLM call — AOP intercepts tool invocations inside this call
+            String response = chatClient.prompt()
+                    .system(systemPrompt)
+                    .messages(history)
+                    .user(userMessage)
+                    .toolNames(toolRegistry.getNames())
+                    .call()
+                    .content();
 
-        return response;
+            // ⑥ Collect the steps recorded by ToolExecutionAspect
+            List<AgentStep> steps = StepCollector.collect();
+
+            // ⑦ Mark which plan steps were fulfilled
+            markPlanStepsCompleted(plan, steps);
+
+            // ⑧ Persist turn to memory
+            memoryService.addMessage(sessionId, "user", userMessage);
+            memoryService.addMessage(sessionId, "assistant", response);
+
+            log.info("[AgentOrchestrator] session={}, planSteps={}, toolCalls={}, userMsg={}",
+                    sessionId, plan.size(), steps.size(),
+                    userMessage.substring(0, Math.min(50, userMessage.length())));
+
+            return new AgentResult(response, steps, plan);
+
+        } finally {
+            // ⑨ Always clean up to prevent ThreadLocal memory leaks
+            StepCollector.clear();
+        }
     }
 
     private List<Message> buildHistory(String sessionId) {
@@ -80,5 +120,29 @@ public class AgentOrchestrator {
             }
         }
         return messages;
+    }
+
+    /** Formats the plan into a human-readable block for the system prompt. */
+    private String formatPlan(List<PlanStep> plan) {
+        if (plan.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder("\n\n【执行计划】\n");
+        for (PlanStep step : plan) {
+            sb.append(step.getStepNumber())
+              .append(". [").append(step.getAction()).append("] ")
+              .append(step.getReason()).append("\n");
+        }
+        return sb.toString();
+    }
+
+    /** Marks plan steps as completed based on which tools were actually invoked. */
+    private void markPlanStepsCompleted(List<PlanStep> plan, List<AgentStep> steps) {
+        Set<String> usedTools = steps.stream()
+                .map(AgentStep::toolName)
+                .collect(Collectors.toSet());
+        for (PlanStep planStep : plan) {
+            if (usedTools.contains(planStep.getAction()) || "finish".equals(planStep.getAction())) {
+                planStep.setCompleted(true);
+            }
+        }
     }
 }
