@@ -17,7 +17,7 @@ public class AiAvailabilityChecker {
 
     public void ensureConfigured() {
         if (openAiApiKey == null || openAiApiKey.isBlank() || PLACEHOLDER_API_KEY.equals(openAiApiKey)) {
-            throw new AiConfigurationException("OpenAI API key is not configured. Set OPENAI_API_KEY before calling AI or RAG endpoints.");
+            throw new AiConfigurationException("AI API key is not configured. Set DEEPSEEK_API_KEY or OPENAI_API_KEY before calling AI or RAG endpoints.");
         }
     }
 }

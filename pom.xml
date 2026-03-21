@@ -97,6 +97,12 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- AOP — enables @Aspect for ToolExecutionAspect -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
         <!-- Validation -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
