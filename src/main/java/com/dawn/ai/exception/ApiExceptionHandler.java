@@ -27,10 +27,10 @@ public class ApiExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleRestClient(
             RestClientException exception,
             HttpServletRequest request) {
-        String message = "AI provider request failed. Verify OPENAI_API_KEY and outbound network access.";
+        String message = "AI provider request failed. Verify DEEPSEEK_API_KEY/OPENAI_API_KEY, base URL, and outbound network access.";
         Throwable cause = exception.getCause();
         if (cause instanceof HttpRetryException) {
-            message = "AI provider authentication failed. Verify OPENAI_API_KEY before retrying.";
+            message = "AI provider authentication failed. Verify DEEPSEEK_API_KEY/OPENAI_API_KEY and spring.ai.openai.base-url before retrying.";
         }
 
         return buildResponse(HttpStatus.BAD_GATEWAY, message, request.getRequestURI());

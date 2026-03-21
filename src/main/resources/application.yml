@@ -26,9 +26,10 @@ spring:
   ai:
     openai:
       api-key: ${OPENAI_API_KEY:your-api-key-here}
+      base-url: ${BASE_URL:https://api.deepseek.com}
       chat:
         options:
-          model: gpt-4o
+          model: deepseek-chat
           temperature: 0.7
           max-tokens: 2048
       embedding:

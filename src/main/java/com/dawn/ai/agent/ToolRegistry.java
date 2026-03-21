@@ -3,8 +3,10 @@ package com.dawn.ai.agent;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.aop.support.AopUtils;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Description;
+import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
@@ -40,11 +42,19 @@ public class ToolRegistry {
         Map<String, String> discovered = new LinkedHashMap<>();
 
         applicationContext.getBeansWithAnnotation(Description.class).forEach((beanName, bean) -> {
+            // 1. Safely unwrap the proxy to get the real target class
+            Class<?> targetClass = AopUtils.getTargetClass(bean);
+
             if (bean instanceof Function<?, ?>
-                    && bean.getClass().getPackageName().startsWith(TOOLS_PACKAGE)) {
-                String description = bean.getClass().getAnnotation(Description.class).value();
-                discovered.put(beanName, description);
-                log.info("[ToolRegistry] Registered tool: {} — {}", beanName, description);
+                    && targetClass.getPackageName().startsWith(TOOLS_PACKAGE)) {
+                Description descriptionAnnotation = AnnotationUtils.findAnnotation(targetClass, Description.class);
+                if (descriptionAnnotation == null) {
+                    log.warn("[ToolRegistry] Skipping tool '{}' ({}): missing @Description on target class",
+                            beanName, targetClass.getName());
+                    return;
+                }
+                discovered.put(beanName, descriptionAnnotation.value());
+                log.info("[ToolRegistry] Registered tool: {} — {}", beanName, descriptionAnnotation.value());
             }
         });
 
