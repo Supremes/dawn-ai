@@ -12,12 +12,13 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Agent Orchestrator — orchestrates the full ReAct loop with planning and step tracing.
@@ -29,9 +30,8 @@ import java.util.stream.Collectors;
  *  4. chatClient + .toolNames()    — Spring AI handles the tool-calling loop
  *  5. ToolExecutionAspect (AOP)    — intercepts each tool call, records it automatically
  *  6. StepCollector.collect()      — gather all recorded steps
- *  7. Mark plan steps completed    — correlate plan with actual tool calls
- *  8. Persist to memory            — save turn to Redis
- *  9. StepCollector.clear()        — prevent ThreadLocal memory leak
+ *  7. Persist to memory            — save turn to Redis
+ *  8. StepCollector.clear()        — prevent ThreadLocal memory leak
  */
 @Slf4j
 @Service
@@ -74,26 +74,18 @@ public class AgentOrchestrator {
     }
 
     private AgentResult doChat(String sessionId, String userMessage) {
-        // ① Reset per-request step tracking
         StepCollector.init();
         try {
-            // ② Optional pre-execution planning
-            List<PlanStep> plan;
-            if (planEnabled) {
-                plan = taskPlanner.plan(userMessage, toolRegistry.getDescriptions());
-            } else {
-                plan = Collections.emptyList();
-            }
+            List<PlanStep> plan = planEnabled
+                    ? taskPlanner.plan(userMessage, toolRegistry.getDescriptions())
+                    : Collections.emptyList();
 
-            // ③ Compose system prompt: base + plan summary + max-steps hint
             String systemPrompt = baseSystemPrompt
                     + formatPlan(plan)
                     + String.format("%n请在回复中简短说明每次工具调用的原因。最多调用工具 %d 次。", maxSteps);
 
-            // ④ Load conversation history
             List<Message> history = buildHistory(sessionId);
 
-            // ⑤ LLM call — AOP intercepts tool invocations inside this call
             ChatResponse chatResponse = chatClient.prompt()
                     .system(systemPrompt)
                     .messages(history)
@@ -103,17 +95,10 @@ public class AgentOrchestrator {
                     .chatResponse();
 
             String response = chatResponse.getResult().getOutput().getText();
-
-            // ⑥ Record token usage metrics
             recordTokenUsage(chatResponse);
 
-            // ⑦ Collect the steps recorded by ToolExecutionAspect
             List<AgentStep> steps = StepCollector.collect();
 
-            // ⑧ Mark which plan steps were fulfilled
-            markPlanStepsCompleted(plan, steps);
-
-            // ⑨ Persist turn to memory
             memoryService.addMessage(sessionId, "user", userMessage);
             memoryService.addMessage(sessionId, "assistant", response);
 
@@ -122,16 +107,16 @@ public class AgentOrchestrator {
                     userMessage.substring(0, Math.min(50, userMessage.length())));
 
             return new AgentResult(response, steps, plan);
-
         } finally {
-            // ⑩ Always clean up to prevent ThreadLocal memory leaks
             StepCollector.clear();
         }
     }
 
     private void recordTokenUsage(ChatResponse chatResponse) {
         org.springframework.ai.chat.metadata.Usage usage = chatResponse.getMetadata().getUsage();
-        if (usage == null) return;
+        if (usage == null) {
+            return;
+        }
 
         Integer inputTokens = usage.getPromptTokens();
         Integer outputTokens = usage.getCompletionTokens();
@@ -159,27 +144,16 @@ public class AgentOrchestrator {
         return messages;
     }
 
-    /** Formats the plan into a human-readable block for the system prompt. */
     private String formatPlan(List<PlanStep> plan) {
-        if (plan.isEmpty()) return "";
+        if (plan.isEmpty()) {
+            return "";
+        }
         StringBuilder sb = new StringBuilder("\n\n【执行计划】\n");
         for (PlanStep step : plan) {
-            sb.append(step.getStepNumber())
-              .append(". [").append(step.getAction()).append("] ")
-              .append(step.getReason()).append("\n");
+            sb.append(step.step())
+                    .append(". [").append(step.action()).append("] ")
+                    .append(step.reason()).append("\n");
         }
         return sb.toString();
-    }
-
-    /** Marks plan steps as completed based on which tools were actually invoked. */
-    private void markPlanStepsCompleted(List<PlanStep> plan, List<AgentStep> steps) {
-        Set<String> usedTools = steps.stream()
-                .map(AgentStep::toolName)
-                .collect(Collectors.toSet());
-        for (PlanStep planStep : plan) {
-            if (usedTools.contains(planStep.getAction()) || "finish".equals(planStep.getAction())) {
-                planStep.setCompleted(true);
-            }
-        }
     }
 }

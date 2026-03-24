@@ -1,6 +1,6 @@
 package com.dawn.ai.agent;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.dawn.ai.exception.PlanGenerationException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -8,24 +8,25 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
  * Generates a structured execution plan before the main ReAct loop.
  *
- * The planning call is completely independent from the conversation history:
+ * The planning call is independent from the conversation history:
  * it needs a low-temperature, global view of the task, not a contextual one.
- * Failure is non-fatal — the orchestrator degrades gracefully to no-plan mode.
  *
  * Metrics:
- *   ai.planner.result{status=success} — plan generated successfully
- *   ai.planner.result{status=fallback} — planning failed, fell back to no-plan
+ *   ai.planner.result{status=success}     — plan generated and validated successfully
+ *   ai.planner.result{status=parse_error} — structured output could not be parsed or validated
  */
 @Slf4j
 @Service
@@ -37,94 +38,93 @@ public class TaskPlanner {
     private final MeterRegistry meterRegistry;
 
     private Counter successCounter;
-    private Counter fallbackCounter;
+    private Counter parseErrorCounter;
 
     @PostConstruct
     void initMetrics() {
         successCounter = Counter.builder("ai.planner.result")
-                .description("TaskPlanner outcomes: success vs fallback")
+                .description("TaskPlanner outcomes: success vs parse_error")
                 .tag("status", "success")
                 .register(meterRegistry);
-        fallbackCounter = Counter.builder("ai.planner.result")
-                .description("TaskPlanner outcomes: success vs fallback")
-                .tag("status", "fallback")
+        parseErrorCounter = Counter.builder("ai.planner.result")
+                .description("TaskPlanner outcomes: success vs parse_error")
+                .tag("status", "parse_error")
                 .register(meterRegistry);
     }
 
     /**
      * Plans the steps required to complete {@code task} given the available tools.
      *
-     * @param task                 the user's request
-     * @param toolDescriptions     map of tool name → description
-     * @return ordered plan steps, or an empty list on any failure
+     * @param task             the user's request
+     * @param toolDescriptions map of tool name → description
+     * @return ordered plan steps
+     * @throws PlanGenerationException when the model output is not valid structured planner output
      */
     public List<PlanStep> plan(String task, Map<String, String> toolDescriptions) {
-        String prompt = buildPlanPrompt(task, toolDescriptions);
+        BeanOutputConverter<List<PlanStep>> converter =
+                new BeanOutputConverter<>(new ParameterizedTypeReference<>() {}, objectMapper);
+
+        String prompt = buildPlanPrompt(task, toolDescriptions, converter.getFormat());
+        String raw = chatClient.prompt()
+                .user(prompt)
+                .options(OpenAiChatOptions.builder().temperature(0.3).build())
+                .call()
+                .content();
+
         try {
-            String raw = chatClient.prompt()
-                    .user(prompt)
-                    .options(OpenAiChatOptions.builder().temperature(0.3).build())
-                    .call()
-                    .content();
-
-            String json = extractJson(raw);
-            List<Map<String, Object>> rawSteps = objectMapper.readValue(
-                    json, new TypeReference<List<Map<String, Object>>>() {});
-
-            List<PlanStep> plan = rawSteps.stream()
-                    .map(m -> new PlanStep(
-                            ((Number) m.get("step")).intValue(),
-                            String.valueOf(m.get("action")),
-                            String.valueOf(m.get("reason"))))
-                    .collect(Collectors.toList());
+            List<PlanStep> plan = converter.convert(raw);
+            validatePlan(plan, toolDescriptions.keySet());
 
             log.debug("[TaskPlanner] Generated {} steps for task: {}", plan.size(),
                     task.substring(0, Math.min(50, task.length())));
             successCounter.increment();
             return plan;
-
-        } catch (Exception e) {
-            log.warn("[TaskPlanner] Planning failed, falling back to no-plan mode: {}", e.getMessage());
-            fallbackCounter.increment();
-            return Collections.emptyList();
+        } catch (PlanGenerationException exception) {
+            parseErrorCounter.increment();
+            throw exception;
+        } catch (RuntimeException exception) {
+            parseErrorCounter.increment();
+            throw new PlanGenerationException("Planner returned invalid structured output.", exception);
         }
     }
 
-    private String buildPlanPrompt(String task, Map<String, String> toolDescriptions) {
+    private String buildPlanPrompt(String task,
+                                   Map<String, String> toolDescriptions,
+                                   String formatInstructions) {
         String toolList = toolDescriptions.entrySet().stream()
                 .map(e -> "- " + e.getKey() + ": " + e.getValue())
                 .collect(Collectors.joining("\n"));
 
         return """
-                你是一个任务规划助手。请分析用户的任务，生成一个 2-5 步的执行计划。
-                
+                你是一个任务规划助手。请分析用户的任务，并生成一个 2-5 步的执行计划。
+
                 可用工具：
                 %s
-                
-                严格以 JSON 数组格式返回，每项包含：
-                - step: 步骤编号（从 1 开始）
-                - action: 工具名称（从上方可用工具中选择），最后一步固定为 "finish"
-                - reason: 使用该工具的原因（中文，简短）
-                
-                要求：
-                - 只返回 JSON 数组，不要其他文字
-                - 最后一步必须是 {"step": N, "action": "finish", "reason": "完成任务"}
-                
+
+                业务约束：
+                - action 只能从上方可用工具中选择，最后一步固定为 "finish"
+                - reason 使用中文，简短说明为什么要执行该步骤
+
                 用户任务：%s
-                
-                示例格式：
-                [{"step":1,"action":"weatherTool","reason":"查询北京当前天气"},{"step":2,"action":"finish","reason":"完成任务"}]
-                """.formatted(toolList, task);
+
+                %s
+                """.formatted(toolList, task, formatInstructions);
     }
 
-    /** Extracts the JSON array from LLM output that may contain markdown fences. */
-    private String extractJson(String raw) {
-        String trimmed = raw.trim();
-        int start = trimmed.indexOf('[');
-        int end = trimmed.lastIndexOf(']');
-        if (start >= 0 && end > start) {
-            return trimmed.substring(start, end + 1);
+    private void validatePlan(List<PlanStep> plan, Set<String> toolNames) {
+        if (plan == null || plan.isEmpty()) {
+            throw new PlanGenerationException("Planner returned an empty plan.");
         }
-        return trimmed;
+
+        for (PlanStep step : plan) {
+            if (!"finish".equals(step.action()) && !toolNames.contains(step.action())) {
+                throw new PlanGenerationException("Planner returned an unknown tool action: " + step.action());
+            }
+        }
+
+        PlanStep lastStep = plan.get(plan.size() - 1);
+        if (!"finish".equals(lastStep.action())) {
+            throw new PlanGenerationException("Planner plan must end with finish.");
+        }
     }
 }

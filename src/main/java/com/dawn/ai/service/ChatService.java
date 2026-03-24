@@ -77,7 +77,7 @@ public class ChatService {
     private String formatPlanSummary(List<PlanStep> plan) {
         if (plan == null || plan.isEmpty()) return "";
         return plan.stream()
-                .map(s -> "步骤" + s.getStepNumber() + ": " + s.getAction())
+                .map(s -> "步骤" + s.step() + ": " + s.action())
                 .collect(Collectors.joining(" → "));
     }
 }
