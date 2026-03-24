@@ -36,15 +36,21 @@ public class RagService {
     private final AiAvailabilityChecker aiAvailabilityChecker;
 
     private Counter ingestionCounter;
-    private Counter retrievalCounter;
+    private Counter retrievalHitCounter;
+    private Counter retrievalMissCounter;
 
     @PostConstruct
     void initMetrics() {
         ingestionCounter = Counter.builder("ai.rag.ingestion.total")
                 .description("Total documents ingested into vector store")
                 .register(meterRegistry);
-        retrievalCounter = Counter.builder("ai.rag.retrieval.total")
+        retrievalHitCounter = Counter.builder("ai.rag.retrieval.total")
                 .description("Total RAG retrieval queries")
+                .tag("result", "hit")
+                .register(meterRegistry);
+        retrievalMissCounter = Counter.builder("ai.rag.retrieval.total")
+                .description("Total RAG retrieval queries")
+                .tag("result", "miss")
                 .register(meterRegistry);
     }
 
@@ -73,9 +79,15 @@ public class RagService {
     public List<Document> retrieve(String query, int topK) {
         aiAvailabilityChecker.ensureConfigured();
 
-        retrievalCounter.increment();
         SearchRequest request = SearchRequest.builder().query(query).topK(topK).build();
         List<Document> results = vectorStore.similaritySearch(request);
+
+        if (results.isEmpty()) {
+            retrievalMissCounter.increment();
+        } else {
+            retrievalHitCounter.increment();
+        }
+
         log.info("[RagService] Retrieved {} docs for query='{}'", results.size(), query);
         return results;
     }
