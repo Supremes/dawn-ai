@@ -8,8 +8,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
 
 import java.util.Collections;
 import java.util.List;
@@ -50,10 +53,15 @@ class AgentOrchestratorTest {
                 toolRegistry,
                 new SimpleMeterRegistry()
         );
+        agentOrchestrator.initMetrics();
     }
 
     @Test
     void shouldSendCurrentUserMessageOnlyOnce() {
+        ChatResponse chatResponse = new ChatResponse(
+                List.of(new Generation(new AssistantMessage("final answer")))
+        );
+
         when(memoryService.getHistory("session-1"))
                 .thenReturn(List.of(Map.of("role", "assistant", "content", "previous reply")));
         when(chatClient.prompt()).thenReturn(requestSpec);
@@ -62,7 +70,7 @@ class AgentOrchestratorTest {
         when(requestSpec.user(anyString())).thenReturn(requestSpec);
         when(requestSpec.toolNames(any(String[].class))).thenReturn(requestSpec);
         when(requestSpec.call()).thenReturn(callResponseSpec);
-        when(callResponseSpec.content()).thenReturn("final answer");
+        when(callResponseSpec.chatResponse()).thenReturn(chatResponse);
 
         AgentResult result = agentOrchestrator.chat("session-1", "current question");
 

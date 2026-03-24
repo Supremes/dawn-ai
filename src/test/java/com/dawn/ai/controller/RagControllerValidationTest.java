@@ -2,6 +2,8 @@ package com.dawn.ai.controller;
 
 import com.dawn.ai.exception.ApiExceptionHandler;
 import com.dawn.ai.service.RagService;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -57,6 +59,11 @@ class RagControllerValidationTest {
         @Bean
         MethodValidationPostProcessor methodValidationPostProcessor() {
             return new MethodValidationPostProcessor();
+        }
+
+        @Bean
+        MeterRegistry meterRegistry() {
+            return new SimpleMeterRegistry();
         }
     }
 }

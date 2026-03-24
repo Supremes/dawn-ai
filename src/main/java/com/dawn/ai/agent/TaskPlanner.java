@@ -2,6 +2,9 @@ package com.dawn.ai.agent;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -19,6 +22,10 @@ import java.util.stream.Collectors;
  * The planning call is completely independent from the conversation history:
  * it needs a low-temperature, global view of the task, not a contextual one.
  * Failure is non-fatal — the orchestrator degrades gracefully to no-plan mode.
+ *
+ * Metrics:
+ *   ai.planner.result{status=success} — plan generated successfully
+ *   ai.planner.result{status=fallback} — planning failed, fell back to no-plan
  */
 @Slf4j
 @Service
@@ -27,6 +34,22 @@ public class TaskPlanner {
 
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper;
+    private final MeterRegistry meterRegistry;
+
+    private Counter successCounter;
+    private Counter fallbackCounter;
+
+    @PostConstruct
+    void initMetrics() {
+        successCounter = Counter.builder("ai.planner.result")
+                .description("TaskPlanner outcomes: success vs fallback")
+                .tag("status", "success")
+                .register(meterRegistry);
+        fallbackCounter = Counter.builder("ai.planner.result")
+                .description("TaskPlanner outcomes: success vs fallback")
+                .tag("status", "fallback")
+                .register(meterRegistry);
+    }
 
     /**
      * Plans the steps required to complete {@code task} given the available tools.
@@ -57,10 +80,12 @@ public class TaskPlanner {
 
             log.debug("[TaskPlanner] Generated {} steps for task: {}", plan.size(),
                     task.substring(0, Math.min(50, task.length())));
+            successCounter.increment();
             return plan;
 
         } catch (Exception e) {
             log.warn("[TaskPlanner] Planning failed, falling back to no-plan mode: {}", e.getMessage());
+            fallbackCounter.increment();
             return Collections.emptyList();
         }
     }
