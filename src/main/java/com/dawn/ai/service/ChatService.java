@@ -2,7 +2,7 @@ package com.dawn.ai.service;
 
 import com.dawn.ai.agent.AgentResult;
 import com.dawn.ai.agent.AgentOrchestrator;
-import com.dawn.ai.agent.PlanStep;
+import com.dawn.ai.agent.plan.PlanStep;
 import com.dawn.ai.config.AiAvailabilityChecker;
 import com.dawn.ai.dto.ChatRequest;
 import com.dawn.ai.dto.ChatResponse;
@@ -77,7 +77,7 @@ public class ChatService {
     private String formatPlanSummary(List<PlanStep> plan) {
         if (plan == null || plan.isEmpty()) return "";
         return plan.stream()
-                .map(s -> "步骤" + s.getStepNumber() + ": " + s.getAction())
+                .map(s -> "步骤" + s.step() + ": " + s.action())
                 .collect(Collectors.joining(" → "));
     }
 }

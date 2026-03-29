@@ -60,6 +60,14 @@ public class ApiExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, exception.getMessage(), request.getRequestURI());
     }
 
+    @ExceptionHandler(PlanGenerationException.class)
+    public ResponseEntity<Map<String, Object>> handlePlanGeneration(
+            PlanGenerationException exception,
+            HttpServletRequest request) {
+        recordError("plan_generation_error");
+        return buildResponse(HttpStatus.BAD_GATEWAY, exception.getMessage(), request.getRequestURI());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleUnexpected(
             Exception exception,
