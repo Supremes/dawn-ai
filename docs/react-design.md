@@ -71,13 +71,16 @@ public record AgentStep(
 ```java
 package com.dawn.ai.agent;
 
+import com.dawn.ai.agent.plan.PlanStep;
+
 import java.util.List;
 
 public record AgentResult(
         String finalAnswer,
         List<AgentStep> steps,
         List<PlanStep> plan
-) {}
+) {
+}
 ```
 
 ### 3. `agent/PlanStep.java`

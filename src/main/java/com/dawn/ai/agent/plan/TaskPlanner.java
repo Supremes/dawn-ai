@@ -1,4 +1,4 @@
-package com.dawn.ai.agent;
+package com.dawn.ai.agent.plan;
 
 import com.dawn.ai.exception.PlanGenerationException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,7 +41,7 @@ public class TaskPlanner {
     private Counter parseErrorCounter;
 
     @PostConstruct
-    void initMetrics() {
+    public void initMetrics() {
         successCounter = Counter.builder("ai.planner.result")
                 .description("TaskPlanner outcomes: success vs parse_error")
                 .tag("status", "success")
@@ -61,7 +61,6 @@ public class TaskPlanner {
      * @throws PlanGenerationException when the model output is not valid structured planner output
      */
     public List<PlanStep> plan(String task, Map<String, String> toolDescriptions) {
-        try {
         BeanOutputConverter<List<PlanStep>> converter =
                 new BeanOutputConverter<>(new ParameterizedTypeReference<>() {}, objectMapper);
 
@@ -72,7 +71,7 @@ public class TaskPlanner {
                 .call()
                 .content();
 
-
+        try {
             List<PlanStep> plan = converter.convert(raw);
             validatePlan(plan, toolDescriptions.keySet());
 

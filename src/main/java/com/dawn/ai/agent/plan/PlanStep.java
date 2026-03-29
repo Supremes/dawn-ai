@@ -1,4 +1,4 @@
-package com.dawn.ai.agent;
+package com.dawn.ai.agent.plan;
 
 /**
  * A single planner-generated step.

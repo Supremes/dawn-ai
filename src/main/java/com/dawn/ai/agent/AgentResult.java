@@ -1,5 +1,7 @@
 package com.dawn.ai.agent;
 
+import com.dawn.ai.agent.plan.PlanStep;
+
 import java.util.List;
 
 /**
