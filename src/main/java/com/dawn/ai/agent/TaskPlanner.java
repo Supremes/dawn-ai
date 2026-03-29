@@ -61,6 +61,7 @@ public class TaskPlanner {
      * @throws PlanGenerationException when the model output is not valid structured planner output
      */
     public List<PlanStep> plan(String task, Map<String, String> toolDescriptions) {
+        try {
         BeanOutputConverter<List<PlanStep>> converter =
                 new BeanOutputConverter<>(new ParameterizedTypeReference<>() {}, objectMapper);
 
@@ -71,7 +72,7 @@ public class TaskPlanner {
                 .call()
                 .content();
 
-        try {
+
             List<PlanStep> plan = converter.convert(raw);
             validatePlan(plan, toolDescriptions.keySet());
 

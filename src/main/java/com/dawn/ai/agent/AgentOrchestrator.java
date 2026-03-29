@@ -2,6 +2,7 @@ package com.dawn.ai.agent;
 
 import com.dawn.ai.agent.plan.PlanStep;
 import com.dawn.ai.agent.plan.TaskPlanner;
+import com.dawn.ai.exception.PlanGenerationException;
 import com.dawn.ai.service.MemoryService;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -78,9 +79,7 @@ public class AgentOrchestrator {
     private AgentResult doChat(String sessionId, String userMessage) {
         StepCollector.init();
         try {
-            List<PlanStep> plan = planEnabled
-                    ? taskPlanner.plan(userMessage, toolRegistry.getDescriptions())
-                    : Collections.emptyList();
+            List<PlanStep> plan = resolvePlan(userMessage);
 
             String systemPrompt = baseSystemPrompt
                     + formatPlan(plan)
@@ -111,6 +110,21 @@ public class AgentOrchestrator {
             return new AgentResult(response, steps, plan);
         } finally {
             StepCollector.clear();
+        }
+    }
+
+    private List<PlanStep> resolvePlan(String userMessage) {
+        if (!planEnabled) {
+            return Collections.emptyList();
+        }
+
+        try {
+            return taskPlanner.plan(userMessage, toolRegistry.getDescriptions());
+        } catch (PlanGenerationException exception) {
+            log.warn("[AgentOrchestrator] Planner failed, falling back to direct execution. userMsg={}, reason={}",
+                    userMessage.substring(0, Math.min(50, userMessage.length())),
+                    exception.getMessage());
+            return Collections.emptyList();
         }
     }
 

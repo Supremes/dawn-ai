@@ -1,6 +1,7 @@
 package com.dawn.ai.agent;
 
 import com.dawn.ai.agent.plan.TaskPlanner;
+import com.dawn.ai.exception.PlanGenerationException;
 import com.dawn.ai.service.MemoryService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +23,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -84,5 +86,31 @@ class AgentOrchestratorTest {
         assertThat(result.finalAnswer()).isEqualTo("final answer");
         assertThat(historyCaptor.getValue()).hasSize(1);
         assertThat(historyCaptor.getValue().get(0)).isNotInstanceOf(UserMessage.class);
+    }
+
+    @Test
+    void shouldFallbackWhenPlannerGenerationFails() {
+        ChatResponse chatResponse = new ChatResponse(
+                List.of(new Generation(new AssistantMessage("final answer")))
+        );
+
+        when(taskPlanner.plan(anyString(), any()))
+                .thenThrow(new PlanGenerationException("Planner returned invalid structured output."));
+        when(memoryService.getHistory("session-2")).thenReturn(Collections.emptyList());
+        when(chatClient.prompt()).thenReturn(requestSpec);
+        when(requestSpec.system(anyString())).thenReturn(requestSpec);
+        when(requestSpec.messages(any(List.class))).thenReturn(requestSpec);
+        when(requestSpec.user(anyString())).thenReturn(requestSpec);
+        when(requestSpec.toolNames(any(String[].class))).thenReturn(requestSpec);
+        when(requestSpec.call()).thenReturn(callResponseSpec);
+        when(callResponseSpec.chatResponse()).thenReturn(chatResponse);
+
+        AgentResult result = agentOrchestrator.chat("session-2", "current question");
+
+        assertThat(result.finalAnswer()).isEqualTo("final answer");
+        assertThat(result.plan()).isEmpty();
+        verify(chatClient).prompt();
+        verify(requestSpec, never()).system(org.mockito.ArgumentMatchers.contains("【执行计划】"));
+        verify(memoryService).addMessage("session-2", "assistant", "final answer");
     }
 }
