@@ -68,6 +68,24 @@ public class ApiExceptionHandler {
         return buildResponse(HttpStatus.BAD_GATEWAY, exception.getMessage(), request.getRequestURI());
     }
 
+    @ExceptionHandler(MaxStepsExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleMaxStepsExceeded(
+            MaxStepsExceededException exception,
+            HttpServletRequest request
+    ) {
+        recordError("max_steps_exceeded_error");
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(LLMProviderException.class)
+    public ResponseEntity<Map<String, Object>> handleLLMProviderException(
+            LLMProviderException exception,
+            HttpServletRequest request
+    ) {
+        recordError("llm_provider_error");
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage(), request.getRequestURI());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleUnexpected(
             Exception exception,

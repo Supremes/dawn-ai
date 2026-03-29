@@ -61,17 +61,17 @@ public class TaskPlanner {
      * @throws PlanGenerationException when the model output is not valid structured planner output
      */
     public List<PlanStep> plan(String task, Map<String, String> toolDescriptions) {
-        BeanOutputConverter<List<PlanStep>> converter =
-                new BeanOutputConverter<>(new ParameterizedTypeReference<>() {}, objectMapper);
-
-        String prompt = buildPlanPrompt(task, toolDescriptions, converter.getFormat());
-        String raw = chatClient.prompt()
-                .user(prompt)
-                .options(OpenAiChatOptions.builder().temperature(0.3).build())
-                .call()
-                .content();
-
         try {
+            BeanOutputConverter<List<PlanStep>> converter =
+                    new BeanOutputConverter<>(new ParameterizedTypeReference<>() {}, objectMapper);
+
+            String prompt = buildPlanPrompt(task, toolDescriptions, converter.getFormat());
+            String raw = chatClient.prompt()
+                    .user(prompt)
+                    .options(OpenAiChatOptions.builder().temperature(0.3).build())
+                    .call()
+                    .content();
+
             List<PlanStep> plan = converter.convert(raw);
             validatePlan(plan, toolDescriptions.keySet());
 
