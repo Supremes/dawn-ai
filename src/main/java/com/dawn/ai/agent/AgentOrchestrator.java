@@ -2,6 +2,8 @@ package com.dawn.ai.agent;
 
 import com.dawn.ai.agent.plan.PlanStep;
 import com.dawn.ai.agent.plan.TaskPlanner;
+import com.dawn.ai.exception.LLMProviderException;
+import com.dawn.ai.exception.MaxStepsExceededException;
 import com.dawn.ai.exception.PlanGenerationException;
 import com.dawn.ai.service.MemoryService;
 import io.micrometer.core.instrument.Counter;
@@ -77,7 +79,7 @@ public class AgentOrchestrator {
     }
 
     private AgentResult doChat(String sessionId, String userMessage) {
-        StepCollector.init();
+        StepCollector.init(maxSteps);
         try {
             List<PlanStep> plan = resolvePlan(userMessage);
 
@@ -108,7 +110,13 @@ public class AgentOrchestrator {
                     userMessage.substring(0, Math.min(50, userMessage.length())));
 
             return new AgentResult(response, steps, plan);
-        } finally {
+        } catch(MaxStepsExceededException maxStepsExceededException) {
+            throw maxStepsExceededException;
+        } catch (Exception e) {
+            log.error("call LLM met error: {}", e.getMessage(), e);
+            throw new LLMProviderException("call LLM met error: " + e.getMessage());
+        }
+        finally {
             StepCollector.clear();
         }
     }

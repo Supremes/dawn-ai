@@ -38,9 +38,10 @@ public class ToolExecutionAspect {
         String status = "success";
 
         try {
+            int stepNum = StepCollector.getAndIncreaseStepNumber();
+
             Object result = pjp.proceed();
             long durationMs = System.currentTimeMillis() - start;
-            int stepNum = StepCollector.nextStepNumber();
 
             StepCollector.record(new AgentStep(stepNum, toolName, input, result.toString(), durationMs));
 
