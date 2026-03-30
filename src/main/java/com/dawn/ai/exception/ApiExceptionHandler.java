@@ -1,5 +1,7 @@
 package com.dawn.ai.exception;
 
+import com.dawn.ai.controller.ChatController;
+import com.dawn.ai.controller.RagController;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
@@ -15,7 +17,7 @@ import java.net.HttpRetryException;
 import java.time.OffsetDateTime;
 import java.util.Map;
 
-@RestControllerAdvice
+@RestControllerAdvice(basePackageClasses = {ChatController.class, RagController.class})
 @RequiredArgsConstructor
 public class ApiExceptionHandler {
 
@@ -66,6 +68,24 @@ public class ApiExceptionHandler {
             HttpServletRequest request) {
         recordError("plan_generation_error");
         return buildResponse(HttpStatus.BAD_GATEWAY, exception.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(MaxStepsExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleMaxStepsExceeded(
+            MaxStepsExceededException exception,
+            HttpServletRequest request
+    ) {
+        recordError("max_steps_exceeded_error");
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(LLMProviderException.class)
+    public ResponseEntity<Map<String, Object>> handleLLMProviderException(
+            LLMProviderException exception,
+            HttpServletRequest request
+    ) {
+        recordError("llm_provider_error");
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage(), request.getRequestURI());
     }
 
     @ExceptionHandler(Exception.class)
