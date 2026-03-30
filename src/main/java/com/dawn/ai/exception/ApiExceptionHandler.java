@@ -1,5 +1,7 @@
 package com.dawn.ai.exception;
 
+import com.dawn.ai.controller.ChatController;
+import com.dawn.ai.controller.RagController;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
@@ -15,7 +17,7 @@ import java.net.HttpRetryException;
 import java.time.OffsetDateTime;
 import java.util.Map;
 
-@RestControllerAdvice
+@RestControllerAdvice(basePackageClasses = {ChatController.class, RagController.class})
 @RequiredArgsConstructor
 public class ApiExceptionHandler {
 
