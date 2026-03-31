@@ -68,6 +68,9 @@ app:
       max-steps: 10        # 单次对话最多工具调用次数（超出时 LLM 自行收敛）
       show-steps: true    # 响应体中是否包含 steps 详情
       plan-enabled: true   # 是否启用执行前规划（关闭后跳过 TaskPlanner）
+    rag:
+      similarity-threshold: 0.7
+      default-top-k: 5
     system-prompt: |
       You are Dawn AI, a helpful and knowledgeable assistant powered by advanced AI.
       You can help with calculations, weather queries, and answer questions based on your knowledge base.
