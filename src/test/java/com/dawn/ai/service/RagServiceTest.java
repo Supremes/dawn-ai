@@ -5,9 +5,10 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -15,9 +16,11 @@ import org.springframework.ai.vectorstore.VectorStore;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+@ExtendWith(MockitoExtension.class)
 class RagServiceTest {
 
     @Mock private VectorStore vectorStore;
@@ -28,7 +31,6 @@ class RagServiceTest {
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
         meterRegistry = new SimpleMeterRegistry();
         ragService = new RagService(vectorStore, meterRegistry, aiAvailabilityChecker);
         // 注入配置值（与 application.yml 一致）
@@ -91,7 +93,7 @@ class RagServiceTest {
         verify(vectorStore).similaritySearch(captor.capture());
         SearchRequest req = captor.getValue();
         assertThat(req.getTopK()).isEqualTo(10);           // topK * 2
-        assertThat(req.getSimilarityThreshold()).isEqualTo(0.7);
+        assertThat(req.getSimilarityThreshold()).isCloseTo(0.7, within(1e-9));
     }
 
     @Test
