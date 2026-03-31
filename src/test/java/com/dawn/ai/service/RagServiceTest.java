@@ -69,14 +69,17 @@ class RagServiceTest {
     @Test
     @DisplayName("ingest: 每个 chunk 应继承父文档的 source 和 category metadata")
     void ingest_chunksInheritMetadata() {
-        String content = "Some content about Dawn AI pricing and features.";
+        // Use long text to ensure multiple chunks are produced
+        String content = "word ".repeat(600);
         ragService.ingest(content, "pricing-doc", "billing");
 
         ArgumentCaptor<List<Document>> captor = ArgumentCaptor.forClass(List.class);
         verify(vectorStore).add(captor.capture());
-        Document chunk = captor.getValue().get(0);
-        assertThat(chunk.getMetadata()).containsEntry("source", "pricing-doc");
-        assertThat(chunk.getMetadata()).containsEntry("category", "billing");
+        assertThat(captor.getValue()).isNotEmpty();
+        assertThat(captor.getValue()).allSatisfy(chunk -> {
+            assertThat(chunk.getMetadata()).containsEntry("source", "pricing-doc");
+            assertThat(chunk.getMetadata()).containsEntry("category", "billing");
+        });
     }
 
     // ── retrieve 测试 ──────────────────────────────────────────

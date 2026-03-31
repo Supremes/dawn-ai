@@ -46,6 +46,7 @@ public class RagService {
     private Counter retrievalHitCounter;
     private Counter retrievalMissCounter;
     private DistributionSummary filteredCountSummary;
+    private TokenTextSplitter splitter;
 
     @PostConstruct
     void initMetrics() {
@@ -63,6 +64,13 @@ public class RagService {
         filteredCountSummary = DistributionSummary.builder("ai.rag.retrieval.filtered_count")
                 .description("Documents filtered out per retrieval (candidates - returned)")
                 .register(meterRegistry);
+        splitter = TokenTextSplitter.builder()
+                .withChunkSize(500)
+                .withMinChunkSizeChars(350)
+                .withMinChunkLengthToEmbed(5)
+                .withMaxNumChunks(10000)
+                .withKeepSeparator(true)
+                .build();
     }
 
     /**
@@ -79,13 +87,6 @@ public class RagService {
         );
         Document parentDoc = new Document(UUID.randomUUID().toString(), content, metadata);
 
-        TokenTextSplitter splitter = TokenTextSplitter.builder()
-                .withChunkSize(500)
-                .withMinChunkSizeChars(350)
-                .withMinChunkLengthToEmbed(5)
-                .withMaxNumChunks(10000)
-                .withKeepSeparator(true)
-                .build();
         List<Document> chunks = splitter.apply(List.of(parentDoc));
 
         vectorStore.add(chunks);
@@ -114,7 +115,7 @@ public class RagService {
                 .build();
 
         List<Document> results = vectorStore.similaritySearch(request);
-        int filteredOut = candidateCount - results.size();
+        int filteredOut = Math.max(0, candidateCount - results.size());
         filteredCountSummary.record(filteredOut);
 
         if (results.isEmpty()) {
