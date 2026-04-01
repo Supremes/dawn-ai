@@ -2,6 +2,7 @@ package com.dawn.ai.agent;
 
 import com.dawn.ai.agent.plan.PlanStep;
 import com.dawn.ai.agent.plan.TaskPlanner;
+import com.dawn.ai.agent.tools.KnowledgeSearchTool;
 import com.dawn.ai.exception.LLMProviderException;
 import com.dawn.ai.exception.MaxStepsExceededException;
 import com.dawn.ai.exception.PlanGenerationException;
@@ -107,7 +108,7 @@ public class AgentOrchestrator {
 
             List<AgentStep> steps = StepCollector.collect();
             long ragCalls = steps.stream()
-                    .filter(s -> "KnowledgeSearchTool".equals(s.toolName()))
+                    .filter(s -> KnowledgeSearchTool.class.getSimpleName().equals(s.toolName()))
                     .count();
             ragCallsSummary.record(ragCalls);
 
