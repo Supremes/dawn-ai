@@ -1,7 +1,10 @@
 package com.dawn.ai.agent.tools;
 
+import com.dawn.ai.agent.StepCollector;
 import com.dawn.ai.service.QueryRewriter;
 import com.dawn.ai.service.RagService;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,6 +16,9 @@ import org.springframework.ai.document.Document;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -23,11 +29,20 @@ class KnowledgeSearchToolTest {
     @Mock private RagService ragService;
 
     private KnowledgeSearchTool tool;
+    private SimpleMeterRegistry meterRegistry;
 
     @BeforeEach
     void setUp() {
-        tool = new KnowledgeSearchTool(queryRewriter, ragService);
+        meterRegistry = new SimpleMeterRegistry();
+        tool = new KnowledgeSearchTool(queryRewriter, ragService, meterRegistry);
         tool.setDefaultTopK(5);
+        tool.initMetrics();
+        StepCollector.init(10);
+    }
+
+    @AfterEach
+    void tearDown() {
+        StepCollector.clear();
     }
 
     @Test
@@ -67,5 +82,37 @@ class KnowledgeSearchToolTest {
 
         assertThat(response.docsFound()).isEqualTo(0);
         assertThat(response.context()).isEqualTo("未找到相关知识库内容。");
+    }
+
+    @Test
+    @DisplayName("apply: 相同改写查询第二次调用时跳过检索并返回提示")
+    void apply_duplicateQuery_skipsRetrieval() {
+        when(queryRewriter.rewrite("月费")).thenReturn("Dawn AI 定价 月费");
+        when(ragService.retrieve("Dawn AI 定价 月费", 5)).thenReturn(List.of(new Document("¥99")));
+
+        // 第一次调用 — 正常检索
+        tool.apply(new KnowledgeSearchTool.Request("月费"));
+
+        // 第二次相同查询 — 应跳过
+        KnowledgeSearchTool.Response secondResponse =
+                tool.apply(new KnowledgeSearchTool.Request("月费"));
+
+        assertThat(secondResponse.docsFound()).isEqualTo(0);
+        assertThat(secondResponse.context()).contains("已检索过");
+        // ragService.retrieve 只被调用了一次（第二次被 dedup 拦截）
+        verify(ragService, times(1)).retrieve(anyString(), anyInt());
+    }
+
+    @Test
+    @DisplayName("apply: 重复查询时 ai.rag.dedup.skipped 计数器 +1")
+    void apply_duplicateQuery_incrementsDedupCounter() {
+        when(queryRewriter.rewrite("test")).thenReturn("test rewritten");
+        when(ragService.retrieve("test rewritten", 5)).thenReturn(List.of());
+
+        tool.apply(new KnowledgeSearchTool.Request("test"));
+        tool.apply(new KnowledgeSearchTool.Request("test")); // duplicate
+
+        double skipped = meterRegistry.counter("ai.rag.dedup.skipped").count();
+        assertThat(skipped).isEqualTo(1.0);
     }
 }
