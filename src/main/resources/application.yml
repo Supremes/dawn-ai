@@ -71,6 +71,7 @@ app:
     rag:
       similarity-threshold: 0.7   # 向量相似度过滤阈值，低于此值的文档被丢弃
       default-top-k: 5            # 最终返回的文档数
+      query-rewrite-enabled: true  # 检索前是否用 LLM 改写查询，false 时原样传入
     system-prompt: |
       You are Dawn AI, a helpful and knowledgeable assistant powered by advanced AI.
       You can help with calculations, weather queries, and answer questions based on your knowledge base.
