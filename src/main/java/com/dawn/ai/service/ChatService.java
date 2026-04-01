@@ -22,7 +22,6 @@ import java.util.stream.Collectors;
 public class ChatService {
 
     private final AgentOrchestrator agentOrchestrator;
-    private final RagService ragService;
     private final ChatClient chatClient;
     private final AiAvailabilityChecker aiAvailabilityChecker;
 
@@ -42,13 +41,6 @@ public class ChatService {
                 : UUID.randomUUID().toString();
 
         String userMessage = request.getMessage();
-
-        if (request.isRagEnabled()) {
-            String context = ragService.buildContext(userMessage);
-            if (!context.isBlank()) {
-                userMessage = context + "\n\nUser question: " + userMessage;
-            }
-        }
 
         AgentResult result = agentOrchestrator.chat(sessionId, userMessage);
 
