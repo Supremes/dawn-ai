@@ -34,7 +34,9 @@ spring:
           max-tokens: 2048
       embedding:
         options:
-          model: text-embedding-ada-002
+          model: Qwen/Qwen3-Embedding-8B
+          encodingFormat: float
+          dimensions: 1536
 
     # Vector Store - PGVector
     vectorstore:
@@ -71,6 +73,8 @@ app:
     rag:
       similarity-threshold: 0.7   # 向量相似度过滤阈值，低于此值的文档被丢弃
       default-top-k: 5            # 最终返回的文档数
+      query-rewrite-enabled: true  # 检索前是否用 LLM 改写查询，false 时原样传入
+      max-calls-per-session: 3    # 每次请求最多 RAG 工具调用次数，独立于 maxSteps
     system-prompt: |
       You are Dawn AI, a helpful and knowledgeable assistant powered by advanced AI.
       You can help with calculations, weather queries, and answer questions based on your knowledge base.
