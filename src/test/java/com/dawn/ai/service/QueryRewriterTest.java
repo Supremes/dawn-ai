@@ -56,6 +56,7 @@ class QueryRewriterTest {
         String result = queryRewriter.rewrite("月费多少");
 
         assertThat(result).isEqualTo("Dawn AI 定价 月费 价格");
+        verify(requestSpec).options(any());
         verify(chatClient).prompt();
     }
 
