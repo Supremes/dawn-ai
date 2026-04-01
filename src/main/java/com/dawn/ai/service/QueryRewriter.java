@@ -20,15 +20,15 @@ public class QueryRewriter {
     @Value("${app.ai.rag.query-rewrite-enabled:true}")
     private boolean queryRewriteEnabled;
 
+    private final BeanOutputConverter<RewriteResult> converter =
+            new BeanOutputConverter<>(RewriteResult.class);
+
     private record RewriteResult(String rewrittenQuery) {}
 
     public String rewrite(String originalQuery) {
         if (!queryRewriteEnabled) {
             return originalQuery;
         }
-
-        BeanOutputConverter<RewriteResult> converter =
-                new BeanOutputConverter<>(RewriteResult.class);
 
         try {
             String response = chatClient.prompt()

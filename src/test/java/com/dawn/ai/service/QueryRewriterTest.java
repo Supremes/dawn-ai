@@ -94,4 +94,15 @@ class QueryRewriterTest {
 
         assertThat(result).isEqualTo("月费多少");
     }
+
+    @Test
+    @DisplayName("LLM 调用抛出异常时降级返回原始查询")
+    void rewrite_llmThrowsException_returnsOriginalQuery() {
+        queryRewriter.setQueryRewriteEnabled(true);
+        when(chatClient.prompt()).thenThrow(new RuntimeException("LLM unavailable"));
+
+        String result = queryRewriter.rewrite("月费多少");
+
+        assertThat(result).isEqualTo("月费多少");
+    }
 }

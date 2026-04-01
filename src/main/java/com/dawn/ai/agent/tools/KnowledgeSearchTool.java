@@ -35,7 +35,7 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
         String rewrittenQuery = queryRewriter.rewrite(req.query());
         List<Document> docs = ragService.retrieve(rewrittenQuery, defaultTopK);
         String context = formatContext(docs);
-        log.info("[KnowledgeSearchTool] query='{}' → rewritten='{}', docsFound={}",
+        log.debug("[KnowledgeSearchTool] query='{}' → rewritten='{}', docsFound={}",
                 req.query(), rewrittenQuery, docs.size());
         return new Response(context, docs.size());
     }
