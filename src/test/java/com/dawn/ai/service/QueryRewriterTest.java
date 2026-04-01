@@ -77,4 +77,21 @@ class QueryRewriterTest {
 
         verify(requestSpec).user("原始查询内容");
     }
+
+    @Test
+    @DisplayName("LLM 返回空时降级返回原始查询")
+    void rewrite_blankRewrittenQuery_returnsOriginalQuery() {
+        queryRewriter.setQueryRewriteEnabled(true);
+
+        when(chatClient.prompt()).thenReturn(requestSpec);
+        when(requestSpec.system(anyString())).thenReturn(requestSpec);
+        when(requestSpec.user(anyString())).thenReturn(requestSpec);
+        when(requestSpec.options(any())).thenReturn(requestSpec);
+        when(requestSpec.call()).thenReturn(callResponseSpec);
+        when(callResponseSpec.content()).thenReturn("{\"rewrittenQuery\": \"\"}");
+
+        String result = queryRewriter.rewrite("月费多少");
+
+        assertThat(result).isEqualTo("月费多少");
+    }
 }
