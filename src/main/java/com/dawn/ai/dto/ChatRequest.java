@@ -11,7 +11,4 @@ public class ChatRequest {
 
     /** Conversation session ID for memory context */
     private String sessionId;
-
-    /** Whether to enable RAG retrieval */
-    private boolean ragEnabled = false;
 }

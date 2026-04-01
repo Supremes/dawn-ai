@@ -129,16 +129,4 @@ public class RagService {
                 limited.size(), candidateCount, similarityThreshold, filteredOut, query);
         return limited;
     }
-
-    /** Build an augmented context string from retrieved documents. */
-    public String buildContext(String query) {
-        List<Document> docs = retrieve(query, defaultTopK);
-        if (docs.isEmpty()) return "";
-
-        StringBuilder sb = new StringBuilder("Relevant context:\n");
-        for (int i = 0; i < docs.size(); i++) {
-            sb.append(String.format("[%d] %s\n", i + 1, docs.get(i).getText()));
-        }
-        return sb.toString();
-    }
 }
