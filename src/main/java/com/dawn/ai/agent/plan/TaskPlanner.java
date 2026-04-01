@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 
@@ -36,6 +37,9 @@ public class TaskPlanner {
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;
+
+    @Value("${app.ai.rag.max-calls-per-session:3}")
+    private int maxRagCalls;
 
     private Counter successCounter;
     private Counter parseErrorCounter;
@@ -104,11 +108,13 @@ public class TaskPlanner {
                 业务约束：
                 - action 只能从上方可用工具中选择，最后一步固定为 "finish"
                 - reason 使用中文，简短说明为什么要执行该步骤
+                - 若单次检索信息不足，可多次调用 knowledgeSearchTool 从不同角度补充，
+                  直到信息充分再生成最终答案。每次请求最多检索 %d 次。
 
                 用户任务：%s
 
                 %s
-                """.formatted(toolList, task, formatInstructions);
+                """.formatted(toolList, maxRagCalls, task, formatInstructions);
     }
 
     private void validatePlan(List<PlanStep> plan, Set<String> toolNames) {
