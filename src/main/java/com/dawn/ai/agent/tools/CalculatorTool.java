@@ -1,5 +1,7 @@
 package com.dawn.ai.agent.tools;
 
+import io.agentscope.core.tool.Tool;
+import io.agentscope.core.tool.ToolParam;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Description;
 import org.springframework.stereotype.Component;
@@ -94,5 +96,20 @@ public class CalculatorTool implements Function<CalculatorTool.Request, Calculat
                 return x;
             }
         }.parse();
+    }
+
+    /**
+     * AgentScope entry point — called by ReActAgent via Toolkit.
+     * Delegates to {@link #apply(Request)} so business logic lives in one place.
+     */
+    @Tool(description = "Performs basic arithmetic calculations. Input: a mathematical expression like '2 + 3 * 4'")
+    public String calculate(
+            @ToolParam(name = "expression", description = "Mathematical expression to evaluate, e.g. '2 + 3 * 4'", required = true)
+            String expression) {
+        Response resp = apply(new Request(expression));
+        if (Double.isNaN(resp.result())) {
+            return "Error: could not evaluate expression '" + expression + "'";
+        }
+        return String.format("Result of '%s' = %s", resp.expression(), resp.result());
     }
 }

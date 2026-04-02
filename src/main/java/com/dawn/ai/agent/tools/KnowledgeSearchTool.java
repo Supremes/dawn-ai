@@ -4,6 +4,8 @@ import com.dawn.ai.agent.StepCollector;
 import com.dawn.ai.service.QueryRewriter;
 import com.dawn.ai.service.RagService;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.agentscope.core.tool.Tool;
+import io.agentscope.core.tool.ToolParam;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
@@ -84,5 +86,20 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
             sb.append(String.format("[%d] %s\n", i + 1, docs.get(i).getText()));
         }
         return sb.toString();
+    }
+
+    /**
+     * AgentScope entry point — called by ReActAgent via Toolkit.
+     * Delegates to {@link #apply(Request)} so business logic lives in one place.
+     */
+    @Tool(description = "搜索内部知识库，获取与问题相关的背景信息。需要查询产品信息、技术文档或领域知识时调用。")
+    public String searchKnowledge(
+            @ToolParam(name = "query", description = "搜索查询词或问题，将用于在知识库中检索相关内容", required = true)
+            String query) {
+        Response resp = apply(new Request(query));
+        if (resp.docsFound() == 0) {
+            return "未找到与「" + query + "」相关的知识库内容。";
+        }
+        return resp.context();
     }
 }
