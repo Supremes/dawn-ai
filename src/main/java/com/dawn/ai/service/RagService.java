@@ -33,6 +33,7 @@ public class RagService {
     private final VectorStore vectorStore;
     private final MeterRegistry meterRegistry;
     private final AiAvailabilityChecker aiAvailabilityChecker;
+    private final HydeQueryExpander hydeQueryExpander;
 
     @Setter
     @Value("${app.ai.rag.similarity-threshold:0.7}")
@@ -107,9 +108,10 @@ public class RagService {
     public List<Document> retrieve(String query, int topK) {
         aiAvailabilityChecker.ensureConfigured();
 
+        String retrievalQuery = hydeQueryExpander.expand(query);
         int candidateCount = topK * 2;
         SearchRequest request = SearchRequest.builder()
-                .query(query)
+                .query(retrievalQuery)
                 .topK(candidateCount)
                 .similarityThreshold(similarityThreshold)
                 .build();
@@ -125,8 +127,8 @@ public class RagService {
         }
 
         List<Document> limited = results.stream().limit(topK).toList();
-        log.info("[RagService] Retrieved {}/{} docs (threshold={}, filtered={}), query='{}'",
-                limited.size(), candidateCount, similarityThreshold, filteredOut, query);
+        log.info("[RagService] Retrieved {}/{} docs (threshold={}, filtered={}), query='{}', retrievalQuery='{}'",
+                limited.size(), candidateCount, similarityThreshold, filteredOut, query, retrievalQuery);
         return limited;
     }
 }

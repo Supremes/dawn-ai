@@ -25,6 +25,7 @@ class RagServiceTest {
 
     @Mock private VectorStore vectorStore;
     @Mock private AiAvailabilityChecker aiAvailabilityChecker;
+    @Mock private HydeQueryExpander hydeQueryExpander;
 
     private SimpleMeterRegistry meterRegistry;
     private RagService ragService;
@@ -32,12 +33,13 @@ class RagServiceTest {
     @BeforeEach
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
-        ragService = new RagService(vectorStore, meterRegistry, aiAvailabilityChecker);
+        ragService = new RagService(vectorStore, meterRegistry, aiAvailabilityChecker, hydeQueryExpander);
         // 注入配置值（与 application.yml 一致）
         ragService.setSimilarityThreshold(0.7);
         ragService.setDefaultTopK(5);
         // @PostConstruct 在直接 new 时不自动执行，手动初始化指标
         ragService.initMetrics();
+        lenient().when(hydeQueryExpander.expand(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     // ── ingest 测试 ────────────────────────────────────────────
@@ -96,7 +98,21 @@ class RagServiceTest {
         verify(vectorStore).similaritySearch(captor.capture());
         SearchRequest req = captor.getValue();
         assertThat(req.getTopK()).isEqualTo(10);           // topK * 2
+        assertThat(req.getQuery()).isEqualTo("test query");
         assertThat(req.getSimilarityThreshold()).isCloseTo(0.7, within(1e-9));
+    }
+
+    @Test
+    @DisplayName("retrieve: HyDE 启用时应使用扩展后的检索查询")
+    void retrieve_usesExpandedQueryWhenHydeEnabled() {
+        when(hydeQueryExpander.expand("月费多少")).thenReturn("Dawn AI 的月费价格、订阅方案、计费规则与套餐说明");
+        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
+
+        ragService.retrieve("月费多少", 5);
+
+        ArgumentCaptor<SearchRequest> captor = ArgumentCaptor.forClass(SearchRequest.class);
+        verify(vectorStore).similaritySearch(captor.capture());
+        assertThat(captor.getValue().getQuery()).isEqualTo("Dawn AI 的月费价格、订阅方案、计费规则与套餐说明");
     }
 
     @Test
