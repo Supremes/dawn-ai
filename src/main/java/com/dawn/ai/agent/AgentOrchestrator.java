@@ -1,5 +1,6 @@
 package com.dawn.ai.agent;
 
+import com.dawn.ai.agent.hook.StepTraceHook;
 import com.dawn.ai.agent.plan.PlanStep;
 import com.dawn.ai.agent.plan.TaskPlanner;
 import com.dawn.ai.agent.tools.KnowledgeSearchTool;
@@ -7,6 +8,12 @@ import com.dawn.ai.exception.LLMProviderException;
 import com.dawn.ai.exception.MaxStepsExceededException;
 import com.dawn.ai.exception.PlanGenerationException;
 import com.dawn.ai.service.MemoryService;
+import io.agentscope.core.ReActAgent;
+import io.agentscope.core.memory.InMemoryMemory;
+import io.agentscope.core.message.Msg;
+import io.agentscope.core.message.MsgRole;
+import io.agentscope.core.model.OpenAIChatModel;
+import io.agentscope.core.tool.Toolkit;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -14,38 +21,34 @@ import io.micrometer.core.instrument.Timer;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Agent Orchestrator — orchestrates the full ReAct loop with planning and step tracing.
+ * Agent Orchestrator — orchestrates the full ReAct loop via AgentScope ReActAgent.
  *
  * Flow per request:
- *  1. StepCollector.init()         — reset thread-local state
- *  2. TaskPlanner.plan()           — pre-execution planning via a separate LLM call (optional)
- *  3. Build system prompt          — base prompt + plan summary + max-steps instruction
- *  4. chatClient + .toolNames()    — Spring AI handles the tool-calling loop
- *  5. ToolExecutionAspect (AOP)    — intercepts each tool call, records it automatically
- *  6. StepCollector.collect()      — gather all recorded steps
- *  7. Persist to memory            — save turn to Redis
- *  8. StepCollector.clear()        — prevent ThreadLocal memory leak
+ *  1. StepCollector.init()      — reset RETRIEVED_QUERIES dedup state
+ *  2. TaskPlanner.plan()        — pre-execution planning via a separate LLM call (optional)
+ *  3. Build system prompt       — base prompt + plan summary + max-steps instruction
+ *  4. Pre-populate InMemoryMemory from Redis session history
+ *  5. Build per-request ReActAgent with StepTraceHook + InMemoryMemory
+ *  6. agent.call(userMsg)       — AgentScope handles the full ReAct tool-calling loop
+ *  7. Collect steps from hook   — StepTraceHook records each tool call/result
+ *  8. Persist turn to Redis     — save user + assistant messages via MemoryService
+ *  9. StepCollector.clear()     — prevent ThreadLocal memory leak
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AgentOrchestrator {
 
-    private final ChatClient chatClient;
+    private final OpenAIChatModel agentScopeModel;
+    private final Toolkit agentScopeToolkit;
     private final MemoryService memoryService;
     private final TaskPlanner taskPlanner;
     private final ToolRegistry toolRegistry;
@@ -86,29 +89,38 @@ public class AgentOrchestrator {
 
     private AgentResult doChat(String sessionId, String userMessage) {
         StepCollector.init(maxSteps);
+        StepTraceHook hook = new StepTraceHook(maxSteps, meterRegistry);
         try {
             List<PlanStep> plan = resolvePlan(userMessage);
+            String systemPrompt = buildSystemPrompt(plan);
 
-            String systemPrompt = baseSystemPrompt
-                    + formatPlan(plan)
-                    + String.format("%n请在回复中简短说明每次工具调用的原因。最多调用工具 %d 次。", maxSteps);
+            // Pre-populate InMemoryMemory with Redis conversation history
+            InMemoryMemory memory = buildMemoryFromHistory(sessionId);
 
-            List<Message> history = buildHistory(sessionId);
+            // Build a per-request ReActAgent — lightweight, not a Spring singleton
+            ReActAgent agent = ReActAgent.builder()
+                    .name("DawnAI")
+                    .sysPrompt(systemPrompt)
+                    .model(agentScopeModel)
+                    .toolkit(agentScopeToolkit)
+                    .memory(memory)
+                    .maxIters(maxSteps)
+                    .hook(hook)
+                    .build();
 
-            ChatResponse chatResponse = chatClient.prompt()
-                    .system(systemPrompt)
-                    .messages(history)
-                    .user(userMessage)
-                    .toolNames(toolRegistry.getNames())
-                    .call()
-                    .chatResponse();
+            Msg userMsg = Msg.builder()
+                    .role(MsgRole.USER)
+                    .textContent(userMessage)
+                    .build();
 
-            String response = chatResponse.getResult().getOutput().getText();
-            recordTokenUsage(chatResponse);
+            Msg responseMsg = agent.call(userMsg).block();
 
-            List<AgentStep> steps = StepCollector.collect();
+            String response = responseMsg != null ? responseMsg.getTextContent() : "";
+            recordTokenUsage(responseMsg);
+
+            List<AgentStep> steps = hook.getSteps();
             long ragCalls = steps.stream()
-                    .filter(s -> KnowledgeSearchTool.class.getSimpleName().equals(s.toolName()))
+                    .filter(s -> "searchKnowledge".equals(s.toolName()))
                     .count();
             ragCallsSummary.record(ragCalls);
 
@@ -120,68 +132,64 @@ public class AgentOrchestrator {
                     userMessage.substring(0, Math.min(50, userMessage.length())));
 
             return new AgentResult(response, steps, plan);
-        } catch(MaxStepsExceededException maxStepsExceededException) {
-            throw maxStepsExceededException;
+
+        } catch (MaxStepsExceededException e) {
+            throw e;
         } catch (Exception e) {
             log.error("call LLM met error: {}", e.getMessage(), e);
             throw new LLMProviderException("call LLM met error: " + e.getMessage());
-        }
-        finally {
+        } finally {
             StepCollector.clear();
         }
+    }
+
+    private InMemoryMemory buildMemoryFromHistory(String sessionId) {
+        InMemoryMemory memory = new InMemoryMemory();
+        List<Map<String, String>> rawHistory = memoryService.getHistory(sessionId);
+        for (Map<String, String> entry : rawHistory) {
+            String role = entry.get("role");
+            String content = entry.get("content");
+            MsgRole msgRole = "assistant".equals(role) ? MsgRole.ASSISTANT : MsgRole.USER;
+            memory.addMessage(Msg.builder()
+                    .role(msgRole)
+                    .textContent(content)
+                    .build());
+        }
+        return memory;
     }
 
     private List<PlanStep> resolvePlan(String userMessage) {
         if (!planEnabled) {
             return Collections.emptyList();
         }
-
         try {
             return taskPlanner.plan(userMessage, toolRegistry.getDescriptions());
-        } catch (PlanGenerationException exception) {
+        } catch (PlanGenerationException e) {
             log.warn("[AgentOrchestrator] Planner failed, falling back to direct execution. userMsg={}, reason={}",
-                    userMessage.substring(0, Math.min(50, userMessage.length())),
-                    exception.getMessage());
+                    userMessage.substring(0, Math.min(50, userMessage.length())), e.getMessage());
             return Collections.emptyList();
         }
     }
 
-    private void recordTokenUsage(ChatResponse chatResponse) {
-        org.springframework.ai.chat.metadata.Usage usage = chatResponse.getMetadata().getUsage();
-        if (usage == null) {
-            return;
-        }
+    private String buildSystemPrompt(List<PlanStep> plan) {
+        return baseSystemPrompt
+                + formatPlan(plan)
+                + String.format("%n请在回复中简短说明每次工具调用的原因。最多调用工具 %d 次。", maxSteps);
+    }
 
-        Integer inputTokens = usage.getPromptTokens();
-        Integer outputTokens = usage.getCompletionTokens();
-        if (inputTokens != null && inputTokens > 0) {
-            inputTokenCounter.increment(inputTokens);
-        }
-        if (outputTokens != null && outputTokens > 0) {
-            outputTokenCounter.increment(outputTokens);
-        }
+    private void recordTokenUsage(Msg responseMsg) {
+        if (responseMsg == null) return;
+        var usage = responseMsg.getChatUsage();
+        if (usage == null) return;
+        int inputTokens = usage.getInputTokens();
+        int outputTokens = usage.getOutputTokens();
+        if (inputTokens > 0) inputTokenCounter.increment(inputTokens);
+        if (outputTokens > 0) outputTokenCounter.increment(outputTokens);
         log.debug("[AgentOrchestrator] token usage: input={}, output={}", inputTokens, outputTokens);
     }
 
-    private List<Message> buildHistory(String sessionId) {
-        List<Map<String, String>> rawHistory = memoryService.getHistory(sessionId);
-        List<Message> messages = new ArrayList<>();
-        for (Map<String, String> entry : rawHistory) {
-            String role = entry.get("role");
-            String content = entry.get("content");
-            if ("user".equals(role)) {
-                messages.add(new UserMessage(content));
-            } else if ("assistant".equals(role)) {
-                messages.add(new AssistantMessage(content));
-            }
-        }
-        return messages;
-    }
-
     private String formatPlan(List<PlanStep> plan) {
-        if (plan.isEmpty()) {
-            return "";
-        }
+        if (plan.isEmpty()) return "";
         StringBuilder sb = new StringBuilder("\n\n【执行计划】\n");
         for (PlanStep step : plan) {
             sb.append(step.step())

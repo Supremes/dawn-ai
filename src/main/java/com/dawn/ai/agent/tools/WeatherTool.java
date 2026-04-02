@@ -1,5 +1,7 @@
 package com.dawn.ai.agent.tools;
 
+import io.agentscope.core.tool.Tool;
+import io.agentscope.core.tool.ToolParam;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Description;
 import org.springframework.stereotype.Component;
@@ -45,5 +47,17 @@ public class WeatherTool implements Function<WeatherTool.Request, WeatherTool.Re
                 String.format("Weather in %s: %s, %d°C, humidity %d%%",
                         info.name(), info.condition(), info.temp(), info.humidity())
         );
+    }
+
+    /**
+     * AgentScope entry point — called by ReActAgent via Toolkit.
+     * Delegates to {@link #apply(Request)} so business logic lives in one place.
+     */
+    @Tool(description = "Get current weather information for a city. Input: city name")
+    public String getWeather(
+            @ToolParam(name = "city", description = "The name of the city to query weather for", required = true)
+            String city) {
+        Response resp = apply(new Request(city));
+        return resp.message();
     }
 }

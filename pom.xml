@@ -115,6 +115,13 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- AgentScope-Java — replaces Spring AI ReAct loop, Tool registration, and Hook system -->
+        <dependency>
+            <groupId>io.agentscope</groupId>
+            <artifactId>agentscope</artifactId>
+            <version>1.0.11</version>
+        </dependency>
     </dependencies>
 
     <build>
