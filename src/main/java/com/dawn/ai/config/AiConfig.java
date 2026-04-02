@@ -12,13 +12,17 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
-import org.springframework.http.client.BufferingClientHttpRequestFactory;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.client.RestClient;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
@@ -53,7 +57,12 @@ public class AiConfig {
             log.info("[AI HTTP] Request body={}", abbreviate(new String(body, StandardCharsets.UTF_8)));
             ClientHttpResponse response = execution.execute(request, body);
 
-            byte[] responseBody = StreamUtils.copyToByteArray(response.getBody());
+            byte[] responseBody;
+            try {
+                responseBody = StreamUtils.copyToByteArray(response.getBody());
+            } catch (IOException e) {
+                responseBody = readErrorBody(response);
+            }
             Charset responseCharset = resolveCharset(response.getHeaders());
             String responseBodyText = new String(responseBody, responseCharset);
 
@@ -63,11 +72,19 @@ public class AiConfig {
                     responseBody.length);
             log.info("[AI HTTP] Response body={}", abbreviate(responseBodyText));
 
-            return response;
+            // Return a buffered response so downstream can re-read the body
+            byte[] finalBody = responseBody;
+            return new ClientHttpResponse() {
+                @Override public HttpStatusCode getStatusCode() throws IOException { return response.getStatusCode(); }
+                @Override public String getStatusText() throws IOException { return response.getStatusText(); }
+                @Override public HttpHeaders getHeaders() { return response.getHeaders(); }
+                @Override public InputStream getBody() { return new ByteArrayInputStream(finalBody); }
+                @Override public void close() { response.close(); }
+            };
         };
 
         return RestClient.builder()
-                .requestFactory(new BufferingClientHttpRequestFactory(new SimpleClientHttpRequestFactory()))
+                .requestFactory(new SimpleClientHttpRequestFactory())
                 .requestInterceptor(loggingInterceptor);
     }
 
@@ -126,6 +143,24 @@ public class AiConfig {
             sanitized.put(name, values);
         });
         return sanitized;
+    }
+
+    private byte[] readErrorBody(ClientHttpResponse response) {
+        try {
+            // SimpleClientHttpResponse wraps HttpURLConnection;
+            // on 4xx/5xx, getInputStream() throws but getErrorStream() has the body
+            java.lang.reflect.Field connField =
+                    response.getClass().getDeclaredField("connection");
+            connField.setAccessible(true);
+            HttpURLConnection conn = (HttpURLConnection) connField.get(response);
+            InputStream errorStream = conn.getErrorStream();
+            if (errorStream != null) {
+                return StreamUtils.copyToByteArray(errorStream);
+            }
+        } catch (Exception e) {
+            log.debug("[AI HTTP] Could not read error body: {}", e.getMessage());
+        }
+        return new byte[0];
     }
 
     private String maskAuthorization(String authorization) {
