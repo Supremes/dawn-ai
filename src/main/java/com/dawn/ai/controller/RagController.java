@@ -43,4 +43,23 @@ public class RagController {
         List<Document> results = ragService.retrieve(query, topK);
         return ResponseEntity.ok(results);
     }
+
+    /**
+     * Ingest a document into the vector knowledge base.
+     */
+    @PostMapping("/ingest/agentscope")
+    public ResponseEntity<Map<String, String>> ingestAgentScope(@Valid @RequestBody RagRequest request) {
+        ragService.ingestToAgentScope(request.getContent(), request.getSource(), request.getCategory());
+        return ResponseEntity.ok(Map.of("status", "ingested"));
+    }
+
+    /**
+     * Retrieve semantically similar documents for a given query.
+     */
+    @GetMapping("/search/agentscope")
+    public ResponseEntity<List<io.agentscope.core.rag.model.Document>> searchAgentScope(
+            @RequestParam String query) {
+        List<io.agentscope.core.rag.model.Document> results = ragService.retrieveFromAgentScope(query);
+        return ResponseEntity.ok(results);
+    }
 }

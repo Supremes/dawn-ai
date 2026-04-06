@@ -5,10 +5,11 @@ WORKDIR /build
 
 # Download dependencies first (layer cache friendly)
 COPY pom.xml .
-#RUN mvn dependency:go-offline -B
+COPY .mvn/settings.xml /root/.m2/settings.xml
+RUN mvn -s /root/.m2/settings.xml -B dependency:go-offline
 
 COPY src/ src/
-RUN mvn clean package -DskipTests -q
+RUN mvn -s /root/.m2/settings.xml -B package -DskipTests
 
 # ---- Runtime Stage ----
 FROM eclipse-temurin:17-jre-alpine

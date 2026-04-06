@@ -10,6 +10,9 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - BASE_URL=${BASE_URL}
       - MODEL=${MODEL}
+      - EMBEDDING_BASE_URL=${EMBEDDING_BASE_URL}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - EMBEDDING_API_KEY=${EMBEDDING_API_KEY}
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/dawn_ai
       - SPRING_DATASOURCE_USERNAME=dawn
       - SPRING_DATASOURCE_PASSWORD=dawn123
@@ -33,7 +36,7 @@ services:
       POSTGRES_USER: dawn
       POSTGRES_PASSWORD: dawn123
     ports:
-      - "5432:5432"
+      - "54322:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

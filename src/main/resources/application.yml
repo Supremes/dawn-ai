@@ -66,10 +66,25 @@ management:
 # Application config
 app:
   ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      base-url: ${BASE_URL}
+      chat:
+        options:
+          model: ${MODEL}
+          temperature: 0.7
+          max-tokens: 2048
+      embedding:
+        api-key: ${EMBEDDING_API_KEY}
+        base-url: ${EMBEDDING_BASE_URL}
+        options:
+          model: ${EMBEDDING_MODEL}
+          encodingFormat: float # agentscope不需要提供，库里默认使用了float
+          dimensions: 1024
     react:
       max-steps: 10        # 单次对话最多工具调用次数（超出时 LLM 自行收敛）
       show-steps: true    # 响应体中是否包含 steps 详情
-      plan-enabled: true   # 是否启用执行前规划（关闭后跳过 TaskPlanner）
+      plan-enabled: false   # 是否启用执行前规划（关闭后跳过 TaskPlanner）
     rag:
       similarity-threshold: 0.7   # 向量相似度过滤阈值，低于此值的文档被丢弃
       default-top-k: 5            # 最终返回的文档数

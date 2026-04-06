@@ -1,6 +1,14 @@
 package com.dawn.ai.service;
 
 import com.dawn.ai.config.AiAvailabilityChecker;
+import io.agentscope.core.message.TextBlock;
+import io.agentscope.core.rag.Knowledge;
+import io.agentscope.core.rag.model.DocumentMetadata;
+import io.agentscope.core.rag.model.RetrieveConfig;
+import io.agentscope.core.rag.reader.ReaderInput;
+import io.agentscope.core.rag.reader.SplitStrategy;
+import io.agentscope.core.rag.reader.TextChunker;
+import io.agentscope.core.rag.reader.TextReader;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -15,9 +23,7 @@ import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * RAG (Retrieval Augmented Generation) Service.
@@ -33,6 +39,7 @@ public class RagService {
     private final VectorStore vectorStore;
     private final MeterRegistry meterRegistry;
     private final AiAvailabilityChecker aiAvailabilityChecker;
+    private final Knowledge knowledge;
 
     @Setter
     @Value("${app.ai.rag.similarity-threshold:0.7}")
@@ -94,6 +101,57 @@ public class RagService {
 
         log.info("[RagService] Ingested {} chunk(s), source={}", chunks.size(), source);
         return parentDoc.getId();
+    }
+
+    public void ingestToAgentScope(String content) {
+        aiAvailabilityChecker.ensureConfigured();
+
+        TextReader textReader = new TextReader(500, SplitStrategy.PARAGRAPH, 50);
+        List<io.agentscope.core.rag.model.Document> documents = textReader.read(ReaderInput.fromString(content)).block();
+        knowledge.addDocuments(documents).block();
+        assert documents != null;
+        ingestionCounter.increment(documents.size());
+        log.info("ingest documents to vector store, documents={}", documents);
+    }
+
+    public List<io.agentscope.core.rag.model.Document> retrieveFromAgentScope(String query) {
+        aiAvailabilityChecker.ensureConfigured();
+
+        RetrieveConfig config = RetrieveConfig.builder()
+                .scoreThreshold(similarityThreshold)
+                .limit(defaultTopK)
+                .build();
+        List<io.agentscope.core.rag.model.Document> documentList = knowledge.retrieve(query, config).block();
+        log.info("[RagService] Retrieved {}/{} docs (threshold={}), query='{}'",
+                documentList.size(), defaultTopK, similarityThreshold, query);
+        return  documentList;
+    }
+
+    public void ingestToAgentScope(String content, String source, String category) {
+        aiAvailabilityChecker.ensureConfigured();
+
+        String docId = UUID.randomUUID().toString();
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("source", source != null ? source : "manual");
+        payload.put("category", category != null ? category : "general");
+
+        List<String> chunks = TextChunker.chunkText(content, 500, SplitStrategy.PARAGRAPH, 50);
+
+        List<io.agentscope.core.rag.model.Document> documents = new ArrayList<>();
+        for (int index = 0; index < chunks.size(); index++) {
+            DocumentMetadata metadata = DocumentMetadata.builder()
+                    .content(TextBlock.builder().text(chunks.get(index)).build())
+                    .docId(docId)
+                    .chunkId(String.valueOf(index))
+                    .payload(payload)
+                    .build();
+
+            documents.add(new io.agentscope.core.rag.model.Document(metadata));
+        }
+
+        knowledge.addDocuments(documents).block();
+        ingestionCounter.increment(documents.size());
+        log.info("ingest documents to vector store, documents={}", documents);
     }
 
     /**

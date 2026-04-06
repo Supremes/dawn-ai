@@ -1,6 +1,7 @@
 package com.dawn.ai.service;
 
 import com.dawn.ai.config.AiAvailabilityChecker;
+import io.agentscope.core.rag.Knowledge;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -12,12 +13,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -25,14 +28,26 @@ class RagServiceTest {
 
     @Mock private VectorStore vectorStore;
     @Mock private AiAvailabilityChecker aiAvailabilityChecker;
+    @Mock private Knowledge knowledge;
 
     private SimpleMeterRegistry meterRegistry;
     private RagService ragService;
 
+    @SuppressWarnings("unchecked")
+    private static ArgumentCaptor<List<Document>> springDocumentListCaptor() {
+        return (ArgumentCaptor<List<Document>>) (ArgumentCaptor<?>) ArgumentCaptor.forClass(List.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ArgumentCaptor<List<io.agentscope.core.rag.model.Document>> agentScopeDocumentListCaptor() {
+        return (ArgumentCaptor<List<io.agentscope.core.rag.model.Document>>) (ArgumentCaptor<?>) ArgumentCaptor.forClass(List.class);
+    }
+
     @BeforeEach
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
-        ragService = new RagService(vectorStore, meterRegistry, aiAvailabilityChecker);
+        ragService = new RagService(vectorStore, meterRegistry, aiAvailabilityChecker, knowledge);
+        lenient().when(knowledge.addDocuments(anyList())).thenReturn(Mono.empty());
         // 注入配置值（与 application.yml 一致）
         ragService.setSimilarityThreshold(0.7);
         ragService.setDefaultTopK(5);
@@ -48,10 +63,11 @@ class RagServiceTest {
         String shortContent = "Dawn AI is an intelligent assistant.";
         ragService.ingest(shortContent, "test", "general");
 
-        ArgumentCaptor<List<Document>> captor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<Document>> captor = springDocumentListCaptor();
         verify(vectorStore).add(captor.capture());
         assertThat(captor.getValue()).hasSize(1);
         assertThat(captor.getValue().get(0).getText()).contains("Dawn AI");
+        verify(knowledge, never()).addDocuments(anyList());
     }
 
     @Test
@@ -61,7 +77,7 @@ class RagServiceTest {
         String longContent = "word ".repeat(600);
         ragService.ingest(longContent, "doc", "manual");
 
-        ArgumentCaptor<List<Document>> captor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<Document>> captor = springDocumentListCaptor();
         verify(vectorStore).add(captor.capture());
         assertThat(captor.getValue().size()).isGreaterThan(1);
     }
@@ -73,7 +89,7 @@ class RagServiceTest {
         String content = "word ".repeat(600);
         ragService.ingest(content, "pricing-doc", "billing");
 
-        ArgumentCaptor<List<Document>> captor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<Document>> captor = springDocumentListCaptor();
         verify(vectorStore).add(captor.capture());
         assertThat(captor.getValue()).isNotEmpty();
         assertThat(captor.getValue()).allSatisfy(chunk -> {

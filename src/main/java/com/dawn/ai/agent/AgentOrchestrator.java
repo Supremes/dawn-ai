@@ -3,7 +3,6 @@ package com.dawn.ai.agent;
 import com.dawn.ai.agent.hook.StepTraceHook;
 import com.dawn.ai.agent.plan.PlanStep;
 import com.dawn.ai.agent.plan.TaskPlanner;
-import com.dawn.ai.agent.tools.KnowledgeSearchTool;
 import com.dawn.ai.exception.LLMProviderException;
 import com.dawn.ai.exception.MaxStepsExceededException;
 import com.dawn.ai.exception.PlanGenerationException;
@@ -13,6 +12,7 @@ import io.agentscope.core.memory.InMemoryMemory;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
 import io.agentscope.core.model.OpenAIChatModel;
+import io.agentscope.core.rag.Knowledge;
 import io.agentscope.core.tool.Toolkit;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
@@ -53,6 +53,7 @@ public class AgentOrchestrator {
     private final TaskPlanner taskPlanner;
     private final ToolRegistry toolRegistry;
     private final MeterRegistry meterRegistry;
+    private final Knowledge knowledge;
 
     @Value("${app.ai.system-prompt:You are a helpful AI assistant.}")
     private String baseSystemPrompt;
@@ -106,6 +107,7 @@ public class AgentOrchestrator {
                     .memory(memory)
                     .maxIters(maxSteps)
                     .hook(hook)
+                    .knowledge(knowledge)
                     .build();
 
             Msg userMsg = Msg.builder()
@@ -119,10 +121,12 @@ public class AgentOrchestrator {
             recordTokenUsage(responseMsg);
 
             List<AgentStep> steps = hook.getSteps();
-            long ragCalls = steps.stream()
-                    .filter(s -> "searchKnowledge".equals(s.toolName()))
-                    .count();
-            ragCallsSummary.record(ragCalls);
+            // long ragCalls = steps.stream()
+            //         .filter(s -> "searchKnowledge".equals(s.toolName()))
+            //         .count();
+
+            // TODO: 在GenericRAGHook/Knowledge.retrieve() 中埋掉查看
+            // ragCallsSummary.record(ragCalls); 
 
             memoryService.addMessage(sessionId, "user", userMessage);
             memoryService.addMessage(sessionId, "assistant", response);

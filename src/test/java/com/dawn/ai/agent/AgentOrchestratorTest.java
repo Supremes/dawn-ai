@@ -1,6 +1,5 @@
 package com.dawn.ai.agent;
 
-import com.dawn.ai.agent.plan.PlanStep;
 import com.dawn.ai.agent.plan.TaskPlanner;
 import com.dawn.ai.exception.PlanGenerationException;
 import com.dawn.ai.service.MemoryService;
@@ -59,7 +58,8 @@ class AgentOrchestratorTest {
                 memoryService,
                 taskPlanner,
                 toolRegistry,
-                new SimpleMeterRegistry()
+                new SimpleMeterRegistry(),
+                null // Add any additional required constructor arguments here, such as ApplicationEventPublisher if needed
         );
         agentOrchestrator.initMetrics();
 
