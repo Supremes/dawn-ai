@@ -95,19 +95,6 @@
                                     <input type="text" id="ingestCategory" placeholder="e.g., documentation">
                                 </div>
                             </div>
-                            <div class="form-group">
-                                <label>Engine</label>
-                                <div class="radio-group">
-                                    <label class="radio-label">
-                                        <input type="radio" name="ingestEngine" value="spring-ai" checked>
-                                        <span>Spring AI (PGVector)</span>
-                                    </label>
-                                    <label class="radio-label">
-                                        <input type="radio" name="ingestEngine" value="agentscope">
-                                        <span>AgentScope</span>
-                                    </label>
-                                </div>
-                            </div>
                             <button class="btn btn-primary" id="ingestBtn">Ingest Document</button>
                             <div class="result-area" id="ingestResult"></div>
                         </div>
@@ -129,24 +116,9 @@
                             <label for="searchQuery">Query</label>
                             <input type="text" id="searchQuery" placeholder="Search the knowledge base...">
                         </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="searchTopK">Top K: <span id="topKValue">5</span></label>
-                                <input type="range" id="searchTopK" min="1" max="20" value="5">
-                            </div>
-                            <div class="form-group">
-                                <label>Engine</label>
-                                <div class="radio-group">
-                                    <label class="radio-label">
-                                        <input type="radio" name="searchEngine" value="spring-ai" checked>
-                                        <span>Spring AI</span>
-                                    </label>
-                                    <label class="radio-label">
-                                        <input type="radio" name="searchEngine" value="agentscope">
-                                        <span>AgentScope</span>
-                                    </label>
-                                </div>
-                            </div>
+                        <div class="form-group">
+                            <label for="searchTopK">Top K: <span id="topKValue">5</span></label>
+                            <input type="range" id="searchTopK" min="1" max="20" value="5">
                         </div>
                         <button class="btn btn-primary" id="searchBtn">Search</button>
                         <div class="search-results" id="searchResults"></div>

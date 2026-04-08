@@ -7,7 +7,6 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.document.Document;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -29,37 +28,19 @@ public class RagController {
      */
     @PostMapping("/ingest")
     public ResponseEntity<Map<String, String>> ingest(@Valid @RequestBody RagRequest request) {
-        String docId = ragService.ingest(request.getContent(), request.getSource(), request.getCategory());
-        return ResponseEntity.ok(Map.of("docId", docId, "status", "ingested"));
-    }
-
-    /**
-     * Retrieve semantically similar documents for a given query.
-     */
-    @GetMapping("/search")
-    public ResponseEntity<List<Document>> search(
-            @RequestParam String query,
-            @RequestParam(defaultValue = "5") @Min(1) @Max(20) int topK) {
-        List<Document> results = ragService.retrieve(query, topK);
-        return ResponseEntity.ok(results);
-    }
-
-    /**
-     * Ingest a document into the vector knowledge base.
-     */
-    @PostMapping("/ingest/agentscope")
-    public ResponseEntity<Map<String, String>> ingestAgentScope(@Valid @RequestBody RagRequest request) {
-        ragService.ingestToAgentScope(request.getContent(), request.getSource(), request.getCategory());
+        ragService.ingest(request.getContent(), request.getSource(), request.getCategory());
         return ResponseEntity.ok(Map.of("status", "ingested"));
     }
 
     /**
      * Retrieve semantically similar documents for a given query.
+     * Query is automatically rewritten for better retrieval when enabled.
      */
-    @GetMapping("/search/agentscope")
-    public ResponseEntity<List<io.agentscope.core.rag.model.Document>> searchAgentScope(
-            @RequestParam String query) {
-        List<io.agentscope.core.rag.model.Document> results = ragService.retrieveFromAgentScope(query);
+    @GetMapping("/search")
+    public ResponseEntity<List<io.agentscope.core.rag.model.Document>> search(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "5") @Min(1) @Max(20) int topK) {
+        List<io.agentscope.core.rag.model.Document> results = ragService.retrieve(query, topK);
         return ResponseEntity.ok(results);
     }
 }

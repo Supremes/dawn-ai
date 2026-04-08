@@ -40,7 +40,7 @@ public class RestAPITest {
     }
 
     public static void testRAGAPI() {
-        String baseUrl = "http://localhost:8080/api/v1/rag/ingest/agentscope";
+        String baseUrl = "http://localhost:8080/api/v1/rag/ingest";
         RestTemplate restTemplate = new RestTemplate();
 
         RagRequest request = new RagRequest();
@@ -53,7 +53,7 @@ public class RestAPITest {
 
         ResponseEntity<Map> postResponse =
                 restTemplate.postForEntity(baseUrl, requestEntity, Map.class);
-        System.out.println("POST /api/v1/rag/ingest/agentscope => " + postResponse.getBody());
+        System.out.println("POST /api/v1/rag/ingest => " + postResponse.getBody());
     }
 
     public static final String CONTENT1 = """

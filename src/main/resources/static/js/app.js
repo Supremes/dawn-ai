@@ -5,8 +5,6 @@ const API = {
     chatSimple: '/api/v1/chat/simple',
     ragIngest: '/api/v1/rag/ingest',
     ragSearch: '/api/v1/rag/search',
-    ragIngestAS: '/api/v1/rag/ingest/agentscope',
-    ragSearchAS: '/api/v1/rag/search/agentscope',
     health: '/actuator/health',
     metrics: '/actuator/metrics',
 };
@@ -263,8 +261,7 @@ async function ingestDocument() {
         return;
     }
 
-    const engine = document.querySelector('input[name="ingestEngine"]:checked').value;
-    const url = engine === 'agentscope' ? API.ragIngestAS : API.ragIngest;
+    const url = API.ragIngest;
 
     const btn = $('#ingestBtn');
     btn.disabled = true;
@@ -313,7 +310,6 @@ async function searchDocuments() {
         return;
     }
 
-    const engine = document.querySelector('input[name="searchEngine"]:checked').value;
     const topK = $('#searchTopK').value;
     const btn = $('#searchBtn');
     btn.disabled = true;
@@ -323,12 +319,7 @@ async function searchDocuments() {
     resultsContainer.innerHTML = '<p class="text-muted">Searching...</p>';
 
     try {
-        let url;
-        if (engine === 'agentscope') {
-            url = `${API.ragSearchAS}?query=${encodeURIComponent(query)}`;
-        } else {
-            url = `${API.ragSearch}?query=${encodeURIComponent(query)}&topK=${topK}`;
-        }
+        const url = `${API.ragSearch}?query=${encodeURIComponent(query)}&topK=${topK}`;
 
         const res = await fetch(url);
 

@@ -2,6 +2,10 @@ package com.dawn.ai.service;
 
 import com.dawn.ai.config.AiAvailabilityChecker;
 import io.agentscope.core.rag.Knowledge;
+import io.agentscope.core.rag.model.Document;
+import io.agentscope.core.rag.model.DocumentMetadata;
+import io.agentscope.core.rag.model.RetrieveConfig;
+import io.agentscope.core.message.TextBlock;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -10,130 +14,97 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.VectorStore;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.within;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class RagServiceTest {
 
-    @Mock private VectorStore vectorStore;
     @Mock private AiAvailabilityChecker aiAvailabilityChecker;
     @Mock private Knowledge knowledge;
+    @Mock private QueryRewriter queryRewriter;
 
     private SimpleMeterRegistry meterRegistry;
     private RagService ragService;
 
-    @SuppressWarnings("unchecked")
-    private static ArgumentCaptor<List<Document>> springDocumentListCaptor() {
-        return (ArgumentCaptor<List<Document>>) (ArgumentCaptor<?>) ArgumentCaptor.forClass(List.class);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static ArgumentCaptor<List<io.agentscope.core.rag.model.Document>> agentScopeDocumentListCaptor() {
-        return (ArgumentCaptor<List<io.agentscope.core.rag.model.Document>>) (ArgumentCaptor<?>) ArgumentCaptor.forClass(List.class);
-    }
-
     @BeforeEach
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
-        ragService = new RagService(vectorStore, meterRegistry, aiAvailabilityChecker, knowledge);
+        ragService = new RagService(meterRegistry, aiAvailabilityChecker, knowledge, queryRewriter);
         lenient().when(knowledge.addDocuments(anyList())).thenReturn(Mono.empty());
-        // 注入配置值（与 application.yml 一致）
+        lenient().when(queryRewriter.rewrite(anyString())).thenAnswer(inv -> inv.getArgument(0));
         ragService.setSimilarityThreshold(0.7);
         ragService.setDefaultTopK(5);
-        // @PostConstruct 在直接 new 时不自动执行，手动初始化指标
         ragService.initMetrics();
     }
 
-    // ── ingest 测试 ────────────────────────────────────────────
+    // ── ingest tests ────────────────────────────────────────────
 
     @Test
-    @DisplayName("ingest: 短文本(<=500 tokens)应存为单个 chunk")
-    void ingest_shortContent_storesSingleChunk() {
+    @DisplayName("ingest: short content stores chunks via Knowledge")
+    void ingest_shortContent_storesViaKnowledge() {
         String shortContent = "Dawn AI is an intelligent assistant.";
         ragService.ingest(shortContent, "test", "general");
 
-        ArgumentCaptor<List<Document>> captor = springDocumentListCaptor();
-        verify(vectorStore).add(captor.capture());
-        assertThat(captor.getValue()).hasSize(1);
-        assertThat(captor.getValue().get(0).getText()).contains("Dawn AI");
-        verify(knowledge, never()).addDocuments(anyList());
+        verify(knowledge).addDocuments(anyList());
     }
 
     @Test
-    @DisplayName("ingest: 长文本(>500 tokens)应拆分为多个 chunk")
+    @DisplayName("ingest: long content splits into multiple chunks")
+    @SuppressWarnings("unchecked")
     void ingest_longContent_storesMultipleChunks() {
-        // 生成约 1000 tokens 的文本（英文约 1 word/token）
         String longContent = "word ".repeat(600);
         ragService.ingest(longContent, "doc", "manual");
 
-        ArgumentCaptor<List<Document>> captor = springDocumentListCaptor();
-        verify(vectorStore).add(captor.capture());
+        ArgumentCaptor<List<Document>> captor =
+                (ArgumentCaptor<List<Document>>) (ArgumentCaptor<?>) ArgumentCaptor.forClass(List.class);
+        verify(knowledge).addDocuments(captor.capture());
         assertThat(captor.getValue().size()).isGreaterThan(1);
     }
 
     @Test
-    @DisplayName("ingest: 每个 chunk 应继承父文档的 source 和 category metadata")
+    @DisplayName("ingest: chunks inherit source and category in payload")
+    @SuppressWarnings("unchecked")
     void ingest_chunksInheritMetadata() {
-        // Use long text to ensure multiple chunks are produced
         String content = "word ".repeat(600);
         ragService.ingest(content, "pricing-doc", "billing");
 
-        ArgumentCaptor<List<Document>> captor = springDocumentListCaptor();
-        verify(vectorStore).add(captor.capture());
+        ArgumentCaptor<List<Document>> captor =
+                (ArgumentCaptor<List<Document>>) (ArgumentCaptor<?>) ArgumentCaptor.forClass(List.class);
+        verify(knowledge).addDocuments(captor.capture());
         assertThat(captor.getValue()).isNotEmpty();
-        assertThat(captor.getValue()).allSatisfy(chunk -> {
-            assertThat(chunk.getMetadata()).containsEntry("source", "pricing-doc");
-            assertThat(chunk.getMetadata()).containsEntry("category", "billing");
+        assertThat(captor.getValue()).allSatisfy(doc -> {
+            var payload = doc.getMetadata().getPayload();
+            assertThat(payload).containsEntry("source", "pricing-doc");
+            assertThat(payload).containsEntry("category", "billing");
         });
     }
 
-    // ── retrieve 测试 ──────────────────────────────────────────
+    // ── retrieve tests ──────────────────────────────────────────
 
     @Test
-    @DisplayName("retrieve: 应使用 similarityThreshold 和 topK*2 候选数构建 SearchRequest")
-    void retrieve_buildsSearchRequestWithThresholdAndDoubledTopK() {
-        when(vectorStore.similaritySearch(any(SearchRequest.class)))
-                .thenReturn(List.of());
+    @DisplayName("retrieve: applies query rewrite before retrieval")
+    void retrieve_appliesQueryRewrite() {
+        when(queryRewriter.rewrite("月费多少")).thenReturn("Dawn AI 定价 月费");
+        when(knowledge.retrieve(anyString(), any(RetrieveConfig.class)))
+                .thenReturn(Mono.just(List.of()));
 
-        ragService.retrieve("test query", 5);
+        ragService.retrieve("月费多少", 5);
 
-        ArgumentCaptor<SearchRequest> captor = ArgumentCaptor.forClass(SearchRequest.class);
-        verify(vectorStore).similaritySearch(captor.capture());
-        SearchRequest req = captor.getValue();
-        assertThat(req.getTopK()).isEqualTo(10);           // topK * 2
-        assertThat(req.getSimilarityThreshold()).isCloseTo(0.7, within(1e-9));
+        verify(queryRewriter).rewrite("月费多少");
+        verify(knowledge).retrieve(eq("Dawn AI 定价 月费"), any(RetrieveConfig.class));
     }
 
     @Test
-    @DisplayName("retrieve: 结果超过 topK 时应截断为 topK 条")
-    void retrieve_truncatesToTopK() {
-        List<Document> eightDocs = List.of(
-            new Document("1"), new Document("2"), new Document("3"),
-            new Document("4"), new Document("5"), new Document("6"),
-            new Document("7"), new Document("8")
-        );
-        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(eightDocs);
-
-        List<Document> result = ragService.retrieve("query", 5);
-
-        assertThat(result).hasSize(5);
-    }
-
-    @Test
-    @DisplayName("retrieve: 结果为空时应增加 miss 计数器")
+    @DisplayName("retrieve: empty result increments miss counter")
     void retrieve_emptyResult_incrementsMissCounter() {
-        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
+        when(knowledge.retrieve(anyString(), any(RetrieveConfig.class)))
+                .thenReturn(Mono.just(List.of()));
 
         ragService.retrieve("query", 5);
 
@@ -142,10 +113,15 @@ class RagServiceTest {
     }
 
     @Test
-    @DisplayName("retrieve: 有结果时应增加 hit 计数器")
+    @DisplayName("retrieve: non-empty result increments hit counter")
     void retrieve_nonEmptyResult_incrementsHitCounter() {
-        when(vectorStore.similaritySearch(any(SearchRequest.class)))
-                .thenReturn(List.of(new Document("content")));
+        Document doc = new Document(DocumentMetadata.builder()
+                .content(TextBlock.builder().text("content").build())
+                .docId("1")
+                .chunkId("0")
+                .build());
+        when(knowledge.retrieve(anyString(), any(RetrieveConfig.class)))
+                .thenReturn(Mono.just(List.of(doc)));
 
         ragService.retrieve("query", 5);
 
@@ -154,18 +130,16 @@ class RagServiceTest {
     }
 
     @Test
-    @DisplayName("retrieve: 应记录 filtered_count 指标（候选数 - 返回数）")
-    void retrieve_recordsFilteredCountMetric() {
-        // 请求 topK=5 → 候选数=10，向量库返回 3 条（阈值过滤后）
-        List<Document> threeDocs = List.of(
-            new Document("a"), new Document("b"), new Document("c")
-        );
-        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(threeDocs);
+    @DisplayName("retrieve: uses configured topK and similarity threshold")
+    void retrieve_usesConfiguredParameters() {
+        when(knowledge.retrieve(anyString(), any(RetrieveConfig.class)))
+                .thenReturn(Mono.just(List.of()));
 
-        ragService.retrieve("query", 5);
+        ragService.retrieve("query", 10);
 
-        // filtered_count = 候选数(10) - 实际返回(3) = 7
-        double filteredSum = meterRegistry.summary("ai.rag.retrieval.filtered_count").totalAmount();
-        assertThat(filteredSum).isEqualTo(7.0);
+        ArgumentCaptor<RetrieveConfig> captor = ArgumentCaptor.forClass(RetrieveConfig.class);
+        verify(knowledge).retrieve(anyString(), captor.capture());
+        assertThat(captor.getValue().getLimit()).isEqualTo(10);
+        assertThat(captor.getValue().getScoreThreshold()).isEqualTo(0.7);
     }
 }
