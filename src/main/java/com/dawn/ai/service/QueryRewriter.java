@@ -53,21 +53,19 @@ public class QueryRewriter {
                     .temperature(0.1)
                     .build();
 
-            ChatResponse response = agentScopeModel
+            String text = agentScopeModel
                     .stream(List.of(systemMsg, userMsg), Collections.emptyList(), options)
-                    .reduce((first, last) -> last)
+                    .map(this::extractText)
+                    .filter(fragment -> fragment != null && !fragment.isBlank())
+                    .collect(StringBuilder::new, (builder, fragment) -> builder.append(fragment))
+                    .map(StringBuilder::toString)
+                    .defaultIfEmpty("")
                     .block();
 
-            if (response == null || response.getContent() == null) {
+            if (text == null) {
                 log.warn("[QueryRewriter] LLM returned null response, falling back to original. query='{}'", originalQuery);
                 return originalQuery;
             }
-
-            String text = response.getContent().stream()
-                    .filter(TextBlock.class::isInstance)
-                    .map(c -> ((TextBlock) c).getText())
-                    .reduce(String::concat)
-                    .orElse("");
 
             String rewritten = extractRewrittenQuery(text);
 
@@ -82,6 +80,18 @@ public class QueryRewriter {
             log.warn("[QueryRewriter] Failed to rewrite query, falling back to original. query='{}', error={}", originalQuery, e.getMessage());
             return originalQuery;
         }
+    }
+
+    private String extractText(ChatResponse response) {
+        if (response == null || response.getContent() == null) {
+            return "";
+        }
+
+        return response.getContent().stream()
+                .filter(TextBlock.class::isInstance)
+                .map(c -> ((TextBlock) c).getText())
+                .reduce(String::concat)
+                .orElse("");
     }
 
     private String extractRewrittenQuery(String text) {

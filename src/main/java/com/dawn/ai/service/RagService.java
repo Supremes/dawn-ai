@@ -43,6 +43,14 @@ public class RagService {
     @Value("${app.ai.rag.default-top-k:5}")
     private int defaultTopK;
 
+    @Setter
+    @Value("${app.ai.rag.fallback-similarity-threshold:0.5}")
+    private double fallbackSimilarityThreshold;
+
+    @Setter
+    @Value("${app.ai.rag.short-query-max-length:12}")
+    private int shortQueryMaxLength;
+
     private Counter ingestionCounter;
     private Counter retrievalHitCounter;
     private Counter retrievalMissCounter;
@@ -106,13 +114,15 @@ public class RagService {
         aiAvailabilityChecker.ensureConfigured();
 
         String rewrittenQuery = queryRewriter.rewrite(query);
+        List<io.agentscope.core.rag.model.Document> results = retrieveWithThreshold(rewrittenQuery, topK, similarityThreshold);
+        boolean usedFallbackThreshold = false;
 
-        RetrieveConfig config = RetrieveConfig.builder()
-                .scoreThreshold(similarityThreshold)
-                .limit(topK)
-                .build();
-
-        List<io.agentscope.core.rag.model.Document> results = knowledge.retrieve(rewrittenQuery, config).block();
+        if ((results == null || results.isEmpty()) && shouldRetryWithFallback(rewrittenQuery)) {
+            usedFallbackThreshold = true;
+            log.info("[RagService] Retrieved 0 docs at threshold={} for short query='{}', retrying with fallback threshold={}",
+                    similarityThreshold, rewrittenQuery, fallbackSimilarityThreshold);
+            results = retrieveWithThreshold(rewrittenQuery, topK, fallbackSimilarityThreshold);
+        }
 
         if (results == null || results.isEmpty()) {
             retrievalMissCounter.increment();
@@ -122,8 +132,34 @@ public class RagService {
         }
 
         retrievalHitCounter.increment();
-        log.info("[RagService] Retrieved {}/{} docs (threshold={}), query='{}', rewritten='{}'",
-                results.size(), topK, similarityThreshold, query, rewrittenQuery);
+        if (usedFallbackThreshold) {
+            log.info("[RagService] Retrieved {}/{} docs after fallback (primaryThreshold={}, fallbackThreshold={}), query='{}', rewritten='{}'",
+                    results.size(), topK, similarityThreshold, fallbackSimilarityThreshold, query, rewrittenQuery);
+        } else {
+            log.info("[RagService] Retrieved {}/{} docs (threshold={}), query='{}', rewritten='{}'",
+                    results.size(), topK, similarityThreshold, query, rewrittenQuery);
+        }
         return results;
+    }
+
+    private List<io.agentscope.core.rag.model.Document> retrieveWithThreshold(String query, int topK, double threshold) {
+        RetrieveConfig config = RetrieveConfig.builder()
+                .scoreThreshold(threshold)
+                .limit(topK)
+                .build();
+        return knowledge.retrieve(query, config).block();
+    }
+
+    private boolean shouldRetryWithFallback(String query) {
+        if (fallbackSimilarityThreshold >= similarityThreshold) {
+            return false;
+        }
+
+        String normalizedQuery = query == null ? "" : query.replaceAll("\\s+", "");
+        if (normalizedQuery.isEmpty()) {
+            return false;
+        }
+
+        return normalizedQuery.codePointCount(0, normalizedQuery.length()) <= shortQueryMaxLength;
     }
 }

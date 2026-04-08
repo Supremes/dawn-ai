@@ -87,6 +87,8 @@ app:
       plan-enabled: false   # 是否启用执行前规划（关闭后跳过 TaskPlanner）
     rag:
       similarity-threshold: 0.7   # 向量相似度过滤阈值，低于此值的文档被丢弃
+      fallback-similarity-threshold: 0.5 # 短 query 命不中时使用的回退阈值，避免被过高阈值误杀
+      short-query-max-length: 12   # 去空白后的 query 长度不超过该值时，允许触发回退检索
       default-top-k: 5            # 最终返回的文档数
       query-rewrite-enabled: true  # 检索前是否用 LLM 改写查询，false 时原样传入
       max-calls-per-session: 3    # 每次请求最多 RAG 工具调用次数，独立于 maxSteps
@@ -100,5 +102,6 @@ logging:
   level:
     com.dawn.ai: DEBUG
     org.springframework.ai: INFO
+    io.agentscope: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

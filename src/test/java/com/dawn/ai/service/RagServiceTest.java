@@ -40,6 +40,8 @@ class RagServiceTest {
         lenient().when(queryRewriter.rewrite(anyString())).thenAnswer(inv -> inv.getArgument(0));
         ragService.setSimilarityThreshold(0.7);
         ragService.setDefaultTopK(5);
+        ragService.setFallbackSimilarityThreshold(0.5);
+        ragService.setShortQueryMaxLength(12);
         ragService.initMetrics();
     }
 
@@ -90,6 +92,7 @@ class RagServiceTest {
     @Test
     @DisplayName("retrieve: applies query rewrite before retrieval")
     void retrieve_appliesQueryRewrite() {
+        ragService.setShortQueryMaxLength(3);
         when(queryRewriter.rewrite("月费多少")).thenReturn("Dawn AI 定价 月费");
         when(knowledge.retrieve(anyString(), any(RetrieveConfig.class)))
                 .thenReturn(Mono.just(List.of()));
@@ -135,11 +138,40 @@ class RagServiceTest {
         when(knowledge.retrieve(anyString(), any(RetrieveConfig.class)))
                 .thenReturn(Mono.just(List.of()));
 
-        ragService.retrieve("query", 10);
+        ragService.retrieve("a much longer query that should not trigger fallback", 10);
 
         ArgumentCaptor<RetrieveConfig> captor = ArgumentCaptor.forClass(RetrieveConfig.class);
         verify(knowledge).retrieve(anyString(), captor.capture());
         assertThat(captor.getValue().getLimit()).isEqualTo(10);
         assertThat(captor.getValue().getScoreThreshold()).isEqualTo(0.7);
+    }
+
+    @Test
+    @DisplayName("retrieve: short query misses primary threshold then retries with fallback threshold")
+    void retrieve_shortQueryRetriesWithFallbackThreshold() {
+        Document doc = new Document(DocumentMetadata.builder()
+                .content(TextBlock.builder().text("杜康今日眼睛很疼").build())
+                .docId("1")
+                .chunkId("0")
+                .build());
+
+        when(knowledge.retrieve(eq("杜康"), any(RetrieveConfig.class)))
+                .thenAnswer(invocation -> {
+                    RetrieveConfig config = invocation.getArgument(1);
+                    if (config.getScoreThreshold() >= 0.7) {
+                        return Mono.just(List.of());
+                    }
+                    return Mono.just(List.of(doc));
+                });
+
+        List<Document> result = ragService.retrieve("杜康", 5);
+
+        assertThat(result).containsExactly(doc);
+
+        ArgumentCaptor<RetrieveConfig> captor = ArgumentCaptor.forClass(RetrieveConfig.class);
+        verify(knowledge, times(2)).retrieve(eq("杜康"), captor.capture());
+        assertThat(captor.getAllValues())
+                .extracting(RetrieveConfig::getScoreThreshold)
+                .containsExactly(0.7, 0.5);
     }
 }

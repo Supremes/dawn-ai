@@ -1,0 +1,21 @@
+# Single-image Dockerfile for local development
+# Pros: simple workflow (build + run in one image)
+# Cons: larger image, not ideal for production
+FROM maven:3-eclipse-temurin-17-alpine
+
+WORKDIR /app
+
+# Copy only build metadata first to leverage Docker layer cache
+COPY pom.xml .
+COPY .mvn/settings.xml /root/.m2/settings.xml
+RUN mvn -s /root/.m2/settings.xml -B dependency:go-offline
+
+COPY src/ src/
+RUN mvn -s /root/.m2/settings.xml -B package -DskipTests
+
+EXPOSE 8080 5005
+
+ENV JAVA_OPTS="-Xms256m -Xmx512m -XX:+UseG1GC"
+ENV JAVA_DEBUG_OPTS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS $JAVA_DEBUG_OPTS -jar target/dawn-ai-1.0.0-SNAPSHOT.jar"]

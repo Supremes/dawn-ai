@@ -91,12 +91,32 @@ class QueryRewriterTest {
         assertThat(result).isEqualTo("Dawn AI 定价 月费");
     }
 
+    @Test
+    @DisplayName("流式分片响应会拼接全部文本，而不是只取最后一个空分片")
+    void rewrite_streamedChunks_concatenatesAllFragments() {
+        queryRewriter.setQueryRewriteEnabled(true);
+
+        ChatResponse first = chatResponse("{\"rewritten");
+        ChatResponse second = chatResponse("Query\": \"杜康\"}");
+        ChatResponse last = ChatResponse.builder().content(List.of()).build();
+
+        when(agentScopeModel.stream(anyList(), anyList(), any()))
+                .thenReturn(Flux.just(first, second, last));
+
+        String result = queryRewriter.rewrite("杜康");
+
+        assertThat(result).isEqualTo("杜康");
+    }
+
     private void mockModelResponse(String text) {
+        when(agentScopeModel.stream(anyList(), anyList(), any()))
+                .thenReturn(Flux.just(chatResponse(text)));
+    }
+
+    private ChatResponse chatResponse(String text) {
         List<ContentBlock> content = List.of(TextBlock.builder().text(text).build());
-        ChatResponse response = ChatResponse.builder()
+        return ChatResponse.builder()
                 .content(content)
                 .build();
-        when(agentScopeModel.stream(anyList(), anyList(), any()))
-                .thenReturn(Flux.just(response));
     }
 }
