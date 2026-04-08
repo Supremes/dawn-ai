@@ -37,6 +37,9 @@ public class AiConfig {
     @Value("${spring.ai.openai.api-key:}")
     private String openAiApiKey;
 
+    @Value("${spring.ai.openai.embedding.options.model:}")
+    private String embeddingModel;
+
     @Bean
     public ChatClient chatClient(ChatModel chatModel) {
         return ChatClient.builder(chatModel)
@@ -82,9 +85,10 @@ public class AiConfig {
     @Bean
     public ApplicationRunner aiStartupLogRunner() {
         return args -> {
-            log.info("[AI Config] base-url={}, api-key={}",
+            log.info("[AI Config] base-url={}, api-key={}, embedding-model={}",
                     openAiBaseUrl,
-                    maskApiKey(openAiApiKey));
+                    maskApiKey(openAiApiKey),
+                    embeddingModel);
             if (openAiBaseUrl != null && openAiBaseUrl.endsWith("/v1")) {
                 log.warn("[AI Config] base-url ends with /v1. Spring AI will append /v1/chat/completions automatically, which can produce a duplicated /v1 path for OpenAI-compatible providers.");
             }
