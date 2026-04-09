@@ -1,5 +1,7 @@
 package com.dawn.ai.config;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
@@ -26,7 +28,8 @@ import java.nio.charset.StandardCharsets;
 public class AiConfig {
 
     private static final Logger log = LoggerFactory.getLogger(AiConfig.class);
-    private static final int MAX_LOG_BODY_LENGTH = 4000;
+    private static final int MAX_CONTENT_SNIPPET = 150;
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Value("${app.ai.system-prompt:You are a helpful AI assistant.}")
     private String defaultSystemPrompt;
@@ -36,6 +39,9 @@ public class AiConfig {
 
     @Value("${spring.ai.openai.api-key:}")
     private String openAiApiKey;
+
+    @Value("${spring.ai.openai.embedding.options.model:}")
+    private String embeddingModel;
 
     @Bean
     public ChatClient chatClient(ChatModel chatModel) {
@@ -48,20 +54,15 @@ public class AiConfig {
     @Primary
     public RestClient.Builder openAiRestClientBuilder() {
         ClientHttpRequestInterceptor loggingInterceptor = (request, body, execution) -> {
-            log.info("[AI HTTP] {} {}", request.getMethod(), request.getURI());
-            log.info("[AI HTTP] Request headers={}", sanitizeHeaders(request.getHeaders()));
-            log.info("[AI HTTP] Request body={}", abbreviate(new String(body, StandardCharsets.UTF_8)));
+            String reqBodyText = new String(body, StandardCharsets.UTF_8);
+            log.info("[AI HTTP] --> {} {} | {}", request.getMethod(), request.getURI(), summarizeRequestBody(reqBodyText));
+
             ClientHttpResponse response = execution.execute(request, body);
 
             byte[] responseBody = StreamUtils.copyToByteArray(response.getBody());
-            Charset responseCharset = resolveCharset(response.getHeaders());
-            String responseBodyText = new String(responseBody, responseCharset);
+            String responseBodyText = new String(responseBody, resolveCharset(response.getHeaders()));
 
-            log.info("[AI HTTP] Response status={} contentType={} contentLength={}",
-                    response.getStatusCode(),
-                    response.getHeaders().getContentType(),
-                    responseBody.length);
-            log.info("[AI HTTP] Response body={}", abbreviate(responseBodyText));
+            log.info("[AI HTTP] <-- status={} | {}", response.getStatusCode(), summarizeResponseBody(responseBodyText));
 
             return response;
         };
@@ -82,14 +83,93 @@ public class AiConfig {
     @Bean
     public ApplicationRunner aiStartupLogRunner() {
         return args -> {
-            log.info("[AI Config] base-url={}, api-key={}",
+            log.info("[AI Config] base-url={}, api-key={}, embedding-model={}",
                     openAiBaseUrl,
-                    maskApiKey(openAiApiKey));
+                    maskApiKey(openAiApiKey),
+                    embeddingModel);
             if (openAiBaseUrl != null && openAiBaseUrl.endsWith("/v1")) {
                 log.warn("[AI Config] base-url ends with /v1. Spring AI will append /v1/chat/completions automatically, which can produce a duplicated /v1 path for OpenAI-compatible providers.");
             }
         };
     }
+
+    // --- request/response summarizers ---
+
+    private String summarizeRequestBody(String body) {
+        try {
+            JsonNode root = OBJECT_MAPPER.readTree(body);
+            StringBuilder sb = new StringBuilder();
+            if (root.has("model")) {
+                sb.append("model=").append(root.get("model").asText());
+            }
+            if (root.has("messages")) {
+                JsonNode messages = root.get("messages");
+                sb.append(", messages=").append(messages.size());
+                // Show the last user turn briefly so we know what was sent
+                for (int i = messages.size() - 1; i >= 0; i--) {
+                    JsonNode msg = messages.get(i);
+                    if ("user".equals(msg.path("role").asText())) {
+                        sb.append(", lastUser=「").append(snippet(msg.path("content").asText())).append("」");
+                        break;
+                    }
+                }
+            }
+            if (root.has("tools")) {
+                sb.append(", tools=").append(root.get("tools").size());
+            }
+            if (root.has("temperature")) {
+                sb.append(", temperature=").append(root.get("temperature").asDouble());
+            }
+            if (root.has("stream")) {
+                sb.append(", stream=").append(root.get("stream").asBoolean());
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return snippet(body);
+        }
+    }
+
+    private String summarizeResponseBody(String body) {
+        try {
+            JsonNode root = OBJECT_MAPPER.readTree(body);
+            StringBuilder sb = new StringBuilder();
+            if (root.has("choices") && root.get("choices").size() > 0) {
+                JsonNode choice = root.get("choices").get(0);
+                sb.append("finishReason=").append(choice.path("finish_reason").asText("?"));
+                String content = choice.path("message").path("content").asText("");
+                if (!content.isBlank()) {
+                    sb.append(", content=「").append(snippet(content)).append("」");
+                }
+                JsonNode toolCalls = choice.path("message").path("tool_calls");
+                if (toolCalls.isArray() && !toolCalls.isEmpty()) {
+                    sb.append(", toolCalls=[");
+                    for (int i = 0; i < toolCalls.size(); i++) {
+                        if (i > 0) sb.append(", ");
+                        sb.append(toolCalls.get(i).path("function").path("name").asText("?"));
+                    }
+                    sb.append("]");
+                }
+            }
+            if (root.has("usage")) {
+                JsonNode usage = root.get("usage");
+                sb.append(", promptTokens=").append(usage.path("prompt_tokens").asInt())
+                  .append(", completionTokens=").append(usage.path("completion_tokens").asInt());
+            }
+            if (root.has("error")) {
+                sb.append(", error=").append(root.get("error").path("message").asText());
+            }
+            return sb.isEmpty() ? snippet(body) : sb.toString();
+        } catch (Exception e) {
+            return snippet(body);
+        }
+    }
+
+    private String snippet(String value) {
+        if (value == null || value.length() <= MAX_CONTENT_SNIPPET) return value;
+        return value.substring(0, MAX_CONTENT_SNIPPET) + "…";
+    }
+
+    // --- helpers ---
 
     private String maskApiKey(String apiKey) {
         if (apiKey == null || apiKey.isBlank()) {
@@ -107,13 +187,6 @@ public class AiConfig {
             return headers.getContentType().getCharset();
         }
         return StandardCharsets.UTF_8;
-    }
-
-    private String abbreviate(String value) {
-        if (value == null || value.length() <= MAX_LOG_BODY_LENGTH) {
-            return value;
-        }
-        return value.substring(0, MAX_LOG_BODY_LENGTH) + "...(truncated)";
     }
 
     private HttpHeaders sanitizeHeaders(HttpHeaders headers) {

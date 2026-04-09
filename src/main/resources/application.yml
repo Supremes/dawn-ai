@@ -29,12 +29,12 @@ spring:
       base-url: ${BASE_URL}
       chat:
         options:
-          model: ${MODEL}
+          model: ${CHAT_MODEL}
           temperature: 0.7
           max-tokens: 2048
       embedding:
         options:
-          model: Qwen/Qwen3-Embedding-8B
+          model: ${EMBEDDING_MODEL}
           encodingFormat: float
           dimensions: 1536
 
