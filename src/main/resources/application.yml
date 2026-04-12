@@ -28,22 +28,26 @@ spring:
       api-key: ${OPENAI_API_KEY}
       base-url: ${BASE_URL}
       chat:
+        base-url: ${CHAT_BASE_URL:${BASE_URL}}
+        api-key: ${CHAT_API_KEY:${OPENAI_API_KEY}}
         options:
           model: ${CHAT_MODEL}
           temperature: 0.7
           max-tokens: 2048
       embedding:
+        base-url: ${EMBEDDING_BASE_URL:${BASE_URL}}
+        api-key: ${EMBEDDING_API_KEY:${OPENAI_API_KEY}}
         options:
           model: ${EMBEDDING_MODEL}
           encodingFormat: float
-          dimensions: 1536
+          dimensions: ${EMBEDDING_DIMENSIONS:1536}
 
     # Vector Store - PGVector
     vectorstore:
       pgvector:
         index-type: HNSW
         distance-type: COSINE_DISTANCE
-        dimensions: 1536
+        dimensions: ${EMBEDDING_DIMENSIONS:1536}
         initialize-schema: true
 
 server:

@@ -1,8 +1,6 @@
-version: '3.8'
-
 services:
   app:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile
     ports:
@@ -12,12 +10,17 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - BASE_URL=${BASE_URL}
       - CHAT_MODEL=${CHAT_MODEL}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - EMBEDDING_MODEL=${LOCAL_EMBEDDING_MODEL:-BAAI/bge-m3}
+      - EMBEDDING_BASE_URL=${LOCAL_EMBEDDING_BASE_URL:-http://embedding:7997}
+      - EMBEDDING_API_KEY=${LOCAL_EMBEDDING_API_KEY:-local-embedding-key}
+      - EMBEDDING_DIMENSIONS=${LOCAL_EMBEDDING_DIMENSIONS:-1024}
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/dawn_ai
       - SPRING_DATASOURCE_USERNAME=dawn
       - SPRING_DATASOURCE_PASSWORD=dawn123
       - SPRING_DATA_REDIS_HOST=redis
     depends_on:
+      embedding:
+        condition: service_started
       postgres:
         condition: service_healthy
       redis:
@@ -26,6 +29,24 @@ services:
         condition: service_started
       grafana:
         condition: service_started
+    networks:
+      - dawn-network
+
+  embedding:
+    image: michaelf34/infinity:0.0.77
+    command: >-
+      v2
+      --model-id ${LOCAL_EMBEDDING_MODEL:-BAAI/bge-m3}
+      --host 0.0.0.0
+      --port 7997
+      --dtype ${LOCAL_EMBEDDING_DTYPE:-auto}
+      --batch-size ${LOCAL_EMBEDDING_BATCH_SIZE:-8}
+    ports:
+      - "7997:7997"
+    environment:
+      - HF_HOME=/app/.cache
+    volumes:
+      - huggingface_cache:/app/.cache
     networks:
       - dawn-network
 
@@ -85,6 +106,7 @@ services:
       - dawn-network
 
 volumes:
+  huggingface_cache:
   postgres_data:
   redis_data:
   grafana_data:
