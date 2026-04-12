@@ -1,9 +1,9 @@
 package com.dawn.ai.agent.tools;
 
-import com.dawn.ai.agent.StepCollector;
-import com.dawn.ai.service.QueryRewriter;
-import com.dawn.ai.service.RagService;
-import com.dawn.ai.service.RetrievalRequest;
+import com.dawn.ai.agent.trace.StepCollector;
+import com.dawn.ai.rag.RagService;
+import com.dawn.ai.rag.query.QueryRewriter;
+import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

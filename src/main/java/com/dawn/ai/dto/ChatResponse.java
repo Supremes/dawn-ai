@@ -1,6 +1,6 @@
 package com.dawn.ai.dto;
 
-import com.dawn.ai.agent.AgentStep;
+import com.dawn.ai.agent.trace.AgentStep;
 import lombok.Builder;
 import lombok.Data;
 

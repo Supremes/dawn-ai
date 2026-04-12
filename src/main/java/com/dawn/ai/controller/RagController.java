@@ -1,9 +1,9 @@
 package com.dawn.ai.controller;
 
 import com.dawn.ai.dto.RagRequest;
-import com.dawn.ai.service.RagService;
-import com.dawn.ai.service.RetrievalRequest;
-import com.dawn.ai.service.RetrievalStrategy;
+import com.dawn.ai.rag.RagService;
+import com.dawn.ai.rag.retrieval.RetrievalRequest;
+import com.dawn.ai.rag.retrieval.RetrievalStrategy;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
