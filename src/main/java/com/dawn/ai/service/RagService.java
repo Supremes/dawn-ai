@@ -40,6 +40,7 @@ public class RagService {
     private final RetrievalReranker retrievalReranker;
     private final SparseRetriever sparseRetriever;
     private final ReciprocalRankFusion reciprocalRankFusion;
+    private final RetrievalRouter retrievalRouter;
 
     @Setter
     @Value("${app.ai.rag.similarity-threshold:0.7}")
@@ -148,9 +149,10 @@ public class RagService {
 
         SearchRequest request = builder.build();
 
+        RetrievalStrategy strategy = resolveStrategy(retrievalRequest);
         List<Document> denseResults = vectorStore.similaritySearch(request);
-        List<Document> sparseResults = shouldUseHybridSearch() ? sparseRetriever.retrieve(retrievalRequest, candidateCount) : List.of();
-        List<Document> results = shouldUseHybridSearch()
+        List<Document> sparseResults = shouldUseHybridSearch(strategy) ? sparseRetriever.retrieve(retrievalRequest, candidateCount) : List.of();
+        List<Document> results = shouldUseHybridSearch(strategy)
                 ? reciprocalRankFusion.fuse(denseResults, sparseResults)
                 : denseResults;
         int filteredOut = Math.max(0, candidateCount - denseResults.size());
@@ -166,8 +168,8 @@ public class RagService {
                 ? retrievalReranker.rerank(retrievalRequest, results)
                 : results;
         List<Document> limited = reranked.stream().limit(retrievalRequest.getTopK()).toList();
-        log.info("[RagService] Retrieved {}/{} docs (threshold={}, filtered={}), query='{}', metadataFilters={}",
-                limited.size(), candidateCount, similarityThreshold, filteredOut,
+        log.info("[RagService] Retrieved {}/{} docs (strategy={}, threshold={}, filtered={}), query='{}', metadataFilters={}",
+                limited.size(), candidateCount, strategy, similarityThreshold, filteredOut,
                 retrievalRequest.getQuery(), retrievalRequest.getMetadataFilters());
         return limited;
     }
@@ -176,8 +178,12 @@ public class RagService {
         return rerankEnabled && retrievalRequest.isRerankEnabled();
     }
 
-    private boolean shouldUseHybridSearch() {
-        return hybridEnabled;
+    private RetrievalStrategy resolveStrategy(RetrievalRequest retrievalRequest) {
+        return retrievalRouter.route(retrievalRequest);
+    }
+
+    private boolean shouldUseHybridSearch(RetrievalStrategy strategy) {
+        return hybridEnabled && strategy == RetrievalStrategy.HYBRID;
     }
 
     private Filter.Expression buildFilterExpression(Map<String, List<String>> metadataFilters) {

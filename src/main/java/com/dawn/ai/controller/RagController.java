@@ -3,6 +3,7 @@ package com.dawn.ai.controller;
 import com.dawn.ai.dto.RagRequest;
 import com.dawn.ai.service.RagService;
 import com.dawn.ai.service.RetrievalRequest;
+import com.dawn.ai.service.RetrievalStrategy;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -44,10 +45,12 @@ public class RagController {
             @RequestParam(defaultValue = "5") @Min(1) @Max(20) int topK,
             @RequestParam(required = false) List<String> source,
             @RequestParam(required = false) List<String> category,
-            @RequestParam(required = false, name = "docId") List<String> docIds) {
+            @RequestParam(required = false, name = "docId") List<String> docIds,
+            @RequestParam(defaultValue = "AUTO") RetrievalStrategy strategy) {
         RetrievalRequest request = RetrievalRequest.builder()
                 .query(query)
                 .topK(topK)
+                .strategy(strategy)
                 .metadataFilters(buildMetadataFilters(source, category, docIds))
                 .build();
         List<Document> results = ragService.retrieve(request);

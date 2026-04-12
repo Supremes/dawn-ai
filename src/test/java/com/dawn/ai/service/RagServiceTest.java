@@ -40,7 +40,8 @@ class RagServiceTest {
                 aiAvailabilityChecker,
                 new HeuristicRetrievalReranker(),
                 sparseRetriever,
-                new ReciprocalRankFusion());
+                new ReciprocalRankFusion(),
+                new RetrievalRouter());
         // 注入配置值（与 application.yml 一致）
         ragService.setSimilarityThreshold(0.7);
         ragService.setDefaultTopK(5);
@@ -241,5 +242,20 @@ class RagServiceTest {
 
         assertThat(result).extracting(Document::getId)
                 .containsExactly("doc-2", "doc-1");
+    }
+
+    @Test
+    @DisplayName("retrieve: 路由到 dense 时不应调用 sparse retriever")
+    void retrieve_denseRouteDoesNotCallSparseRetriever() {
+        ragService.setHybridEnabled(true);
+        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of(new Document("doc-1", "说明文档", Map.of())));
+
+        ragService.retrieve(RetrievalRequest.builder()
+                .query("请解释 Dawn AI 的退款流程和注意事项")
+                .topK(1)
+                .rerankEnabled(false)
+                .build());
+
+        verify(sparseRetriever, never()).retrieve(any(RetrievalRequest.class), anyInt());
     }
 }

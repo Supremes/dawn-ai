@@ -21,6 +21,9 @@ public class RetrievalRequest {
     @Builder.Default
     private final boolean rerankEnabled = true;
 
+    @Builder.Default
+    private final RetrievalStrategy strategy = RetrievalStrategy.AUTO;
+
     public boolean hasMetadataFilters() {
         return metadataFilters != null && !metadataFilters.isEmpty();
     }
