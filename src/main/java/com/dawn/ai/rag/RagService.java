@@ -2,12 +2,12 @@ package com.dawn.ai.rag;
 
 import com.dawn.ai.config.AiAvailabilityChecker;
 import com.dawn.ai.rag.ingestion.OverlapTextSplitter;
-import com.dawn.ai.rag.retrieval.ReciprocalRankFusion;
+import com.dawn.ai.rag.retrieval.fusion.ReciprocalRankFusion;
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
-import com.dawn.ai.rag.retrieval.RetrievalReranker;
+import com.dawn.ai.rag.retrieval.rerank.RetrievalReranker;
 import com.dawn.ai.rag.retrieval.RetrievalRouter;
 import com.dawn.ai.rag.retrieval.RetrievalStrategy;
-import com.dawn.ai.rag.retrieval.SparseRetriever;
+import com.dawn.ai.rag.retrieval.sparse.SparseRetriever;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;

@@ -1,5 +1,6 @@
-package com.dawn.ai.rag.retrieval;
+package com.dawn.ai.rag.retrieval.rerank;
 
+import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import org.springframework.ai.document.Document;
 import org.springframework.stereotype.Component;
 

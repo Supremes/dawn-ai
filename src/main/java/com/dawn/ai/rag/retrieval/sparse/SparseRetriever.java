@@ -1,5 +1,6 @@
-package com.dawn.ai.rag.retrieval;
+package com.dawn.ai.rag.retrieval.sparse;
 
+import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import org.springframework.ai.document.Document;
 
 import java.util.List;

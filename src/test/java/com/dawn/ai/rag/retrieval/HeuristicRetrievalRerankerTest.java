@@ -1,5 +1,6 @@
 package com.dawn.ai.rag.retrieval;
 
+import com.dawn.ai.rag.retrieval.rerank.HeuristicRetrievalReranker;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.document.Document;

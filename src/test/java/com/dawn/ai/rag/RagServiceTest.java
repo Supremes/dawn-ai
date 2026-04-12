@@ -1,11 +1,11 @@
 package com.dawn.ai.rag;
 
 import com.dawn.ai.config.AiAvailabilityChecker;
-import com.dawn.ai.rag.retrieval.HeuristicRetrievalReranker;
-import com.dawn.ai.rag.retrieval.ReciprocalRankFusion;
+import com.dawn.ai.rag.retrieval.rerank.HeuristicRetrievalReranker;
+import com.dawn.ai.rag.retrieval.fusion.ReciprocalRankFusion;
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import com.dawn.ai.rag.retrieval.RetrievalRouter;
-import com.dawn.ai.rag.retrieval.SparseRetriever;
+import com.dawn.ai.rag.retrieval.sparse.SparseRetriever;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

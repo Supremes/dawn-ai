@@ -76,7 +76,17 @@ app:
       similarity-threshold: 0.7   # 向量相似度过滤阈值，低于此值的文档被丢弃
       default-top-k: 5            # 最终返回的文档数
       rerank-enabled: true        # 是否启用召回后的二阶段重排
+      reranker:
+        type: heuristic           # heuristic | cross-encoder
       hybrid-enabled: true        # 是否启用 BM25 + Dense 混合召回
+      cross-encoder:
+        base-url: ""              # 可选：cross-encoder rerank 服务地址，例如 http://localhost:8081
+        rerank-path: /rerank      # rerank 接口路径，默认请求体含 query/documents/top_n
+        model: ""                 # 可选：请求体中的模型名
+        api-key: ""               # 可选：访问 rerank 服务的 API key
+        api-key-header: Authorization
+        api-key-prefix: "Bearer "
+        max-document-chars: 4000  # 发送到 reranker 的单文档最大字符数
       query-rewrite-enabled: true  # 检索前是否用 LLM 改写查询，false 时原样传入
       max-calls-per-session: 3    # 每次请求最多 RAG 工具调用次数，独立于 maxSteps
     system-prompt: |

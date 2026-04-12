@@ -1,4 +1,4 @@
-package com.dawn.ai.rag.retrieval;
+package com.dawn.ai.rag.retrieval.fusion;
 
 import org.springframework.ai.document.Document;
 import org.springframework.stereotype.Component;
