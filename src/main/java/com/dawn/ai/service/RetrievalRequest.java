@@ -18,6 +18,9 @@ public class RetrievalRequest {
     @Builder.Default
     private final Map<String, List<String>> metadataFilters = Map.of();
 
+    @Builder.Default
+    private final boolean rerankEnabled = true;
+
     public boolean hasMetadataFilters() {
         return metadataFilters != null && !metadataFilters.isEmpty();
     }

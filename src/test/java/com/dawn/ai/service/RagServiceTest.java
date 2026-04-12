@@ -33,7 +33,7 @@ class RagServiceTest {
     @BeforeEach
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
-        ragService = new RagService(vectorStore, meterRegistry, aiAvailabilityChecker);
+        ragService = new RagService(vectorStore, meterRegistry, aiAvailabilityChecker, new HeuristicRetrievalReranker());
         // 注入配置值（与 application.yml 一致）
         ragService.setSimilarityThreshold(0.7);
         ragService.setDefaultTopK(5);
@@ -196,5 +196,22 @@ class RagServiceTest {
                 .contains("pricing-doc")
                 .contains("category")
                 .contains("billing");
+    }
+
+    @Test
+    @DisplayName("retrieve: rerank 应把更匹配 query 的文档排到前面")
+    void retrieve_reranksCandidatesBeforeLimiting() {
+        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of(
+                new Document("天气很好，适合出门"),
+                new Document("Dawn AI refund policy and refund steps")
+        ));
+
+        List<Document> result = ragService.retrieve(RetrievalRequest.builder()
+                .query("refund policy")
+                .topK(1)
+                .build());
+
+        assertThat(result).extracting(Document::getText)
+                .containsExactly("Dawn AI refund policy and refund steps");
     }
 }

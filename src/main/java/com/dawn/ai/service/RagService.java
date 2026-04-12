@@ -37,6 +37,7 @@ public class RagService {
     private final VectorStore vectorStore;
     private final MeterRegistry meterRegistry;
     private final AiAvailabilityChecker aiAvailabilityChecker;
+    private final RetrievalReranker retrievalReranker;
 
     @Setter
     @Value("${app.ai.rag.similarity-threshold:0.7}")
@@ -53,6 +54,10 @@ public class RagService {
     @Setter
     @Value("${app.ai.rag.chunk-overlap:50}")
     private int chunkOverlap = 50;
+
+    @Setter
+    @Value("${app.ai.rag.rerank-enabled:true}")
+    private boolean rerankEnabled = true;
 
     private Counter ingestionCounter;
     private Counter retrievalHitCounter;
@@ -147,11 +152,18 @@ public class RagService {
             retrievalHitCounter.increment();
         }
 
-        List<Document> limited = results.stream().limit(retrievalRequest.getTopK()).toList();
+        List<Document> reranked = shouldRerank(retrievalRequest)
+                ? retrievalReranker.rerank(retrievalRequest, results)
+                : results;
+        List<Document> limited = reranked.stream().limit(retrievalRequest.getTopK()).toList();
         log.info("[RagService] Retrieved {}/{} docs (threshold={}, filtered={}), query='{}', metadataFilters={}",
                 limited.size(), candidateCount, similarityThreshold, filteredOut,
                 retrievalRequest.getQuery(), retrievalRequest.getMetadataFilters());
         return limited;
+    }
+
+    private boolean shouldRerank(RetrievalRequest retrievalRequest) {
+        return rerankEnabled && retrievalRequest.isRerankEnabled();
     }
 
     private Filter.Expression buildFilterExpression(Map<String, List<String>> metadataFilters) {
