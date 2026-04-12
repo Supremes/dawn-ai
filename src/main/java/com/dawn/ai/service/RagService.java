@@ -9,7 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
-import org.springframework.ai.transformer.splitter.TokenTextSplitter;
+import org.springframework.ai.document.DocumentTransformer;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,11 +42,19 @@ public class RagService {
     @Value("${app.ai.rag.default-top-k:5}")
     private int defaultTopK;
 
+    @Setter
+    @Value("${app.ai.rag.chunk-size:500}")
+    private int chunkSize = 500;
+
+    @Setter
+    @Value("${app.ai.rag.chunk-overlap:50}")
+    private int chunkOverlap = 50;
+
     private Counter ingestionCounter;
     private Counter retrievalHitCounter;
     private Counter retrievalMissCounter;
     private DistributionSummary filteredCountSummary;
-    private TokenTextSplitter splitter;
+    private DocumentTransformer splitter;
 
     @PostConstruct
     void initMetrics() {
@@ -64,13 +72,11 @@ public class RagService {
         filteredCountSummary = DistributionSummary.builder("ai.rag.retrieval.filtered_count")
                 .description("Documents filtered out per retrieval (candidates - returned)")
                 .register(meterRegistry);
-        splitter = TokenTextSplitter.builder()
-                .withChunkSize(500)
-                .withMinChunkSizeChars(350)
-                .withMinChunkLengthToEmbed(5)
-                .withMaxNumChunks(10000)
-                .withKeepSeparator(true)
-                .build();
+        initSplitter();
+    }
+
+    void initSplitter() {
+        splitter = new OverlapTextSplitter(chunkSize, chunkOverlap);
     }
 
     /**

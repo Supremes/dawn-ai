@@ -82,6 +82,25 @@ class RagServiceTest {
         });
     }
 
+    @Test
+    @DisplayName("ingest: 自定义 overlap 生效，后续 chunk 应包含前一个 chunk 的尾部 token")
+    void ingest_configuredOverlapProducesOverlappingChunks() {
+        ragService.setChunkSize(4);
+        ragService.setChunkOverlap(2);
+        ragService.initSplitter();
+
+        ragService.ingest("one two three four five six seven", "doc", "manual");
+
+        ArgumentCaptor<List<Document>> captor = ArgumentCaptor.forClass(List.class);
+        verify(vectorStore).add(captor.capture());
+        assertThat(captor.getValue()).extracting(Document::getText)
+                .containsExactly(
+                        "one two three four",
+                        "three four five six",
+                        "five six seven"
+                );
+    }
+
     // ── retrieve 测试 ──────────────────────────────────────────
 
     @Test
