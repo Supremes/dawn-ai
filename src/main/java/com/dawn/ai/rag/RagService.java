@@ -47,22 +47,11 @@ public class RagService {
     private final SparseRetriever sparseRetriever;
     private final ReciprocalRankFusion reciprocalRankFusion;
     private final RetrievalRouter retrievalRouter;
+    private final DocumentTransformer splitter;
 
     @Setter
     @Value("${app.ai.rag.similarity-threshold:0.7}")
     private double similarityThreshold;
-
-    @Setter
-    @Value("${app.ai.rag.default-top-k:5}")
-    private int defaultTopK;
-
-    @Setter
-    @Value("${app.ai.rag.chunk-size:500}")
-    private int chunkSize = 500;
-
-    @Setter
-    @Value("${app.ai.rag.chunk-overlap:50}")
-    private int chunkOverlap = 50;
 
     @Setter
     @Value("${app.ai.rag.rerank-enabled:true}")
@@ -76,7 +65,6 @@ public class RagService {
     private Counter retrievalHitCounter;
     private Counter retrievalMissCounter;
     private DistributionSummary filteredCountSummary;
-    private DocumentTransformer splitter;
 
     @PostConstruct
     void initMetrics() {
@@ -94,11 +82,6 @@ public class RagService {
         filteredCountSummary = DistributionSummary.builder("ai.rag.retrieval.filtered_count")
                 .description("Documents filtered out per retrieval (candidates - returned)")
                 .register(meterRegistry);
-        initSplitter();
-    }
-
-    void initSplitter() {
-        splitter = new OverlapTextSplitter(chunkSize, chunkOverlap);
     }
 
     /**

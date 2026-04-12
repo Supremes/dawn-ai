@@ -1,6 +1,8 @@
 package com.dawn.ai.rag;
 
 import com.dawn.ai.config.AiAvailabilityChecker;
+import com.dawn.ai.rag.ingestion.OverlapTextSplitter;
+import com.dawn.ai.rag.retrieval.rerank.CrossEncoderRetrievalReranker;
 import com.dawn.ai.rag.retrieval.rerank.HeuristicRetrievalReranker;
 import com.dawn.ai.rag.retrieval.fusion.ReciprocalRankFusion;
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
@@ -33,6 +35,7 @@ class RagServiceTest {
     @Mock private VectorStore vectorStore;
     @Mock private AiAvailabilityChecker aiAvailabilityChecker;
     @Mock private SparseRetriever sparseRetriever;
+    @Mock private OverlapTextSplitter overlapTextSplitter;
 
     private SimpleMeterRegistry meterRegistry;
     private RagService ragService;
@@ -47,10 +50,10 @@ class RagServiceTest {
                 new HeuristicRetrievalReranker(),
                 sparseRetriever,
                 new ReciprocalRankFusion(),
-                new RetrievalRouter());
+                new RetrievalRouter(),
+                overlapTextSplitter);
         // 注入配置值（与 application.yml 一致）
         ragService.setSimilarityThreshold(0.7);
-        ragService.setDefaultTopK(5);
         ragService.setHybridEnabled(false);
         // @PostConstruct 在直接 new 时不自动执行，手动初始化指标
         ragService.initMetrics();
@@ -101,10 +104,6 @@ class RagServiceTest {
     @Test
     @DisplayName("ingest: 自定义 overlap 生效，后续 chunk 应包含前一个 chunk 的尾部 token")
     void ingest_configuredOverlapProducesOverlappingChunks() {
-        ragService.setChunkSize(4);
-        ragService.setChunkOverlap(2);
-        ragService.initSplitter();
-
         ragService.ingest("one two three four five six seven", "doc", "manual");
 
         ArgumentCaptor<List<Document>> captor = ArgumentCaptor.forClass(List.class);

@@ -1,7 +1,12 @@
 package com.dawn.ai.rag.ingestion;
 
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.document.DocumentTransformer;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -11,12 +16,13 @@ import java.util.Map;
 /**
  * Simple whitespace-based splitter with configurable overlap.
  */
+@Component
 public class OverlapTextSplitter implements DocumentTransformer {
-
     private final int chunkSize;
     private final int chunkOverlap;
 
-    public OverlapTextSplitter(int chunkSize, int chunkOverlap) {
+    public OverlapTextSplitter(@Value("${app.ai.rag.chunk-size:500}") int chunkSize,
+                               @Value("${app.ai.rag.chunk-overlap:50}") int chunkOverlap) {
         if (chunkSize <= 0) {
             throw new IllegalArgumentException("chunkSize must be positive");
         }
