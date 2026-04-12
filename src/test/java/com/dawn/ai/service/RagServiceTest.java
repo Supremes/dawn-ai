@@ -26,6 +26,7 @@ class RagServiceTest {
 
     @Mock private VectorStore vectorStore;
     @Mock private AiAvailabilityChecker aiAvailabilityChecker;
+    @Mock private SparseRetriever sparseRetriever;
 
     private SimpleMeterRegistry meterRegistry;
     private RagService ragService;
@@ -33,10 +34,17 @@ class RagServiceTest {
     @BeforeEach
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
-        ragService = new RagService(vectorStore, meterRegistry, aiAvailabilityChecker, new HeuristicRetrievalReranker());
+        ragService = new RagService(
+                vectorStore,
+                meterRegistry,
+                aiAvailabilityChecker,
+                new HeuristicRetrievalReranker(),
+                sparseRetriever,
+                new ReciprocalRankFusion());
         // 注入配置值（与 application.yml 一致）
         ragService.setSimilarityThreshold(0.7);
         ragService.setDefaultTopK(5);
+        ragService.setHybridEnabled(false);
         // @PostConstruct 在直接 new 时不自动执行，手动初始化指标
         ragService.initMetrics();
     }
@@ -213,5 +221,25 @@ class RagServiceTest {
 
         assertThat(result).extracting(Document::getText)
                 .containsExactly("Dawn AI refund policy and refund steps");
+    }
+
+    @Test
+    @DisplayName("retrieve: hybrid search 应融合 dense 与 BM25 结果")
+    void retrieve_hybridSearchFusesDenseAndSparseResults() {
+        Document weather = new Document("doc-1", "天气很好", Map.of());
+        Document refund = new Document("doc-2", "refund policy details", Map.of());
+        Document invoice = new Document("doc-3", "refund invoice steps", Map.of());
+        ragService.setHybridEnabled(true);
+        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of(weather, refund));
+        when(sparseRetriever.retrieve(any(RetrievalRequest.class), anyInt())).thenReturn(List.of(refund, invoice));
+
+        List<Document> result = ragService.retrieve(RetrievalRequest.builder()
+                .query("refund policy")
+                .topK(2)
+                .rerankEnabled(false)
+                .build());
+
+        assertThat(result).extracting(Document::getId)
+                .containsExactly("doc-2", "doc-1");
     }
 }

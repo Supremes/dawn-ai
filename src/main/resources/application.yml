@@ -76,6 +76,7 @@ app:
       similarity-threshold: 0.7   # 向量相似度过滤阈值，低于此值的文档被丢弃
       default-top-k: 5            # 最终返回的文档数
       rerank-enabled: true        # 是否启用召回后的二阶段重排
+      hybrid-enabled: true        # 是否启用 BM25 + Dense 混合召回
       query-rewrite-enabled: true  # 检索前是否用 LLM 改写查询，false 时原样传入
       max-calls-per-session: 3    # 每次请求最多 RAG 工具调用次数，独立于 maxSteps
     system-prompt: |

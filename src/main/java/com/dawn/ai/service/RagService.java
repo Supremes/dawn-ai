@@ -38,6 +38,8 @@ public class RagService {
     private final MeterRegistry meterRegistry;
     private final AiAvailabilityChecker aiAvailabilityChecker;
     private final RetrievalReranker retrievalReranker;
+    private final SparseRetriever sparseRetriever;
+    private final ReciprocalRankFusion reciprocalRankFusion;
 
     @Setter
     @Value("${app.ai.rag.similarity-threshold:0.7}")
@@ -58,6 +60,10 @@ public class RagService {
     @Setter
     @Value("${app.ai.rag.rerank-enabled:true}")
     private boolean rerankEnabled = true;
+
+    @Setter
+    @Value("${app.ai.rag.hybrid-enabled:true}")
+    private boolean hybridEnabled = true;
 
     private Counter ingestionCounter;
     private Counter retrievalHitCounter;
@@ -142,8 +148,12 @@ public class RagService {
 
         SearchRequest request = builder.build();
 
-        List<Document> results = vectorStore.similaritySearch(request);
-        int filteredOut = Math.max(0, candidateCount - results.size());
+        List<Document> denseResults = vectorStore.similaritySearch(request);
+        List<Document> sparseResults = shouldUseHybridSearch() ? sparseRetriever.retrieve(retrievalRequest, candidateCount) : List.of();
+        List<Document> results = shouldUseHybridSearch()
+                ? reciprocalRankFusion.fuse(denseResults, sparseResults)
+                : denseResults;
+        int filteredOut = Math.max(0, candidateCount - denseResults.size());
         filteredCountSummary.record(filteredOut);
 
         if (results.isEmpty()) {
@@ -164,6 +174,10 @@ public class RagService {
 
     private boolean shouldRerank(RetrievalRequest retrievalRequest) {
         return rerankEnabled && retrievalRequest.isRerankEnabled();
+    }
+
+    private boolean shouldUseHybridSearch() {
+        return hybridEnabled;
     }
 
     private Filter.Expression buildFilterExpression(Map<String, List<String>> metadataFilters) {
