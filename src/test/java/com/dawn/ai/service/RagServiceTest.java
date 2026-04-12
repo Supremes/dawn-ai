@@ -14,6 +14,7 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -161,7 +162,7 @@ class RagServiceTest {
     void retrieve_recordsFilteredCountMetric() {
         // 请求 topK=5 → 候选数=10，向量库返回 3 条（阈值过滤后）
         List<Document> threeDocs = List.of(
-            new Document("a"), new Document("b"), new Document("c")
+                new Document("a"), new Document("b"), new Document("c")
         );
         when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(threeDocs);
 
@@ -170,5 +171,30 @@ class RagServiceTest {
         // filtered_count = 候选数(10) - 实际返回(3) = 7
         double filteredSum = meterRegistry.summary("ai.rag.retrieval.filtered_count").totalAmount();
         assertThat(filteredSum).isEqualTo(7.0);
+    }
+
+    @Test
+    @DisplayName("retrieve: metadata filters 存在时应构建 filterExpression")
+    void retrieve_withMetadataFilters_buildsFilterExpression() {
+        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
+
+        ragService.retrieve(RetrievalRequest.builder()
+                .query("refund policy")
+                .topK(5)
+                .metadataFilters(Map.of(
+                        "source", List.of("pricing-doc"),
+                        "category", List.of("billing")
+                ))
+                .build());
+
+        ArgumentCaptor<SearchRequest> captor = ArgumentCaptor.forClass(SearchRequest.class);
+        verify(vectorStore).similaritySearch(captor.capture());
+        SearchRequest request = captor.getValue();
+        assertThat(request.hasFilterExpression()).isTrue();
+        assertThat(request.getFilterExpression().toString())
+                .contains("source")
+                .contains("pricing-doc")
+                .contains("category")
+                .contains("billing");
     }
 }

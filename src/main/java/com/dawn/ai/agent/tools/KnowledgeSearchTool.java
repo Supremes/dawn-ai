@@ -3,6 +3,7 @@ package com.dawn.ai.agent.tools;
 import com.dawn.ai.agent.StepCollector;
 import com.dawn.ai.service.QueryRewriter;
 import com.dawn.ai.service.RagService;
+import com.dawn.ai.service.RetrievalRequest;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -15,7 +16,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Description;
 import org.springframework.stereotype.Component;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 /**
@@ -55,26 +58,58 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
         initMetrics();
     }
 
-    public record Request(@JsonProperty(required = true) String query) {}
+    public record Request(
+            @JsonProperty(required = true) String query,
+            String source,
+            String category,
+            String docId
+    ) {
+        public Request(String query) {
+            this(query, null, null, null);
+        }
+    }
     public record Response(String context, int docsFound) {}
 
     @Override
     public Response apply(Request req) {
         String rewrittenQuery = queryRewriter.rewrite(req.query());
+        String retrievalKey = buildRetrievalKey(rewrittenQuery, req);
 
-        if (StepCollector.isQueryRetrieved(rewrittenQuery)) {
+        if (StepCollector.isQueryRetrieved(retrievalKey)) {
             dedupCounter.increment();
-            log.info("[KnowledgeSearchTool] Skipping duplicate query: {}", rewrittenQuery);
+            log.info("[KnowledgeSearchTool] Skipping duplicate query: {}", retrievalKey);
             return new Response("（已检索过相同内容，请换个角度或直接生成回答）", 0);
         }
-        StepCollector.markQueryRetrieved(rewrittenQuery);
+        StepCollector.markQueryRetrieved(retrievalKey);
 
-        List<Document> docs = ragService.retrieve(rewrittenQuery, defaultTopK);
+        List<Document> docs = ragService.retrieve(RetrievalRequest.builder()
+                .query(rewrittenQuery)
+                .topK(defaultTopK)
+                .metadataFilters(buildMetadataFilters(req))
+                .build());
 
         log.debug("[KnowledgeSearchTool] query='{}' → rewritten='{}', docsFound={}",
                 req.query(), rewrittenQuery, docs.size());
 
         return new Response(formatContext(docs), docs.size());
+    }
+
+    private Map<String, List<String>> buildMetadataFilters(Request req) {
+        Map<String, List<String>> filters = new LinkedHashMap<>();
+        addFilter(filters, "source", req.source());
+        addFilter(filters, "category", req.category());
+        addFilter(filters, "docId", req.docId());
+        return filters;
+    }
+
+    private void addFilter(Map<String, List<String>> filters, String key, String value) {
+        if (value != null && !value.isBlank()) {
+            filters.put(key, List.of(value));
+        }
+    }
+
+    private String buildRetrievalKey(String rewrittenQuery, Request req) {
+        return rewrittenQuery + "|" + buildMetadataFilters(req);
     }
 
     private String formatContext(List<Document> docs) {

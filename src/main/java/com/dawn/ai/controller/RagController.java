@@ -2,6 +2,7 @@ package com.dawn.ai.controller;
 
 import com.dawn.ai.dto.RagRequest;
 import com.dawn.ai.service.RagService;
+import com.dawn.ai.service.RetrievalRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -12,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -39,8 +41,33 @@ public class RagController {
     @GetMapping("/search")
     public ResponseEntity<List<Document>> search(
             @RequestParam String query,
-            @RequestParam(defaultValue = "5") @Min(1) @Max(20) int topK) {
-        List<Document> results = ragService.retrieve(query, topK);
+            @RequestParam(defaultValue = "5") @Min(1) @Max(20) int topK,
+            @RequestParam(required = false) List<String> source,
+            @RequestParam(required = false) List<String> category,
+            @RequestParam(required = false, name = "docId") List<String> docIds) {
+        RetrievalRequest request = RetrievalRequest.builder()
+                .query(query)
+                .topK(topK)
+                .metadataFilters(buildMetadataFilters(source, category, docIds))
+                .build();
+        List<Document> results = ragService.retrieve(request);
         return ResponseEntity.ok(results);
+    }
+
+    private Map<String, List<String>> buildMetadataFilters(
+            List<String> source,
+            List<String> category,
+            List<String> docIds) {
+        Map<String, List<String>> filters = new LinkedHashMap<>();
+        addFilter(filters, "source", source);
+        addFilter(filters, "category", category);
+        addFilter(filters, "docId", docIds);
+        return filters;
+    }
+
+    private void addFilter(Map<String, List<String>> filters, String key, List<String> values) {
+        if (values != null && !values.isEmpty()) {
+            filters.put(key, values);
+        }
     }
 }

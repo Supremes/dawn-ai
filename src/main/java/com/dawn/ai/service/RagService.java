@@ -12,10 +12,14 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.document.DocumentTransformer;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.ai.vectorstore.filter.Filter;
+import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Map;
 import java.util.UUID;
 
@@ -111,14 +115,27 @@ public class RagService {
      *  3. Limit final result to topK.
      */
     public List<Document> retrieve(String query, int topK) {
+        return retrieve(RetrievalRequest.builder()
+                .query(query)
+                .topK(topK)
+                .build());
+    }
+
+    public List<Document> retrieve(RetrievalRequest retrievalRequest) {
         aiAvailabilityChecker.ensureConfigured();
 
-        int candidateCount = topK * 2;
-        SearchRequest request = SearchRequest.builder()
-                .query(query)
+        int candidateCount = retrievalRequest.getTopK() * 2;
+        SearchRequest.Builder builder = SearchRequest.builder()
+                .query(retrievalRequest.getQuery())
                 .topK(candidateCount)
-                .similarityThreshold(similarityThreshold)
-                .build();
+                .similarityThreshold(similarityThreshold);
+
+        Filter.Expression filterExpression = buildFilterExpression(retrievalRequest.getMetadataFilters());
+        if (filterExpression != null) {
+            builder.filterExpression(filterExpression);
+        }
+
+        SearchRequest request = builder.build();
 
         List<Document> results = vectorStore.similaritySearch(request);
         int filteredOut = Math.max(0, candidateCount - results.size());
@@ -130,9 +147,36 @@ public class RagService {
             retrievalHitCounter.increment();
         }
 
-        List<Document> limited = results.stream().limit(topK).toList();
-        log.info("[RagService] Retrieved {}/{} docs (threshold={}, filtered={}), query='{}'",
-                limited.size(), candidateCount, similarityThreshold, filteredOut, query);
+        List<Document> limited = results.stream().limit(retrievalRequest.getTopK()).toList();
+        log.info("[RagService] Retrieved {}/{} docs (threshold={}, filtered={}), query='{}', metadataFilters={}",
+                limited.size(), candidateCount, similarityThreshold, filteredOut,
+                retrievalRequest.getQuery(), retrievalRequest.getMetadataFilters());
         return limited;
+    }
+
+    private Filter.Expression buildFilterExpression(Map<String, List<String>> metadataFilters) {
+        if (metadataFilters == null || metadataFilters.isEmpty()) {
+            return null;
+        }
+
+        FilterExpressionBuilder builder = new FilterExpressionBuilder();
+        FilterExpressionBuilder.Op combined = null;
+        for (Map.Entry<String, List<String>> entry : metadataFilters.entrySet()) {
+            List<Object> values = entry.getValue() == null
+                    ? List.of()
+                    : new ArrayList<>(entry.getValue().stream()
+                    .filter(value -> value != null && !value.isBlank())
+                    .map(value -> (Object) value)
+                    .toList());
+            if (values.isEmpty()) {
+                continue;
+            }
+
+            FilterExpressionBuilder.Op current = values.size() == 1
+                    ? builder.eq(entry.getKey(), values.get(0))
+                    : builder.in(entry.getKey(), values);
+            combined = combined == null ? current : builder.and(combined, current);
+        }
+        return combined == null ? null : combined.build();
     }
 }
