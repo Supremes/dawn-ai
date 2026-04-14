@@ -96,6 +96,7 @@ public class AgentOrchestrator {
                     + formatPlan(plan)
                     + String.format("%n请在回复中简短说明每次工具调用的原因。最多调用工具 %d 次。", maxSteps);
 
+            // 添加历史对话到上下文
             List<Message> history = buildHistory(sessionId);
 
             ChatResponse chatResponse = chatClient.prompt()

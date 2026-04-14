@@ -5,6 +5,7 @@ import com.dawn.ai.rag.RagService;
 import com.dawn.ai.rag.query.QueryRewriter;
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
@@ -60,8 +61,11 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
 
     public record Request(
             @JsonProperty(required = true) String query,
+            @JsonPropertyDescription("Only set when the user explicitly names a source (e.g. 'search in devops-notes'). Do NOT guess or invent a value.")
             String source,
+            @JsonPropertyDescription("Only set when the user explicitly names a category. Do NOT guess or invent a value.")
             String category,
+            @JsonPropertyDescription("Only set when the user explicitly provides a document ID. Do NOT guess or invent a value.")
             String docId
     ) {
         public Request(String query) {
@@ -82,11 +86,22 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
         }
         StepCollector.markQueryRetrieved(retrievalKey);
 
+        Map<String, List<String>> appliedFilters = buildMetadataFilters(req);
         List<Document> docs = ragService.retrieve(RetrievalRequest.builder()
                 .query(rewrittenQuery)
                 .topK(defaultTopK)
-                .metadataFilters(buildMetadataFilters(req))
+                .metadataFilters(appliedFilters)
                 .build());
+
+        // Fallback: if metadata filters caused zero results, retry without filters.
+        // This guards against the LLM hallucinating metadata values that don't exist in the store.
+        if (docs.isEmpty() && !appliedFilters.isEmpty()) {
+            log.warn("[KnowledgeSearchTool] 0 results with filters={}, retrying without metadata filters", appliedFilters);
+            docs = ragService.retrieve(RetrievalRequest.builder()
+                    .query(rewrittenQuery)
+                    .topK(defaultTopK)
+                    .build());
+        }
 
         log.debug("[KnowledgeSearchTool] query='{}' → rewritten='{}', docsFound={}",
                 req.query(), rewrittenQuery, docs.size());
