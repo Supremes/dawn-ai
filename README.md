@@ -32,24 +32,46 @@
 - Java 17+
 - Docker & Docker Compose
 - OpenAI API Key
+- NVIDIA GPU for local `bge-m3` embedding serving (recommended)
 
 ### Run with Docker Compose
 
 ```bash
 export OPENAI_API_KEY=sk-your-key-here
-docker-compose up -d
+export BASE_URL=https://your-chat-provider.example.com
+export CHAT_MODEL=qwen-plus
+export LOCAL_EMBEDDING_MODEL=BAAI/bge-m3
+export LOCAL_EMBEDDING_DIMENSIONS=1024
+docker compose up -d
 ```
+
+This starts an `Infinity` embedding service at `http://localhost:7997/v1/embeddings` and wires the app container to use it for embeddings while chat requests keep using `BASE_URL`.
+
+The base Compose file is CPU-safe by default. If Docker GPU runtime is available on your machine, enable GPU serving with:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+```
+
+If Docker reports `no known GPU vendor found`, stay on the base `docker-compose.yml` or fix NVIDIA Container Toolkit / Docker Desktop GPU integration first.
 
 ### Run locally
 
 ```bash
 # Start dependencies
-docker-compose up -d postgres redis
+docker compose up -d postgres redis embedding
 
 # Run application
 export OPENAI_API_KEY=sk-your-key-here
+export BASE_URL=https://your-chat-provider.example.com
+export CHAT_MODEL=qwen-plus
+export EMBEDDING_BASE_URL=http://localhost:7997
+export EMBEDDING_MODEL=BAAI/bge-m3
+export EMBEDDING_DIMENSIONS=1024
 ./mvnw spring-boot:run
 ```
+
+If you switch an existing pgvector dataset from a 1536-d model to `bge-m3`, rebuild the vector table or re-ingest your knowledge base because the embedding dimension changes to 1024.
 
 ## 📡 API Usage
 

@@ -308,6 +308,7 @@ async function searchDocuments() {
         return;
     }
     const topK = $('#searchTopK').value;
+    const strategy = $('#searchStrategy').value;
     const btn = $('#searchBtn');
     btn.disabled = true;
     btn.textContent = 'Searching...';
@@ -316,7 +317,16 @@ async function searchDocuments() {
     resultsContainer.innerHTML = '<p class="text-muted">Searching...</p>';
 
     try {
-        const url = `${API.ragSearch}?query=${encodeURIComponent(query)}&topK=${topK}`;
+        const params = new URLSearchParams({
+            query,
+            topK,
+            strategy,
+        });
+        appendCsvParams(params, 'source', $('#searchSource').value);
+        appendCsvParams(params, 'category', $('#searchCategory').value);
+        appendCsvParams(params, 'docId', $('#searchDocIds').value);
+
+        const url = `${API.ragSearch}?${params.toString()}`;
         const res = await fetch(url);
 
         if (res.ok) {
@@ -327,6 +337,8 @@ async function searchDocuments() {
                 resultsContainer.innerHTML = docs.map((doc, i) => {
                     const content = doc.text || doc.content || doc.formattedContent || JSON.stringify(doc);
                     const source = (doc.metadata && doc.metadata.source) || doc.source || '-';
+                    const category = (doc.metadata && doc.metadata.category) || doc.category || '-';
+                    const docId = (doc.metadata && doc.metadata.docId) || doc.id || '-';
                     const score = doc.score != null ? doc.score.toFixed(4) : null;
                     return `
                         <div class="search-result-item">
@@ -334,6 +346,7 @@ async function searchDocuments() {
                                 <span class="search-result-source">#${i + 1} ${escapeHtml(source)}</span>
                                 ${score ? `<span class="search-result-score">Score: ${score}</span>` : ''}
                             </div>
+                            <div class="search-result-meta">Category: ${escapeHtml(category)} | Doc ID: ${escapeHtml(docId)}</div>
                             <div class="search-result-content">${escapeHtml(truncate(content, 600))}</div>
                         </div>
                     `;
@@ -352,6 +365,14 @@ async function searchDocuments() {
         btn.disabled = false;
         btn.textContent = 'Search';
     }
+}
+
+function appendCsvParams(params, key, rawValue) {
+    const values = rawValue
+        .split(',')
+        .map(value => value.trim())
+        .filter(Boolean);
+    values.forEach(value => params.append(key, value));
 }
 
 // ===== Dashboard =====

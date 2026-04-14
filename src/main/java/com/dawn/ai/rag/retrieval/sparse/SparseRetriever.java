@@ -1,0 +1,11 @@
+package com.dawn.ai.rag.retrieval.sparse;
+
+import com.dawn.ai.rag.retrieval.RetrievalRequest;
+import org.springframework.ai.document.Document;
+
+import java.util.List;
+
+public interface SparseRetriever {
+
+    List<Document> retrieve(RetrievalRequest request, int limit);
+}

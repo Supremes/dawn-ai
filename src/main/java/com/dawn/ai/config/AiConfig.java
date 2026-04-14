@@ -37,11 +37,23 @@ public class AiConfig {
     @Value("${spring.ai.openai.base-url:}")
     private String openAiBaseUrl;
 
+    @Value("${spring.ai.openai.chat.base-url:}")
+    private String chatBaseUrl;
+
+    @Value("${spring.ai.openai.embedding.base-url:}")
+    private String embeddingBaseUrl;
+
     @Value("${spring.ai.openai.api-key:}")
     private String openAiApiKey;
 
+    @Value("${spring.ai.openai.embedding.api-key:}")
+    private String embeddingApiKey;
+
     @Value("${spring.ai.openai.embedding.options.model:}")
     private String embeddingModel;
+
+    @Value("${spring.ai.openai.embedding.options.dimensions:}")
+    private String embeddingDimensions;
 
     @Bean
     public ChatClient chatClient(ChatModel chatModel) {
@@ -83,13 +95,17 @@ public class AiConfig {
     @Bean
     public ApplicationRunner aiStartupLogRunner() {
         return args -> {
-            log.info("[AI Config] base-url={}, api-key={}, embedding-model={}",
+            log.info("[AI Config] base-url={}, chat-base-url={}, embedding-base-url={}, api-key={}, embedding-api-key={}, embedding-model={}, embedding-dimensions={}",
                     openAiBaseUrl,
+                    chatBaseUrl,
+                    embeddingBaseUrl,
                     maskApiKey(openAiApiKey),
-                    embeddingModel);
-            if (openAiBaseUrl != null && openAiBaseUrl.endsWith("/v1")) {
-                log.warn("[AI Config] base-url ends with /v1. Spring AI will append /v1/chat/completions automatically, which can produce a duplicated /v1 path for OpenAI-compatible providers.");
-            }
+                    maskApiKey(embeddingApiKey),
+                    embeddingModel,
+                    embeddingDimensions);
+            warnIfVersionSuffix("base-url", openAiBaseUrl);
+            warnIfVersionSuffix("chat-base-url", chatBaseUrl);
+            warnIfVersionSuffix("embedding-base-url", embeddingBaseUrl);
         };
     }
 
@@ -152,7 +168,8 @@ public class AiConfig {
             }
             if (root.has("usage")) {
                 JsonNode usage = root.get("usage");
-                sb.append(", promptTokens=").append(usage.path("prompt_tokens").asInt())
+                if (!sb.isEmpty()) sb.append(", ");
+                sb.append("promptTokens=").append(usage.path("prompt_tokens").asInt())
                   .append(", completionTokens=").append(usage.path("completion_tokens").asInt());
             }
             if (root.has("error")) {
@@ -189,29 +206,9 @@ public class AiConfig {
         return StandardCharsets.UTF_8;
     }
 
-    private HttpHeaders sanitizeHeaders(HttpHeaders headers) {
-        HttpHeaders sanitized = new HttpHeaders();
-        headers.forEach((name, values) -> {
-            if (HttpHeaders.AUTHORIZATION.equalsIgnoreCase(name)) {
-                sanitized.add(name, maskAuthorization(values.isEmpty() ? "" : values.get(0)));
-                return;
-            }
-            sanitized.put(name, values);
-        });
-        return sanitized;
-    }
-
-    private String maskAuthorization(String authorization) {
-        if (authorization == null || authorization.isBlank()) {
-            return "<empty>";
+    private void warnIfVersionSuffix(String propertyName, String value) {
+        if (value != null && value.endsWith("/v1")) {
+            log.warn("[AI Config] {} ends with /v1. Spring AI appends endpoint paths automatically, which can produce duplicated /v1 segments for OpenAI-compatible providers.", propertyName);
         }
-
-        int separatorIndex = authorization.indexOf(' ');
-        if (separatorIndex < 0 || separatorIndex == authorization.length() - 1) {
-            return "***";
-        }
-
-        return authorization.substring(0, separatorIndex + 1)
-                + maskApiKey(authorization.substring(separatorIndex + 1));
     }
 }

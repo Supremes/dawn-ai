@@ -1,8 +1,9 @@
 package com.dawn.ai.agent.tools;
 
-import com.dawn.ai.agent.StepCollector;
-import com.dawn.ai.service.QueryRewriter;
-import com.dawn.ai.service.RagService;
+import com.dawn.ai.agent.trace.StepCollector;
+import com.dawn.ai.rag.RagService;
+import com.dawn.ai.rag.query.QueryRewriter;
+import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,8 +17,7 @@ import org.springframework.ai.document.Document;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -49,12 +49,16 @@ class KnowledgeSearchToolTest {
     @DisplayName("apply 调用 queryRewriter.rewrite 并将改写后的查询传给 ragService")
     void apply_callsQueryRewriterAndRagService() {
         when(queryRewriter.rewrite("原始查询")).thenReturn("改写后查询");
-        when(ragService.retrieve("改写后查询", 5)).thenReturn(List.of());
+        when(ragService.retrieve(any(RetrievalRequest.class))).thenReturn(List.of());
 
         tool.apply(new KnowledgeSearchTool.Request("原始查询"));
 
         verify(queryRewriter).rewrite("原始查询");
-        verify(ragService).retrieve("改写后查询", 5);
+        org.mockito.ArgumentCaptor<RetrievalRequest> captor =
+                org.mockito.ArgumentCaptor.forClass(RetrievalRequest.class);
+        verify(ragService).retrieve(captor.capture());
+        assertThat(captor.getValue().getQuery()).isEqualTo("改写后查询");
+        assertThat(captor.getValue().getTopK()).isEqualTo(5);
     }
 
     @Test
@@ -63,7 +67,7 @@ class KnowledgeSearchToolTest {
         Document doc1 = new Document("文档内容一");
         Document doc2 = new Document("文档内容二");
         when(queryRewriter.rewrite("查询")).thenReturn("查询");
-        when(ragService.retrieve("查询", 5)).thenReturn(List.of(doc1, doc2));
+        when(ragService.retrieve(any(RetrievalRequest.class))).thenReturn(List.of(doc1, doc2));
 
         KnowledgeSearchTool.Response response = tool.apply(new KnowledgeSearchTool.Request("查询"));
 
@@ -76,7 +80,7 @@ class KnowledgeSearchToolTest {
     @DisplayName("无文档时返回未找到提示，docsFound 为 0")
     void apply_noDocsFound_returnsMissMessage() {
         when(queryRewriter.rewrite("查询")).thenReturn("查询");
-        when(ragService.retrieve("查询", 5)).thenReturn(List.of());
+        when(ragService.retrieve(any(RetrievalRequest.class))).thenReturn(List.of());
 
         KnowledgeSearchTool.Response response = tool.apply(new KnowledgeSearchTool.Request("查询"));
 
@@ -88,7 +92,7 @@ class KnowledgeSearchToolTest {
     @DisplayName("apply: 相同改写查询第二次调用时跳过检索并返回提示")
     void apply_duplicateQuery_skipsRetrieval() {
         when(queryRewriter.rewrite("月费")).thenReturn("Dawn AI 定价 月费");
-        when(ragService.retrieve("Dawn AI 定价 月费", 5)).thenReturn(List.of(new Document("¥99")));
+        when(ragService.retrieve(any(RetrievalRequest.class))).thenReturn(List.of(new Document("¥99")));
 
         // 第一次调用 — 正常检索
         tool.apply(new KnowledgeSearchTool.Request("月费"));
@@ -100,19 +104,48 @@ class KnowledgeSearchToolTest {
         assertThat(secondResponse.docsFound()).isEqualTo(0);
         assertThat(secondResponse.context()).contains("已检索过");
         // ragService.retrieve 只被调用了一次（第二次被 dedup 拦截）
-        verify(ragService, times(1)).retrieve(anyString(), anyInt());
+        verify(ragService, times(1)).retrieve(any(RetrievalRequest.class));
     }
 
     @Test
     @DisplayName("apply: 重复查询时 ai.rag.dedup.skipped 计数器 +1")
     void apply_duplicateQuery_incrementsDedupCounter() {
         when(queryRewriter.rewrite("test")).thenReturn("test rewritten");
-        when(ragService.retrieve("test rewritten", 5)).thenReturn(List.of());
+        when(ragService.retrieve(any(RetrievalRequest.class))).thenReturn(List.of());
 
         tool.apply(new KnowledgeSearchTool.Request("test"));
         tool.apply(new KnowledgeSearchTool.Request("test")); // duplicate
 
         double skipped = meterRegistry.counter("ai.rag.dedup.skipped").count();
         assertThat(skipped).isEqualTo(1.0);
+    }
+
+    @Test
+    @DisplayName("apply: metadata 条件存在时应透传到 RetrievalRequest")
+    void apply_passesMetadataFiltersToRetrievalRequest() {
+        when(queryRewriter.rewrite("查询")).thenReturn("查询");
+        when(ragService.retrieve(any(RetrievalRequest.class))).thenReturn(List.of());
+
+        tool.apply(new KnowledgeSearchTool.Request("查询", "pricing-doc", "billing", "doc-1"));
+
+        org.mockito.ArgumentCaptor<RetrievalRequest> captor =
+                org.mockito.ArgumentCaptor.forClass(RetrievalRequest.class);
+        verify(ragService).retrieve(captor.capture());
+        assertThat(captor.getValue().getMetadataFilters())
+                .containsEntry("source", List.of("pricing-doc"))
+                .containsEntry("category", List.of("billing"))
+                .containsEntry("docId", List.of("doc-1"));
+    }
+
+    @Test
+    @DisplayName("apply: 相同 query 但不同 metadata 条件时不应被 dedup 跳过")
+    void apply_sameQueryDifferentMetadata_doesNotDedup() {
+        when(queryRewriter.rewrite("月费")).thenReturn("Dawn AI 定价 月费");
+        when(ragService.retrieve(any(RetrievalRequest.class))).thenReturn(List.of(new Document("¥99")));
+
+        tool.apply(new KnowledgeSearchTool.Request("月费", null, "billing", null));
+        tool.apply(new KnowledgeSearchTool.Request("月费", null, "pricing", null));
+
+        verify(ragService, times(2)).retrieve(any(RetrievalRequest.class));
     }
 }

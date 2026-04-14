@@ -122,8 +122,30 @@
                                 <label for="searchTopK">Top K: <span id="topKValue">5</span></label>
                                 <input type="range" id="searchTopK" min="1" max="20" value="5">
                             </div>
+                            <div class="form-group">
+                                <label for="searchStrategy">Strategy</label>
+                                <select id="searchStrategy">
+                                    <option value="AUTO" selected>AUTO</option>
+                                    <option value="DENSE">DENSE</option>
+                                    <option value="HYBRID">HYBRID</option>
+                                </select>
+                            </div>
                         </div>
-                        <p class="form-hint">Similarity search always calls the existing RagController endpoint.</p>
+                        <div class="form-row search-filters-row">
+                            <div class="form-group">
+                                <label for="searchSource">Source Filter</label>
+                                <input type="text" id="searchSource" placeholder="Comma separated, e.g. pricing-doc,faq">
+                            </div>
+                            <div class="form-group">
+                                <label for="searchCategory">Category Filter</label>
+                                <input type="text" id="searchCategory" placeholder="Comma separated, e.g. billing,docs">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="searchDocIds">Doc ID Filter</label>
+                            <input type="text" id="searchDocIds" placeholder="Optional comma separated doc IDs">
+                        </div>
+                        <p class="form-hint">Use strategy and metadata filters to test the existing RagController search endpoint more precisely.</p>
                         <button class="btn btn-primary" id="searchBtn">Search</button>
                         <div class="search-results" id="searchResults"></div>
                     </section>

@@ -1,0 +1,10 @@
+[
+  {
+    "query": "refund policy",
+    "expectedDocIds": ["doc-2", "doc-3"]
+  },
+  {
+    "query": "invoice settings",
+    "expectedDocIds": ["doc-4"]
+  }
+]
