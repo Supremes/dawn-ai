@@ -168,7 +168,8 @@ public class AiConfig {
             }
             if (root.has("usage")) {
                 JsonNode usage = root.get("usage");
-                sb.append(", promptTokens=").append(usage.path("prompt_tokens").asInt())
+                if (!sb.isEmpty()) sb.append(", ");
+                sb.append("promptTokens=").append(usage.path("prompt_tokens").asInt())
                   .append(", completionTokens=").append(usage.path("completion_tokens").asInt());
             }
             if (root.has("error")) {

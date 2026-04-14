@@ -77,7 +77,7 @@ app:
     rag:
       chunk-size: 500                 # 单个 chunk 的 token 数
       chunk-overlap: 50              # 相邻 chunk 的重叠 token 数
-      similarity-threshold: 0.7   # 向量相似度过滤阈值，低于此值的文档被丢弃
+      similarity-threshold: 0.45  # 向量相似度过滤阈值，低于此值的文档被丢弃 (bge-m3 cosine scores are typically 0.4-0.65)
       default-top-k: 5            # 最终返回的文档数
       rerank-enabled: true        # 是否启用召回后的二阶段重排
       reranker:
