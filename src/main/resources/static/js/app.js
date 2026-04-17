@@ -2,6 +2,7 @@
 
 const API = {
     chat: '/api/v1/chat',
+    chatStream: '/api/v1/chat/stream',
     chatSimple: '/api/v1/chat/simple',
     ragIngest: '/api/v1/rag/ingest',
     ragSearch: '/api/v1/rag/search',
@@ -13,6 +14,7 @@ const API = {
 const state = {
     sessionId: null,
     isLoading: false,
+    streamMode: true,  // default to SSE streaming
 };
 
 // ===== DOM References =====
@@ -117,6 +119,193 @@ async function sendMessage() {
     input.value = '';
     input.style.height = 'auto';
 
+    if (state.streamMode) {
+        await sendMessageStream(message);
+    } else {
+        await sendMessageSync(message);
+    }
+
+    state.isLoading = false;
+    $('#sendBtn').disabled = false;
+    $('#chatInput').focus();
+}
+
+async function sendMessageStream(message) {
+    const typingEl = showTyping();
+    const assistantDiv = createAssistantPlaceholder();
+
+    try {
+        const res = await fetch(API.chatStream, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message, sessionId: state.sessionId }),
+        });
+
+        typingEl.remove();
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ message: res.statusText }));
+            assistantDiv.querySelector('.message-bubble').textContent = `Error: ${err.message || res.statusText}`;
+            toast('Request failed: ' + (err.message || res.statusText), 'error');
+            return;
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let eventName = '';
+        let streamMeta = null;
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop(); // keep incomplete last line
+
+            for (const line of lines) {
+                if (line.startsWith('event:')) {
+                    eventName = line.slice(6).trim();
+                } else if (line.startsWith('data:')) {
+                    const raw = line.slice(5).trim();
+                    if (!raw) continue;
+                    try {
+                        const envelope = JSON.parse(raw);
+                        handleStreamEvent(eventName || envelope.event, envelope, assistantDiv);
+                        if (envelope.event === 'done') streamMeta = envelope.data;
+                        if (envelope.event === 'connected' && envelope.data && envelope.data.sessionId) {
+                            state.sessionId = envelope.data.sessionId;
+                            $('#sessionId').textContent = envelope.data.sessionId;
+                        }
+                    } catch (e) {
+                        // skip malformed lines
+                    }
+                    eventName = '';
+                } else if (line === '') {
+                    eventName = '';
+                }
+            }
+        }
+
+        if (streamMeta) {
+            finaliseAssistantMessage(assistantDiv, streamMeta);
+        }
+
+    } catch (err) {
+        typingEl.remove();
+        assistantDiv.querySelector('.message-bubble').textContent = `Network error: ${err.message}`;
+        toast('Network error', 'error');
+    }
+}
+
+function handleStreamEvent(type, envelope, assistantDiv) {
+    const data = envelope.data || {};
+    switch (type) {
+        case 'token': {
+            const bubble = assistantDiv.querySelector('.message-bubble');
+            bubble.textContent += data.content || '';
+            $('#chatMessages').scrollTop = $('#chatMessages').scrollHeight;
+            break;
+        }
+        case 'step': {
+            let tracePanel = assistantDiv.querySelector('.stream-trace');
+            if (!tracePanel) {
+                tracePanel = document.createElement('div');
+                tracePanel.className = 'stream-trace';
+                assistantDiv.appendChild(tracePanel);
+            }
+            const stepEl = document.createElement('div');
+            stepEl.className = 'step-item';
+            stepEl.innerHTML = `
+                <div class="step-header">
+                    <span class="step-number">${data.stepNumber}</span>
+                    <span class="step-tool">${escapeHtml(data.toolName || '')}</span>
+                    <span class="step-duration">${data.durationMs || 0}ms</span>
+                </div>
+            `;
+            tracePanel.appendChild(stepEl);
+            break;
+        }
+        case 'plan': {
+            let planEl = assistantDiv.querySelector('.stream-plan');
+            if (!planEl) {
+                planEl = document.createElement('div');
+                planEl.className = 'stream-plan';
+                assistantDiv.insertBefore(planEl, assistantDiv.querySelector('.message-bubble'));
+            }
+            planEl.textContent = data.summary || '';
+            break;
+        }
+        case 'error': {
+            assistantDiv.querySelector('.message-bubble').textContent =
+                `[${data.code}] ${data.message}`;
+            break;
+        }
+    }
+}
+
+function createAssistantPlaceholder() {
+    const container = $('#chatMessages');
+    const div = document.createElement('div');
+    div.className = 'message assistant';
+    div.innerHTML = '<div class="message-bubble"></div>';
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    return div;
+}
+
+function finaliseAssistantMessage(div, meta) {
+    const parts = [];
+    if (meta.model) parts.push(`Model: ${meta.model}`);
+    if (meta.durationMs) parts.push(`${meta.durationMs}ms`);
+    if (meta.totalSteps > 0) parts.push(`${meta.totalSteps} tool calls`);
+    if (meta.planSummary) parts.push(meta.planSummary);
+
+    if (parts.length > 0) {
+        const metaEl = document.createElement('div');
+        metaEl.className = 'message-meta';
+        metaEl.innerHTML = parts.map(p => `<span>${escapeHtml(p)}</span>`).join('');
+        div.appendChild(metaEl);
+    }
+
+    // Replace stream-trace items with full collapsible steps panel if steps exist
+    const steps = meta.steps || [];
+    if (steps.length > 0) {
+        const oldTrace = div.querySelector('.stream-trace');
+        if (oldTrace) oldTrace.remove();
+
+        const stepsId = 'steps-' + Date.now();
+        const stepsHtml = `
+            <button class="steps-toggle" onclick="toggleSteps('${stepsId}')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                Show ${steps.length} steps
+            </button>
+            <div class="steps-detail" id="${stepsId}">
+                ${steps.map(s => `
+                    <div class="step-item">
+                        <div class="step-header">
+                            <span class="step-number">${s.stepNumber}</span>
+                            <span class="step-tool">${escapeHtml(s.toolName)}</span>
+                            <span class="step-duration">${s.durationMs}ms</span>
+                        </div>
+                        <div class="step-body">
+                            <div>Input: <pre>${escapeHtml(formatJson(s.toolInput))}</pre></div>
+                            <div>Output: <pre>${escapeHtml(truncate(s.toolOutput, 500))}</pre></div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = stepsHtml;
+        div.appendChild(wrapper);
+    }
+
+    $('#chatMessages').scrollTop = $('#chatMessages').scrollHeight;
+}
+
+async function sendMessageSync(message) {
     // Show typing indicator
     const typingEl = showTyping();
 
@@ -141,7 +330,6 @@ async function sendMessage() {
 
         const data = await res.json();
 
-        // Update session ID from response
         if (data.sessionId) {
             state.sessionId = data.sessionId;
             $('#sessionId').textContent = data.sessionId;
@@ -152,10 +340,6 @@ async function sendMessage() {
         typingEl.remove();
         appendMessage('assistant', `Network error: ${err.message}`, null);
         toast('Network error', 'error');
-    } finally {
-        state.isLoading = false;
-        $('#sendBtn').disabled = false;
-        $('#chatInput').focus();
     }
 }
 

@@ -6,10 +6,12 @@ import com.dawn.ai.agent.registry.ToolRegistry;
 import com.dawn.ai.agent.trace.AgentStep;
 import com.dawn.ai.agent.trace.StepCollector;
 import com.dawn.ai.agent.tools.KnowledgeSearchTool;
+import com.dawn.ai.exception.AiConfigurationException;
 import com.dawn.ai.exception.LLMProviderException;
 import com.dawn.ai.exception.MaxStepsExceededException;
 import com.dawn.ai.exception.PlanGenerationException;
 import com.dawn.ai.service.MemoryService;
+import com.dawn.ai.sse.ChatStreamEvent;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -28,6 +30,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.Map;
 
 /**
@@ -62,6 +65,9 @@ public class AgentOrchestrator {
 
     @Value("${app.ai.react.plan-enabled:true}")
     private boolean planEnabled;
+
+    @Value("${spring.ai.openai.chat.options.model:qwen-plus}")
+    private String model;
 
     private Counter inputTokenCounter;
     private Counter outputTokenCounter;
@@ -111,10 +117,7 @@ public class AgentOrchestrator {
             recordTokenUsage(chatResponse);
 
             List<AgentStep> steps = StepCollector.collect();
-            long ragCalls = steps.stream()
-                    .filter(s -> KnowledgeSearchTool.class.getSimpleName().equals(s.toolName()))
-                    .count();
-            ragCallsSummary.record(ragCalls);
+            recordRagMetrics(steps);
 
             memoryService.addMessage(sessionId, "user", userMessage);
             memoryService.addMessage(sessionId, "assistant", response);
@@ -149,6 +152,112 @@ public class AgentOrchestrator {
             return Collections.emptyList();
         }
     }
+
+    /**
+     * Streaming variant of {@link #chat}.
+     *
+     * <p>Publishes SSE events to {@code sink} in this order:
+     * {@code plan → step* → token* → done | error}.
+     *
+     * <p>This method always returns normally; errors are surfaced via an {@code error} event.
+     * The caller must run this on a dedicated non-servlet thread and complete the
+     * {@code SseEmitter} after this method returns.
+     *
+     * <p>Note: {@code step} events rely on {@link StepCollector}'s ThreadLocal listener.
+     * They are delivered if Spring AI executes tools on the same thread chain as
+     * {@code blockLast()}.  Even if step delivery is not guaranteed in all provider
+     * implementations, {@code plan}, {@code token}, and {@code done} events are always
+     * reliable.
+     */
+    public void streamChat(String sessionId, String userMessage, Consumer<ChatStreamEvent> sink) {
+        long start = System.currentTimeMillis();
+        StringBuilder answer = new StringBuilder();
+
+        StepCollector.init(maxSteps,
+                step -> sink.accept(ChatStreamEvent.step(sessionId, step)));
+        try {
+            List<PlanStep> plan = resolvePlan(userMessage);
+
+            if (!plan.isEmpty()) {
+                sink.accept(ChatStreamEvent.plan(sessionId, plan, formatPlanSummary(plan)));
+            }
+
+            String systemPrompt = baseSystemPrompt
+                    + formatPlan(plan)
+                    + String.format("%n请在回复中简短说明每次工具调用的原因。最多调用工具 %d 次。", maxSteps);
+
+            List<Message> history = buildHistory(sessionId);
+
+            chatClient.prompt()
+                    .system(systemPrompt)
+                    .messages(history)
+                    .user(userMessage)
+                    .toolNames(toolRegistry.getNames())
+                    .stream()
+                    .chatResponse()
+                    .doOnNext(chunk -> {
+                        String delta = extractDelta(chunk);
+                        if (delta != null && !delta.isBlank()) {
+                            answer.append(delta);
+                            sink.accept(ChatStreamEvent.token(sessionId, delta, answer.length()));
+                        }
+                    })
+                    .blockLast();
+
+            List<AgentStep> steps = StepCollector.collect();
+            recordRagMetrics(steps);
+
+            memoryService.addMessage(sessionId, "user", userMessage);
+            memoryService.addMessage(sessionId, "assistant", answer.toString());
+
+            log.info("[AgentOrchestrator] stream session={}, planSteps={}, toolCalls={}, tokens={}",
+                    sessionId, plan.size(), steps.size(), answer.length());
+
+            sink.accept(ChatStreamEvent.done(
+                    sessionId, answer.toString(), steps, plan,
+                    System.currentTimeMillis() - start, model));
+
+        } catch (Exception e) {
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            String code;
+            if (cause instanceof MaxStepsExceededException) {
+                code = "MAX_STEPS_EXCEEDED";
+            } else if (cause instanceof AiConfigurationException) {
+                code = "AI_NOT_CONFIGURED";
+            } else {
+                code = "INTERNAL_ERROR";
+                log.error("[AgentOrchestrator] streamChat error, session={}", sessionId, e);
+            }
+            sink.accept(ChatStreamEvent.error(sessionId, code, cause.getMessage()));
+        } finally {
+            StepCollector.clear();
+        }
+    }
+
+    private String extractDelta(ChatResponse chunk) {
+        if (chunk == null || chunk.getResult() == null) return null;
+        var output = chunk.getResult().getOutput();
+        if (output == null) return null;
+        return output.getText();
+    }
+
+    private void recordRagMetrics(List<AgentStep> steps) {
+        long ragCalls = steps.stream()
+                .filter(s -> KnowledgeSearchTool.class.getSimpleName().equals(s.toolName()))
+                .count();
+        ragCallsSummary.record(ragCalls);
+    }
+
+    private String formatPlanSummary(List<PlanStep> plan) {
+        if (plan == null || plan.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < plan.size(); i++) {
+            if (i > 0) sb.append(" → ");
+            sb.append("步骤").append(plan.get(i).step()).append(": ").append(plan.get(i).action());
+        }
+        return sb.toString();
+    }
+
 
     private void recordTokenUsage(ChatResponse chatResponse) {
         org.springframework.ai.chat.metadata.Usage usage = chatResponse.getMetadata().getUsage();

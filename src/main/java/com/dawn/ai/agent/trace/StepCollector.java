@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 /**
  * ThreadLocal-based request-scoped step collector.
@@ -30,18 +31,35 @@ public class StepCollector {
     /** package-private for test accessibility */
     static final ThreadLocal<Set<String>> RETRIEVED_QUERIES =
             ThreadLocal.withInitial(HashSet::new);
+    /** Optional listener for real-time step events in streaming mode. */
+    private static final ThreadLocal<Consumer<AgentStep>> STEP_LISTENER = new ThreadLocal<>();
 
     /** Call at the start of each request to reset state from any previous run. */
     public static void init(Integer maxSteps) {
+        init(maxSteps, null);
+    }
+
+    /**
+     * Overload for streaming mode: registers a listener that is invoked immediately
+     * on each {@link #record(AgentStep)} call, enabling real-time step events.
+     *
+     * @param listener optional; pass {@code null} for non-streaming requests
+     */
+    public static void init(Integer maxSteps, Consumer<AgentStep> listener) {
         STEPS.get().clear();
         COUNTER.get().set(0);
         MAX_STEPS.set(maxSteps);
         RETRIEVED_QUERIES.get().clear();
+        STEP_LISTENER.set(listener);
     }
 
     /** Called by ToolExecutionAspect after each tool invocation. */
     public static void record(AgentStep step) {
         STEPS.get().add(step);
+        Consumer<AgentStep> listener = STEP_LISTENER.get();
+        if (listener != null) {
+            listener.accept(step);
+        }
     }
 
     /** Returns the next monotonically increasing step number for the current request. */
@@ -81,5 +99,6 @@ public class StepCollector {
         COUNTER.remove();
         MAX_STEPS.remove();
         RETRIEVED_QUERIES.remove();
+        STEP_LISTENER.remove();
     }
 }
