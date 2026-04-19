@@ -28,7 +28,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.Map;
@@ -96,7 +95,8 @@ public class AgentOrchestrator {
     private AgentResult doChat(String sessionId, String userMessage) {
         StepCollector.init(maxSteps);
         try {
-            List<PlanStep> plan = resolvePlan(userMessage);
+            TaskPlanner.PlannerResult plannerResult = resolvePlan(userMessage);
+            List<PlanStep> plan = plannerResult.steps();
 
             String systemPrompt = baseSystemPrompt
                     + formatPlan(plan)
@@ -138,9 +138,9 @@ public class AgentOrchestrator {
         }
     }
 
-    private List<PlanStep> resolvePlan(String userMessage) {
+    private TaskPlanner.PlannerResult resolvePlan(String userMessage) {
         if (!planEnabled) {
-            return Collections.emptyList();
+            return TaskPlanner.PlannerResult.empty();
         }
 
         try {
@@ -149,15 +149,15 @@ public class AgentOrchestrator {
             log.warn("[AgentOrchestrator] Planner failed, falling back to direct execution. userMsg={}, reason={}",
                     userMessage.substring(0, Math.min(50, userMessage.length())),
                     exception.getMessage());
-            return Collections.emptyList();
+            return TaskPlanner.PlannerResult.empty();
         }
     }
 
     /**
      * Streaming variant of {@link #chat}.
      *
-     * <p>Publishes SSE events to {@code sink} in this order:
-     * {@code plan → step* → token* → done | error}.
+    * <p>Publishes SSE events to {@code sink} in this order:
+    * {@code plan_thinking* → plan → thinking* → step* → token* → done | error}.
      *
      * <p>This method always returns normally; errors are surfaced via an {@code error} event.
      * The caller must run this on a dedicated non-servlet thread and complete the
@@ -172,11 +172,20 @@ public class AgentOrchestrator {
     public void streamChat(String sessionId, String userMessage, Consumer<ChatStreamEvent> sink) {
         long start = System.currentTimeMillis();
         StringBuilder answer = new StringBuilder();
+        StringBuilder thinkingBuffer = new StringBuilder();
+        StringBuilder planThinkingBuffer = new StringBuilder();
 
-        StepCollector.init(maxSteps,
-                step -> sink.accept(ChatStreamEvent.step(sessionId, step)));
+        Consumer<AgentStep> stepEventPublisher = step -> sink.accept(ChatStreamEvent.step(sessionId, step));
+        StepCollector.init(maxSteps, stepEventPublisher);
         try {
-            List<PlanStep> plan = resolvePlan(userMessage);
+            TaskPlanner.PlannerResult plannerResult = resolvePlan(userMessage);
+            List<PlanStep> plan = plannerResult.steps();
+
+            String planReasoning = plannerResult.reasoningContent();
+            if (planReasoning != null && !planReasoning.isBlank()) {
+                planThinkingBuffer.append(planReasoning);
+                sink.accept(ChatStreamEvent.planThinking(sessionId, planReasoning, planThinkingBuffer.length()));
+            }
 
             if (!plan.isEmpty()) {
                 sink.accept(ChatStreamEvent.plan(sessionId, plan, formatPlanSummary(plan)));
@@ -184,9 +193,15 @@ public class AgentOrchestrator {
 
             String systemPrompt = baseSystemPrompt
                     + formatPlan(plan)
-                    + String.format("%n请在回复中简短说明每次工具调用的原因。最多调用工具 %d 次。", maxSteps);
+                    + formatPlanEnforcement(plan)
+                    + String.format("%n每次工具调用前请简短说明原因。最多调用工具 %d 次。", maxSteps);
 
+            // 添加历史对话到上下文
             List<Message> history = buildHistory(sessionId);
+
+                log.info("[AI STREAM] --> session={}, planSteps={}, tools={}, historyMessages={}, userMsg={}",
+                        sessionId, plan.size(), toolRegistry.getNames().length, history.size(),
+                    userMessage.substring(0, Math.min(80, userMessage.length())));
 
             chatClient.prompt()
                     .system(systemPrompt)
@@ -196,10 +211,22 @@ public class AgentOrchestrator {
                     .stream()
                     .chatResponse()
                     .doOnNext(chunk -> {
+                        String reasoning = extractReasoning(chunk);
+                        if (reasoning != null && !reasoning.isBlank()) {
+                            thinkingBuffer.append(reasoning);
+                            sink.accept(ChatStreamEvent.thinking(sessionId, reasoning, thinkingBuffer.length()));
+                        }
                         String delta = extractDelta(chunk);
                         if (delta != null && !delta.isBlank()) {
                             answer.append(delta);
                             sink.accept(ChatStreamEvent.token(sessionId, delta, answer.length()));
+                        }
+                        if ((reasoning != null && !reasoning.isBlank()) || (delta != null && !delta.isBlank())) {
+                            log.debug("[AI STREAM] chunk session={}, reasoningChars={}, answerChars={}, deltaChars={}",
+                                    sessionId,
+                                    reasoning != null ? reasoning.length() : 0,
+                                    answer.length(),
+                                    delta != null ? delta.length() : 0);
                         }
                     })
                     .blockLast();
@@ -239,6 +266,23 @@ public class AgentOrchestrator {
         var output = chunk.getResult().getOutput();
         if (output == null) return null;
         return output.getText();
+    }
+
+    private String extractReasoning(ChatResponse chunk) {
+        if (chunk == null || chunk.getResult() == null) return null;
+
+        String fromGeneration = chunk.getResult().getMetadata().get("reasoningContent");
+        if (fromGeneration != null && !fromGeneration.isBlank()) {
+            return fromGeneration;
+        }
+
+        var output = chunk.getResult().getOutput();
+        if (output == null || output.getMetadata() == null) {
+            return null;
+        }
+
+        Object fromMessage = output.getMetadata().get("reasoningContent");
+        return fromMessage instanceof String reasoning && !reasoning.isBlank() ? reasoning : null;
     }
 
     private void recordRagMetrics(List<AgentStep> steps) {
@@ -302,5 +346,17 @@ public class AgentOrchestrator {
                     .append(step.reason()).append("\n");
         }
         return sb.toString();
+    }
+
+    /**
+     * Returns a mandatory enforcement directive when a non-empty plan exists.
+     * Without this, the LLM may answer from training knowledge and skip tool calls entirely.
+     */
+    private String formatPlanEnforcement(List<PlanStep> plan) {
+        if (plan.isEmpty()) {
+            return "";
+        }
+        return "\n\n【强制约束】你必须严格按照上方【执行计划】依次调用对应工具，" +
+               "不得依赖自身训练知识直接回答，每个非 finish 步骤均需触发对应工具调用。";
     }
 }

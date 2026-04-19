@@ -61,10 +61,13 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
 
     public record Request(
             @JsonProperty(required = true) String query,
+            @JsonProperty(required = false)
             @JsonPropertyDescription("Only set when the user explicitly names a source (e.g. 'search in devops-notes'). Do NOT guess or invent a value.")
             String source,
+            @JsonProperty(required = false)
             @JsonPropertyDescription("Only set when the user explicitly names a category. Do NOT guess or invent a value.")
             String category,
+            @JsonProperty(required = false)
             @JsonPropertyDescription("Only set when the user explicitly provides a document ID. Do NOT guess or invent a value.")
             String docId
     ) {

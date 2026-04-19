@@ -202,7 +202,30 @@ async function sendMessageStream(message) {
 function handleStreamEvent(type, envelope, assistantDiv) {
     const data = envelope.data || {};
     switch (type) {
+        case 'plan_thinking': {
+            const planThinkingPanel = getOrCreateThinkingPanel(
+                assistantDiv,
+                'plan-thinking-panel',
+                '规划中...'
+            );
+            planThinkingPanel.querySelector('.thinking-content').textContent += data.content || '';
+            break;
+        }
+        case 'thinking': {
+            const thinkingPanel = getOrCreateThinkingPanel(
+                assistantDiv,
+                'answer-thinking-panel',
+                '思考中...'
+            );
+            thinkingPanel.querySelector('.thinking-content').textContent += data.content || '';
+            break;
+        }
         case 'token': {
+            const thinkingPanel = assistantDiv.querySelector('.answer-thinking-panel');
+            if (thinkingPanel) {
+                thinkingPanel.querySelector('.thinking-label').textContent = '已思考';
+                thinkingPanel.classList.add('done');
+            }
             const bubble = assistantDiv.querySelector('.message-bubble');
             bubble.textContent += data.content || '';
             $('#chatMessages').scrollTop = $('#chatMessages').scrollHeight;
@@ -228,6 +251,11 @@ function handleStreamEvent(type, envelope, assistantDiv) {
             break;
         }
         case 'plan': {
+            const planThinkingPanel = assistantDiv.querySelector('.plan-thinking-panel');
+            if (planThinkingPanel) {
+                planThinkingPanel.querySelector('.thinking-label').textContent = '已完成规划';
+                planThinkingPanel.classList.add('done');
+            }
             let planEl = assistantDiv.querySelector('.stream-plan');
             if (!planEl) {
                 planEl = document.createElement('div');
@@ -243,6 +271,24 @@ function handleStreamEvent(type, envelope, assistantDiv) {
             break;
         }
     }
+}
+
+function getOrCreateThinkingPanel(assistantDiv, panelClassName, label) {
+    let thinkingPanel = assistantDiv.querySelector(`.${panelClassName}`);
+    if (!thinkingPanel) {
+        thinkingPanel = document.createElement('div');
+        thinkingPanel.className = `thinking-panel ${panelClassName}`;
+        thinkingPanel.innerHTML = `
+            <button class="thinking-toggle" onclick="toggleThinking(this)">
+                <span class="thinking-icon">💭</span>
+                <span class="thinking-label">${escapeHtml(label)}</span>
+                <svg class="thinking-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="thinking-content"></div>
+        `;
+        assistantDiv.insertBefore(thinkingPanel, assistantDiv.querySelector('.message-bubble'));
+    }
+    return thinkingPanel;
 }
 
 function createAssistantPlaceholder() {
@@ -408,6 +454,11 @@ function showTyping() {
 window.toggleSteps = function (id) {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('open');
+};
+
+window.toggleThinking = function (btn) {
+    const panel = btn.closest('.thinking-panel');
+    if (panel) panel.classList.toggle('open');
 };
 
 // ===== Knowledge Base =====

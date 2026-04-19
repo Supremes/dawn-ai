@@ -1,5 +1,6 @@
 package com.dawn.ai.agent.planning;
 
+import com.dawn.ai.config.AiSyncResponseCapture;
 import com.dawn.ai.exception.PlanGenerationException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.Counter;
@@ -8,6 +9,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,6 +35,12 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class TaskPlanner {
+
+    public record PlannerResult(List<PlanStep> steps, String reasoningContent) {
+        public static PlannerResult empty() {
+            return new PlannerResult(List.of(), null);
+        }
+    }
 
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper;
@@ -64,17 +72,20 @@ public class TaskPlanner {
      * @return ordered plan steps
      * @throws PlanGenerationException when the model output is not valid structured planner output
      */
-    public List<PlanStep> plan(String task, Map<String, String> toolDescriptions) {
+        public PlannerResult plan(String task, Map<String, String> toolDescriptions) {
         try {
             BeanOutputConverter<List<PlanStep>> converter =
                     new BeanOutputConverter<>(new ParameterizedTypeReference<>() {}, objectMapper);
 
             String prompt = buildPlanPrompt(task, toolDescriptions, converter.getFormat());
-            String raw = chatClient.prompt()
+            ChatResponse chatResponse = chatClient.prompt()
                     .user(prompt)
                     .options(OpenAiChatOptions.builder().temperature(0.3).build())
                     .call()
-                    .content();
+                    .chatResponse();
+
+            String raw = chatResponse.getResult().getOutput().getText();
+            String reasoningContent = extractReasoningContent(chatResponse);
 
             List<PlanStep> plan = converter.convert(raw);
             validatePlan(plan, toolDescriptions.keySet());
@@ -82,7 +93,7 @@ public class TaskPlanner {
             log.debug("[TaskPlanner] Generated {} steps for task: {}", plan.size(),
                     task.substring(0, Math.min(50, task.length())));
             successCounter.increment();
-            return plan;
+            return new PlannerResult(plan, reasoningContent);
         } catch (PlanGenerationException exception) {
             parseErrorCounter.increment();
             throw exception;
@@ -100,7 +111,7 @@ public class TaskPlanner {
                 .collect(Collectors.joining("\n"));
 
         return """
-                你是一个任务规划助手。请分析用户的任务，并生成一个 2-5 步的执行计划。
+                你是一个任务规划助手。请分析用户的任务，并生成一个 1-5 步的执行计划。
 
                 可用工具：
                 %s
@@ -115,6 +126,47 @@ public class TaskPlanner {
 
                 %s
                 """.formatted(toolList, maxRagCalls, task, formatInstructions);
+    }
+
+    private String extractReasoningContent(ChatResponse chatResponse) {
+        if (chatResponse == null || chatResponse.getResult() == null) {
+            return null;
+        }
+
+        String fromGeneration = chatResponse.getResult().getMetadata().get("reasoningContent");
+        if (fromGeneration != null && !fromGeneration.isBlank()) {
+            return fromGeneration;
+        }
+
+        var output = chatResponse.getResult().getOutput();
+        if (output == null || output.getMetadata() == null) {
+            return null;
+        }
+
+        Object fromMessage = output.getMetadata().get("reasoningContent");
+        if (fromMessage instanceof String reasoning && !reasoning.isBlank()) {
+            return reasoning;
+        }
+
+        return extractReasoningFromCapturedResponse();
+    }
+
+    private String extractReasoningFromCapturedResponse() {
+        String rawResponse = AiSyncResponseCapture.get();
+        if (rawResponse == null || rawResponse.isBlank()) {
+            return null;
+        }
+
+        try {
+            var root = objectMapper.readTree(rawResponse);
+            var choice = root.path("choices").path(0);
+            String reasoningContent = choice.path("message").path("reasoning_content").asText("");
+            return reasoningContent.isBlank() ? null : reasoningContent;
+        } catch (Exception ignored) {
+            return null;
+        } finally {
+            AiSyncResponseCapture.clear();
+        }
     }
 
     private void validatePlan(List<PlanStep> plan, Set<String> toolNames) {

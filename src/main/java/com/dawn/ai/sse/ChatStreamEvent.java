@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 /**
  * Unified SSE event envelope.
  *
- * Event sequence per request: connected → plan? → step* → token* → done | error
+ * Event sequence per request: connected → plan_thinking* → plan? → thinking* → step* → token* → done | error
  *
  * Each event is serialised as the JSON body of a SSE data line,
  * while the SSE event name mirrors the {@code event} field.
@@ -55,6 +55,15 @@ public class ChatStreamEvent {
                 .build();
     }
 
+        public static ChatStreamEvent planThinking(String sessionId, String content, int accumulatedLength) {
+                return ChatStreamEvent.builder()
+                                .event("plan_thinking")
+                                .sessionId(sessionId)
+                                .timestamp(Instant.now().toString())
+                                .data(Map.of("content", content, "accumulatedLength", accumulatedLength))
+                                .build();
+        }
+
     public static ChatStreamEvent step(String sessionId, AgentStep agentStep) {
         return ChatStreamEvent.builder()
                 .event("step")
@@ -67,6 +76,15 @@ public class ChatStreamEvent {
     public static ChatStreamEvent token(String sessionId, String content, int accumulatedLength) {
         return ChatStreamEvent.builder()
                 .event("token")
+                .sessionId(sessionId)
+                .timestamp(Instant.now().toString())
+                .data(Map.of("content", content, "accumulatedLength", accumulatedLength))
+                .build();
+    }
+
+    public static ChatStreamEvent thinking(String sessionId, String content, int accumulatedLength) {
+        return ChatStreamEvent.builder()
+                .event("thinking")
                 .sessionId(sessionId)
                 .timestamp(Instant.now().toString())
                 .data(Map.of("content", content, "accumulatedLength", accumulatedLength))
