@@ -47,6 +47,15 @@ docker compose up -d
 
 This starts an `Infinity` embedding service at `http://localhost:7997/v1/embeddings` and wires the app container to use it for embeddings while chat requests keep using `BASE_URL`.
 
+All services in `docker-compose.yml` use `restart: unless-stopped`, so after they are created once with `docker compose up -d`, Docker will bring them back automatically after a host reboot.
+
+On Linux, also enable the Docker daemon at boot time:
+
+```bash
+sudo systemctl enable docker
+sudo systemctl start docker
+```
+
 The base Compose file is CPU-safe by default. If Docker GPU runtime is available on your machine, enable GPU serving with:
 
 ```bash
