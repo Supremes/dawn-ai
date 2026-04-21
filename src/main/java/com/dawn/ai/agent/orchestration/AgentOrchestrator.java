@@ -210,6 +210,7 @@ public class AgentOrchestrator {
                     .toolNames(toolRegistry.getNames())
                     .stream()
                     .chatResponse()
+                    .contextCapture()
                     .doOnNext(chunk -> {
                         String reasoning = extractReasoning(chunk);
                         if (reasoning != null && !reasoning.isBlank()) {

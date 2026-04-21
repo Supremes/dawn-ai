@@ -4,93 +4,130 @@ import com.dawn.ai.exception.MaxStepsExceededException;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
- * ThreadLocal-based request-scoped step collector.
- * Bridges ToolExecutionAspect and AgentOrchestrator without touching tool classes.
+ * Request-scoped step collector backed by a single {@link ThreadLocal}&lt;{@link StepCollectorContext}&gt;.
  *
- * Lifecycle per request:
- *   AgentOrchestrator.doChat() calls init() → AOP records steps → collect() → clear()
+ * <h3>Cross-thread correctness (streaming mode)</h3>
+ * In streaming mode, Spring AI executes tool callbacks on Reactor Netty worker threads
+ * — different from the {@code chatStreamExecutor} thread that calls {@link #init}.
+ * Raw {@code ThreadLocal} values are invisible across thread boundaries, which previously
+ * caused a {@link NullPointerException} and silent tool failures.
  *
- * RETRIEVED_QUERIES tracks already-searched queries within one request to prevent
- * duplicate RAG calls that would waste tokens.
+ * <p>The fix uses <b>Micrometer context propagation</b>:
+ * <ol>
+ *   <li>{@link StepCollectorContextAccessor} is registered with {@code ContextRegistry}.</li>
+ *   <li>{@code Hooks.enableAutomaticContextPropagation()} (called in {@code AgentConfig})
+ *       tells Reactor to capture all registered ThreadLocals into the reactive pipeline's
+ *       context at subscription time.</li>
+ *   <li>Before each operator executes on any thread, Reactor restores the ThreadLocals
+ *       via the accessor — giving every worker thread the same {@link StepCollectorContext}
+ *       <em>reference</em>.</li>
+ *   <li>Because all threads share the same object reference (not a copy), mutations
+ *       (appending steps, incrementing counter, marking queries) are immediately visible
+ *       to all participants.</li>
+ * </ol>
+ *
+ * <h3>Lifecycle per request</h3>
+ * {@code AgentOrchestrator} calls {@link #init} → AOP/tools record steps → {@link #collect} → {@link #clear}
  */
 @Slf4j
 public class StepCollector {
 
-    private static final ThreadLocal<List<AgentStep>> STEPS =
-            ThreadLocal.withInitial(ArrayList::new);
-    private static final ThreadLocal<AtomicInteger> COUNTER =
-            ThreadLocal.withInitial(() -> new AtomicInteger(0));
-    private static final ThreadLocal<Integer> MAX_STEPS = new ThreadLocal<>();
-    /** package-private for test accessibility */
-    static final ThreadLocal<Set<String>> RETRIEVED_QUERIES =
-            ThreadLocal.withInitial(HashSet::new);
-    /** Optional listener for real-time step events in streaming mode. */
-    private static final ThreadLocal<Consumer<AgentStep>> STEP_LISTENER = new ThreadLocal<>();
+    private static final ThreadLocal<StepCollectorContext> CONTEXT = new ThreadLocal<>();
 
-    /** Call at the start of each request to reset state from any previous run. */
+    // -------------------------------------------------------------------------
+    // Lifecycle
+    // -------------------------------------------------------------------------
+
+    /** Initialises a fresh {@link StepCollectorContext} for the current request. */
     public static void init(Integer maxSteps) {
         init(maxSteps, null);
     }
 
     /**
-     * Overload for streaming mode: registers a listener that is invoked immediately
-     * on each {@link #record(AgentStep)} call, enabling real-time step events.
+     * Streaming overload: registers a real-time {@code stepListener} in addition to
+     * initialising the request context.
      *
-     * @param listener optional; pass {@code null} for non-streaming requests
+     * @param listener optional; {@code null} for non-streaming requests
      */
     public static void init(Integer maxSteps, Consumer<AgentStep> listener) {
-        STEPS.get().clear();
-        COUNTER.get().set(0);
-        MAX_STEPS.set(maxSteps);
-        RETRIEVED_QUERIES.get().clear();
-        STEP_LISTENER.set(listener);
+        CONTEXT.set(new StepCollectorContext(maxSteps, listener));
     }
 
-    /** Called by ToolExecutionAspect after each tool invocation. */
+    // -------------------------------------------------------------------------
+    // Package-private accessors used by StepCollectorContextAccessor
+    // -------------------------------------------------------------------------
+
+    static StepCollectorContext currentContext() {
+        return CONTEXT.get();
+    }
+
+    static void setContext(StepCollectorContext ctx) {
+        CONTEXT.set(ctx);
+    }
+
+    static void clearContext() {
+        CONTEXT.remove();
+    }
+
+    // -------------------------------------------------------------------------
+    // Public API
+    // -------------------------------------------------------------------------
+
+    /** Called by {@link ToolExecutionAspect} after each successful tool invocation. */
     public static void record(AgentStep step) {
-        STEPS.get().add(step);
-        Consumer<AgentStep> listener = STEP_LISTENER.get();
+        StepCollectorContext ctx = CONTEXT.get();
+        if (ctx == null) {
+            log.warn("[StepCollector] record() called on thread '{}' with no active context — step dropped.",
+                    Thread.currentThread().getName());
+            return;
+        }
+        ctx.steps.add(step);
+        Consumer<AgentStep> listener = ctx.stepListener;
         if (listener != null) {
             listener.accept(step);
         }
     }
 
-    /** Returns the next monotonically increasing step number for the current request. */
+    /**
+     * Returns the next monotonically increasing step number and enforces the per-request
+     * step limit.  Called by {@link ToolExecutionAspect} before every tool invocation.
+     */
     public static int getAndIncreaseStepNumber() {
-        int next = COUNTER.get().incrementAndGet();
-        Integer max = MAX_STEPS.get();
-        if (max == null) {
-            // ThreadLocal not initialized on this thread — likely a Reactor worker thread in streaming mode.
-            // Log a warning so the issue is visible, but allow the tool call to proceed.
-            log.warn("[StepCollector] MAX_STEPS not set on thread '{}' — StepCollector.init() was called on a different thread. Tool call will proceed without step-limit enforcement.",
+        StepCollectorContext ctx = CONTEXT.get();
+        if (ctx == null) {
+            // Context not yet propagated — should not happen with Micrometer auto-propagation,
+            // but log clearly and allow the call to proceed rather than crash.
+            log.warn("[StepCollector] getAndIncreaseStepNumber() called on thread '{}' with no active context. " +
+                     "Verify that Hooks.enableAutomaticContextPropagation() is enabled.",
                     Thread.currentThread().getName());
-            return next;
+            return 1;
         }
-        if (next > max) {
-            log.error("Exceeded Max Steps: {}", next);
-            throw new MaxStepsExceededException("Exceeded Max Steps: " + max);
+        int next = ctx.counter.incrementAndGet();
+        if (next > ctx.maxSteps) {
+            log.error("[StepCollector] Exceeded max steps: {} > {}", next, ctx.maxSteps);
+            throw new MaxStepsExceededException("Exceeded Max Steps: " + ctx.maxSteps);
         }
         return next;
     }
 
-    /** Returns a snapshot of all recorded steps for the current request. */
+    /** Returns a snapshot of all steps recorded for the current request. */
     public static List<AgentStep> collect() {
-        return new ArrayList<>(STEPS.get());
+        StepCollectorContext ctx = CONTEXT.get();
+        if (ctx == null) return List.of();
+        return new ArrayList<>(ctx.steps);
     }
 
     /**
-     * Returns true if the given rewritten query has already been searched this request.
-     * Used by KnowledgeSearchTool to prevent duplicate RAG calls.
+     * Returns {@code true} if the given rewritten query has already been searched this
+     * request.  Used by {@code KnowledgeSearchTool} to prevent duplicate RAG calls.
      */
     public static boolean isQueryRetrieved(String query) {
-        return RETRIEVED_QUERIES.get().contains(query);
+        StepCollectorContext ctx = CONTEXT.get();
+        return ctx != null && ctx.retrievedQueries.contains(query);
     }
 
     /**
@@ -98,15 +135,14 @@ public class StepCollector {
      * Call immediately before executing a RAG retrieval.
      */
     public static void markQueryRetrieved(String query) {
-        RETRIEVED_QUERIES.get().add(query);
+        StepCollectorContext ctx = CONTEXT.get();
+        if (ctx != null) {
+            ctx.retrievedQueries.add(query);
+        }
     }
 
-    /** Must be called in a finally block to prevent ThreadLocal memory leaks. */
+    /** Must be called in a {@code finally} block to prevent ThreadLocal memory leaks. */
     public static void clear() {
-        STEPS.remove();
-        COUNTER.remove();
-        MAX_STEPS.remove();
-        RETRIEVED_QUERIES.remove();
-        STEP_LISTENER.remove();
+        CONTEXT.remove();
     }
 }
