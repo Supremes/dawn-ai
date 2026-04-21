@@ -52,6 +52,7 @@ public class ToolExecutionAspect {
         } catch (Throwable t) {
             status = "error";
             long durationMs = System.currentTimeMillis() - start;
+            log.error("[ReAct] Tool={} failed after {}ms: {}", toolName, durationMs, t.getMessage(), t);
             recordMetrics(toolName, status, durationMs);
             throw t;
         }

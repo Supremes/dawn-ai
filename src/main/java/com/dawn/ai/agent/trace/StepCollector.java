@@ -65,9 +65,17 @@ public class StepCollector {
     /** Returns the next monotonically increasing step number for the current request. */
     public static int getAndIncreaseStepNumber() {
         int next = COUNTER.get().incrementAndGet();
-        if (next > MAX_STEPS.get()) {
+        Integer max = MAX_STEPS.get();
+        if (max == null) {
+            // ThreadLocal not initialized on this thread — likely a Reactor worker thread in streaming mode.
+            // Log a warning so the issue is visible, but allow the tool call to proceed.
+            log.warn("[StepCollector] MAX_STEPS not set on thread '{}' — StepCollector.init() was called on a different thread. Tool call will proceed without step-limit enforcement.",
+                    Thread.currentThread().getName());
+            return next;
+        }
+        if (next > max) {
             log.error("Exceeded Max Steps: {}", next);
-            throw new MaxStepsExceededException("Exceeded Max Steps: " + MAX_STEPS.get().toString());
+            throw new MaxStepsExceededException("Exceeded Max Steps: " + max);
         }
         return next;
     }
