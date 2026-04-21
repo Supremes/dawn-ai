@@ -1,0 +1,15 @@
+```css
+/* 让 Mermaid 图表可以横向滚动，而不是被截断 */
+.mermaid {
+    overflow-x: auto !important;
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center; /* 可选：让小图居中 */
+}
+
+/* 确保 SVG 本身不被强制压缩 */
+.mermaid svg {
+    max-width: none !important;
+    height: auto !important;
+}
+```

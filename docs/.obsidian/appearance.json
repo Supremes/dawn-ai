@@ -1,0 +1,12 @@
+{
+  "cssTheme": "Border",
+  "theme": "moonstone",
+  "accentColor": "#4275b8",
+  "showRibbon": true,
+  "enabledCssSnippets": [
+    "mermaid-scroll"
+  ],
+  "interfaceFontFamily": "LXGW WenKai GB Screen",
+  "textFontFamily": "LXGW WenKai GB Screen",
+  "monospaceFontFamily": "LXGW WenKai GB Screen"
+}
