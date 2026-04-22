@@ -41,7 +41,8 @@ public class ChatController {
      * SSE streaming chat endpoint.
      *
      * <p>Returns a stream of server-sent events in the order:
-     * {@code connected → plan? → step* → token* → done | error}.
+     * {@code connected → plan_thinking* → plan? → thinking* → step* → token* → done | error}
+     * (see {@link com.dawn.ai.sse.ChatStreamEvent} for the canonical sequence).
      *
      * <p>Use {@code fetch()} on the client side rather than {@code EventSource} because
      * this endpoint accepts a POST body (same {@link ChatRequest} as the sync endpoint).

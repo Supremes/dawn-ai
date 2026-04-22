@@ -29,6 +29,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.Map;
 
@@ -98,9 +99,7 @@ public class AgentOrchestrator {
             TaskPlanner.PlannerResult plannerResult = resolvePlan(userMessage);
             List<PlanStep> plan = plannerResult.steps();
 
-            String systemPrompt = baseSystemPrompt
-                    + formatPlan(plan)
-                    + String.format("%n请在回复中简短说明每次工具调用的原因。最多调用工具 %d 次。", maxSteps);
+            String systemPrompt = buildSystemPrompt(plan);
 
             // 添加历史对话到上下文
             List<Message> history = buildHistory(sessionId);
@@ -156,20 +155,19 @@ public class AgentOrchestrator {
     /**
      * Streaming variant of {@link #chat}.
      *
-    * <p>Publishes SSE events to {@code sink} in this order:
-    * {@code plan_thinking* → plan → thinking* → step* → token* → done | error}.
+     * <p>Publishes SSE events to {@code sink} in this order:
+     * {@code connected → plan_thinking* → plan? → thinking* → step* → token* → done | error}
+     * (see {@link ChatStreamEvent} for the canonical sequence).
      *
      * <p>This method always returns normally; errors are surfaced via an {@code error} event.
      * The caller must run this on a dedicated non-servlet thread and complete the
      * {@code SseEmitter} after this method returns.
      *
-     * <p>Note: {@code step} events rely on {@link StepCollector}'s ThreadLocal listener.
-     * They are delivered if Spring AI executes tools on the same thread chain as
-     * {@code blockLast()}.  Even if step delivery is not guaranteed in all provider
-     * implementations, {@code plan}, {@code token}, and {@code done} events are always
-     * reliable.
+     * @param isCancelled supplier checked before each streamed chunk; when {@code true} the
+     *                    Reactor pipeline is torn down early (client disconnected).
      */
-    public void streamChat(String sessionId, String userMessage, Consumer<ChatStreamEvent> sink) {
+    public void streamChat(String sessionId, String userMessage, Consumer<ChatStreamEvent> sink,
+                           BooleanSupplier isCancelled) {
         long start = System.currentTimeMillis();
         StringBuilder answer = new StringBuilder();
         StringBuilder thinkingBuffer = new StringBuilder();
@@ -191,10 +189,7 @@ public class AgentOrchestrator {
                 sink.accept(ChatStreamEvent.plan(sessionId, plan, formatPlanSummary(plan)));
             }
 
-            String systemPrompt = baseSystemPrompt
-                    + formatPlan(plan)
-                    + formatPlanEnforcement(plan)
-                    + String.format("%n每次工具调用前请简短说明原因。最多调用工具 %d 次。", maxSteps);
+            String systemPrompt = buildSystemPrompt(plan);
 
             // 添加历史对话到上下文
             List<Message> history = buildHistory(sessionId);
@@ -211,6 +206,7 @@ public class AgentOrchestrator {
                     .stream()
                     .chatResponse()
                     .contextCapture()
+                    .takeWhile(chunk -> !isCancelled.getAsBoolean())
                     .doOnNext(chunk -> {
                         String reasoning = extractReasoning(chunk);
                         if (reasoning != null && !reasoning.isBlank()) {
@@ -231,6 +227,11 @@ public class AgentOrchestrator {
                         }
                     })
                     .blockLast();
+
+            if (isCancelled.getAsBoolean()) {
+                log.info("[AgentOrchestrator] stream cancelled by client, session={}", sessionId);
+                return;
+            }
 
             List<AgentStep> steps = StepCollector.collect();
             recordRagMetrics(steps);
@@ -353,6 +354,17 @@ public class AgentOrchestrator {
      * Returns a mandatory enforcement directive when a non-empty plan exists.
      * Without this, the LLM may answer from training knowledge and skip tool calls entirely.
      */
+    /**
+     * Builds the system prompt shared by both sync and stream paths.
+     * Includes the execution plan, plan-enforcement directive, and max-steps constraint.
+     */
+    private String buildSystemPrompt(List<PlanStep> plan) {
+        return baseSystemPrompt
+                + formatPlan(plan)
+                + formatPlanEnforcement(plan)
+                + String.format("%n请在回复中简短说明每次工具调用的原因。最多调用工具 %d 次。", maxSteps);
+    }
+
     private String formatPlanEnforcement(List<PlanStep> plan) {
         if (plan.isEmpty()) {
             return "";

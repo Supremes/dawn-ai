@@ -31,19 +31,25 @@ public class AgentConfig {
     /**
      * Dedicated thread pool for SSE streaming requests.
      * Each active SSE stream occupies one thread for the duration of the request.
+     *
+     * <p>Uses {@link ThreadPoolExecutor.AbortPolicy} so that overload is surfaced as a
+     * {@link java.util.concurrent.RejectedExecutionException} that {@code ChatService}
+     * converts to a {@code CAPACITY_EXCEEDED} error event and an HTTP-level 503, rather
+     * than silently falling back to the Tomcat servlet thread (which would block it for
+     * the full 120 s SSE timeout).
      */
     @Bean(name = "chatStreamExecutor", destroyMethod = "shutdown")
     public ExecutorService chatStreamExecutor() {
         return new ThreadPoolExecutor(
                 8, 32,
                 60L, TimeUnit.SECONDS,
-                new LinkedBlockingQueue<>(200),
+                new LinkedBlockingQueue<>(64),
                 r -> {
                     Thread t = new Thread(r, "chat-stream-" + System.nanoTime());
                     t.setDaemon(true);
                     return t;
                 },
-                new ThreadPoolExecutor.CallerRunsPolicy()
+                new ThreadPoolExecutor.AbortPolicy()
         );
     }
 

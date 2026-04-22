@@ -20,6 +20,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -91,7 +93,9 @@ public class ChatService {
     /**
      * Creates an {@link SseEmitter} and asynchronously streams the agent response.
      *
-     * <p>Events are published in order: {@code connected → plan? → step* → token* → done | error}.
+     * <p>Events are published in order:
+     * {@code connected → plan_thinking* → plan? → thinking* → step* → token* → done | error}
+     * (see {@link com.dawn.ai.sse.ChatStreamEvent} for the canonical sequence).
      * The caller (controller) returns the emitter to Spring MVC immediately; the actual
      * processing happens on the {@code chatStreamExecutor} thread pool.
      */
@@ -104,41 +108,57 @@ public class ChatService {
 
         SseEmitter emitter = new SseEmitter(streamTimeoutMs);
         AtomicInteger seqCounter = new AtomicInteger(0);
+        AtomicBoolean cancelled = new AtomicBoolean(false);
         String streamId = UUID.randomUUID().toString();
 
+        emitter.onCompletion(() -> cancelled.set(true));
         emitter.onTimeout(() -> {
             log.warn("[ChatService] SSE timeout, sessionId={}", sessionId);
+            cancelled.set(true);
             sendEvent(emitter, ChatStreamEvent.error(sessionId, "TIMEOUT", "Response timed out"), seqCounter);
-            emitter.complete();
+            try { emitter.complete(); } catch (IllegalStateException ignored) {}
         });
-        emitter.onError(e -> log.warn("[ChatService] SSE transport error, sessionId={}", sessionId, e));
+        emitter.onError(e -> {
+            log.warn("[ChatService] SSE transport error, sessionId={}", sessionId, e);
+            cancelled.set(true);
+        });
 
-        chatStreamExecutor.execute(() -> {
-            try {
-                sendEvent(emitter, ChatStreamEvent.connected(sessionId, streamId), seqCounter);
-                agentOrchestrator.streamChat(sessionId, request.getMessage(),
-                        event -> sendEvent(emitter, event, seqCounter));
-                emitter.complete();
-            } catch (Exception e) {
-                log.error("[ChatService] Unexpected error in stream thread, sessionId={}", sessionId, e);
-                sendEvent(emitter, ChatStreamEvent.error(sessionId, "INTERNAL_ERROR", e.getMessage()), seqCounter);
-                emitter.completeWithError(e);
-            }
-        });
+        try {
+            chatStreamExecutor.execute(() -> {
+                try {
+                    sendEvent(emitter, ChatStreamEvent.connected(sessionId, streamId), seqCounter);
+                    agentOrchestrator.streamChat(sessionId, request.getMessage(),
+                            event -> sendEvent(emitter, event, seqCounter),
+                            cancelled::get);
+                } catch (Exception e) {
+                    log.error("[ChatService] Unexpected error in stream thread, sessionId={}", sessionId, e);
+                    sendEvent(emitter, ChatStreamEvent.error(sessionId, "INTERNAL_ERROR", e.getMessage()), seqCounter);
+                } finally {
+                    try { emitter.complete(); } catch (IllegalStateException ignored) {}
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            log.warn("[ChatService] chatStreamExecutor at capacity, rejecting request, sessionId={}", sessionId);
+            sendEvent(emitter, ChatStreamEvent.error(sessionId, "CAPACITY_EXCEEDED",
+                    "Server is busy, please retry later"), seqCounter);
+            try { emitter.complete(); } catch (IllegalStateException ignored) {}
+        }
 
         return emitter;
     }
 
     private void sendEvent(SseEmitter emitter, ChatStreamEvent event, AtomicInteger seqCounter) {
-        event.setSeq(seqCounter.getAndIncrement());
-        try {
-            emitter.send(SseEmitter.event()
-                    .name(event.getEvent())
-                    .id(String.valueOf(event.getSeq()))
-                    .data(objectMapper.writeValueAsString(event), MediaType.APPLICATION_JSON));
-        } catch (Exception e) {
-            log.warn("[ChatService] Failed to send SSE event type={}, sessionId={}: {}",
-                    event.getEvent(), event.getSessionId(), e.getMessage());
+        synchronized (emitter) {
+            event.setSeq(seqCounter.getAndIncrement());
+            try {
+                emitter.send(SseEmitter.event()
+                        .name(event.getEvent())
+                        .id(String.valueOf(event.getSeq()))
+                        .data(objectMapper.writeValueAsString(event), MediaType.APPLICATION_JSON));
+            } catch (Exception e) {
+                log.warn("[ChatService] Failed to send SSE event type={}, sessionId={}: {}",
+                        event.getEvent(), event.getSessionId(), e.getMessage());
+            }
         }
     }
 

@@ -8,9 +8,9 @@
 ## Phase A — 阻塞合并（P1，必须修）
 
 ### A1. 客户端断开传播
-- [ ] `ChatService.streamChat` 注册 `emitter.onCompletion` / 在 `onError` / `onTimeout` 中 set 取消标志
+- [x] `ChatService.streamChat` 注册 `emitter.onCompletion` / 在 `onError` / `onTimeout` 中 set 取消标志
 - [ ] `AgentOrchestrator.streamChat` 改用 `subscribe()` + `Disposable`，或在 `doOnNext` 里 `takeUntil(cancelled)`，废弃 `blockLast()` 后无法响应取消的写法
-- [ ] 验证 `curl -N ... | head -1` 触发 client close 后日志显示 LLM chunk 立刻停止
+- [x] 验证 `curl -N ... | head -1` 触发 client close 后日志显示 LLM chunk 立刻停止
 
 **位置**: `ChatService.java:109-114`, `AgentOrchestrator.java:206-233`
 
@@ -30,8 +30,8 @@
 **位置**: `AgentOrchestrator.java:248-262`, `ChatStreamEvent.java:112-122`
 
 ### A4. 同步 / 流式 system prompt 对齐
-- [ ] 抽公共 `buildSystemPrompt(plan)`，统一 `formatPlan + formatPlanEnforcement + maxSteps` 文案
-- [ ] 同步 `doChat` 也强制按 plan 执行（默认开），避免 sync/stream 行为分裂
+- [x] 抽公共 `buildSystemPrompt(plan)`，统一 `formatPlan + formatPlanEnforcement + maxSteps` 文案
+- [x] 同步 `doChat` 也强制按 plan 执行（默认开），避免 sync/stream 行为分裂
 
 **位置**: `AgentOrchestrator.java:101-103` vs `194-197`
 
@@ -53,7 +53,7 @@
 **位置**: `ChatStreamEvent.java:94-110`, `static/js/app.js:304-352`
 
 ### B3. `chatStreamExecutor` 拒绝策略修正
-- [ ] `CallerRunsPolicy` → `AbortPolicy` + Controller 侧统一 503
+- [x] `CallerRunsPolicy` → `AbortPolicy` + Controller 侧统一 503
 - [ ] queue capacity 200 → 64，避免长任务在队列里堆积超过 timeout
 - [ ] 增加 `ai.chat.stream.queue.size` Gauge
 
