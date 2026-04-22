@@ -18,8 +18,13 @@ import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.BufferingClientHttpRequestFactory;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.reactive.function.client.ClientRequest;
+import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
+import org.springframework.web.reactive.function.client.ExchangeStrategies;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.client.RestClient;
+import reactor.core.publisher.Mono;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -28,7 +33,7 @@ import java.nio.charset.StandardCharsets;
 public class AiConfig {
 
     private static final Logger log = LoggerFactory.getLogger(AiConfig.class);
-    private static final int MAX_CONTENT_SNIPPET = 150;
+    private static final int MAX_CONTENT_SNIPPET = 300;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Value("${app.ai.system-prompt:You are a helpful AI assistant.}")
@@ -73,8 +78,17 @@ public class AiConfig {
 
             byte[] responseBody = StreamUtils.copyToByteArray(response.getBody());
             String responseBodyText = new String(responseBody, resolveCharset(response.getHeaders()));
+            AiSyncResponseCapture.set(responseBodyText);
 
             log.info("[AI HTTP] <-- status={} | {}", response.getStatusCode(), summarizeResponseBody(responseBodyText));
+            if (log.isDebugEnabled()) {
+                try {
+                    Object parsed = OBJECT_MAPPER.readValue(responseBodyText, Object.class);
+                    log.debug("[AI HTTP] <-- full response body:\n{}", OBJECT_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(parsed));
+                } catch (Exception ignored) {
+                    log.debug("[AI HTTP] <-- full response body: {}", responseBodyText);
+                }
+            }
 
             return response;
         };
@@ -83,6 +97,19 @@ public class AiConfig {
                 .requestFactory(new BufferingClientHttpRequestFactory(new SimpleClientHttpRequestFactory()))
                 .requestInterceptor(loggingInterceptor);
     }
+
+            @Bean
+            @Primary
+            public WebClient.Builder openAiWebClientBuilder() {
+            ExchangeStrategies strategies = ExchangeStrategies.builder()
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
+                .build();
+
+            return WebClient.builder()
+                .exchangeStrategies(strategies)
+                .filter(logStreamingRequest())
+                .filter(logStreamingResponse());
+            }
 
     @Bean
     public Timer aiCallTimer(MeterRegistry registry) {
@@ -154,7 +181,7 @@ public class AiConfig {
                 sb.append("finishReason=").append(choice.path("finish_reason").asText("?"));
                 String content = choice.path("message").path("content").asText("");
                 if (!content.isBlank()) {
-                    sb.append(", content=「").append(snippet(content)).append("」");
+                    sb.append(", content=「").append(content).append("」");
                 }
                 JsonNode toolCalls = choice.path("message").path("tool_calls");
                 if (toolCalls.isArray() && !toolCalls.isEmpty()) {
@@ -181,9 +208,34 @@ public class AiConfig {
         }
     }
 
+    private ExchangeFilterFunction logStreamingRequest() {
+        return ExchangeFilterFunction.ofRequestProcessor(request -> {
+            log.info("[AI STREAM HTTP] --> {} {} | headers={}",
+                    request.method(), request.url(), sanitizeHeaders(request));
+            return Mono.just(request);
+        });
+    }
+
+    private ExchangeFilterFunction logStreamingResponse() {
+        return ExchangeFilterFunction.ofResponseProcessor(response -> {
+            log.info("[AI STREAM HTTP] <-- status={} | contentType={}",
+                    response.statusCode(), response.headers().contentType().orElse(null));
+            return Mono.just(response);
+        });
+    }
+
     private String snippet(String value) {
         if (value == null || value.length() <= MAX_CONTENT_SNIPPET) return value;
         return value.substring(0, MAX_CONTENT_SNIPPET) + "…";
+    }
+
+    private HttpHeaders sanitizeHeaders(ClientRequest request) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.putAll(request.headers());
+        if (headers.containsKey(HttpHeaders.AUTHORIZATION)) {
+            headers.set(HttpHeaders.AUTHORIZATION, "<masked>");
+        }
+        return headers;
     }
 
     // --- helpers ---

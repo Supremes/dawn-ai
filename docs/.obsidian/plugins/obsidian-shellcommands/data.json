@@ -1,0 +1,152 @@
+{
+  "settings_version": "0.23.0",
+  "debug": false,
+  "obsidian_command_palette_prefix": "Execute: ",
+  "preview_variables_in_command_palette": true,
+  "show_autocomplete_menu": true,
+  "working_directory": "",
+  "default_shells": {},
+  "environment_variable_path_augmentations": {
+    "darwin": "/Users/junkangd/.jenv/shims:/Users/junkangd/.jenv/bin:/Users/junkangd/.pyenv/shims:/Library/Frameworks/Python.framework/Versions/2.7/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/Library/Apple/usr/bin:/Applications/Wireshark.app/Contents/MacOS:/usr/local/go/bin:/usr/local/laps:/Users/junkangd/.cargo/bin:/Users/junkangd/.pyenv/versions/2.7.18/bin/python:/Users/junkangd/Library/Android/sdk/tools:/Users/junkangd/Library/Android/sdk/platform-tools:/Users/junkangd/Library/Android/sdk/build-tools/30.0.2:/Library/Java/JavaVirtualMachines/jdk1.8.0_333.jdk/Contents/Home/bin"
+  },
+  "show_installation_warnings": true,
+  "error_message_duration": 20,
+  "notification_message_duration": 10,
+  "execution_notification_mode": "permanent",
+  "output_channel_clipboard_also_outputs_to_notification": true,
+  "output_channel_notification_decorates_output": true,
+  "enable_events": true,
+  "approve_modals_by_pressing_enter_key": true,
+  "command_palette": {
+    "re_execute_last_shell_command": {
+      "enabled": true,
+      "prefix": "Re-execute: "
+    }
+  },
+  "max_visible_lines_in_shell_command_fields": false,
+  "shell_commands": [
+    {
+      "id": "riz7o466my",
+      "platform_specific_commands": {
+        "default": "cd {{vault_path}}/.. && git add . && git commit -m {{_commit_message}} && git push -u origin develop"
+      },
+      "shells": {},
+      "alias": "Git Push and Deploy Site",
+      "icon": null,
+      "confirm_execution": false,
+      "ignore_error_codes": [],
+      "input_contents": {
+        "stdin": null
+      },
+      "output_handlers": {
+        "stdout": {
+          "handler": "notification",
+          "convert_ansi_code": true
+        },
+        "stderr": {
+          "handler": "notification",
+          "convert_ansi_code": true
+        }
+      },
+      "output_wrappers": {
+        "stdout": null,
+        "stderr": null
+      },
+      "output_channel_order": "stdout-first",
+      "output_handling_mode": "buffered",
+      "execution_notification_mode": null,
+      "events": {},
+      "debounce": null,
+      "command_palette_availability": "enabled",
+      "preactions": [
+        {
+          "type": "prompt",
+          "enabled": true,
+          "prompt_id": "xda80mpyet"
+        }
+      ],
+      "variable_default_values": {}
+    }
+  ],
+  "prompts": [
+    {
+      "id": "uj46b912op",
+      "title": "请输入要列出的文件夹名",
+      "description": "（相对于 Vault 根目录的路径）",
+      "preview_shell_command": false,
+      "fields": [
+        {
+          "type": "single-line-text",
+          "label": "filedl",
+          "description": "",
+          "default_value": "",
+          "target_variable_id": "dj7qfkbf6z",
+          "required": true
+        }
+      ],
+      "execute_button_text": "Execute"
+    },
+    {
+      "id": "xda80mpyet",
+      "title": "推送代码并部署",
+      "description": "推送代码并部署",
+      "preview_shell_command": false,
+      "fields": [
+        {
+          "type": "single-line-text",
+          "label": "commit",
+          "description": "",
+          "default_value": "",
+          "target_variable_id": "39w7rrvw8l",
+          "required": false
+        }
+      ],
+      "execute_button_text": "Execute"
+    }
+  ],
+  "builtin_variables": {},
+  "custom_variables": [
+    {
+      "id": "dj7qfkbf6z",
+      "name": "target_folder",
+      "description": "target folder",
+      "default_value": null
+    },
+    {
+      "id": "39w7rrvw8l",
+      "name": "commit_message",
+      "description": "commit_message",
+      "default_value": null
+    }
+  ],
+  "custom_variables_notify_changes_via": {
+    "obsidian_uri": true,
+    "output_assignment": true
+  },
+  "custom_shells": [
+    {
+      "id": "srn6e64rvs",
+      "name": "",
+      "description": "",
+      "binary_path": "",
+      "shell_arguments": [
+        "-c",
+        "{{!shell_command_content}}"
+      ],
+      "host_platform": "darwin",
+      "host_platform_configurations": {},
+      "shell_platform": null,
+      "escaper": "UnixShell",
+      "path_translator": null,
+      "shell_command_wrapper": null,
+      "shell_command_test": null
+    }
+  ],
+  "output_wrappers": [
+    {
+      "id": "j2lzx1khmg",
+      "title": "Code Block",
+      "content": "```shell_output\n{{output}}"
+    }
+  ]
+}

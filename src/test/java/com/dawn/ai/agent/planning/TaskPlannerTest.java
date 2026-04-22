@@ -9,6 +9,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
 
 import java.util.Map;
 
@@ -41,19 +44,20 @@ class TaskPlannerTest {
 
     @Test
     void shouldParsePlanWithBeanOutputConverter() {
-        when(callResponseSpec.content()).thenReturn("""
-                [
-                  {"step": 1, "action": "weatherTool", "reason": "先查询天气"},
-                  {"step": 2, "action": "finish", "reason": "完成任务"}
-                ]
-                """);
+      when(callResponseSpec.chatResponse()).thenReturn(chatResponse("""
+        [
+          {"step": 1, "action": "weatherTool", "reason": "先查询天气"},
+          {"step": 2, "action": "finish", "reason": "完成任务"}
+        ]
+        """));
 
-        var plan = taskPlanner.plan("帮我看天气", Map.of("weatherTool", "查询天气"));
+      var plan = taskPlanner.plan("帮我看天气", Map.of("weatherTool", "查询天气"));
 
-        assertThat(plan).hasSize(2);
-        assertThat(plan.get(0).step()).isEqualTo(1);
-        assertThat(plan.get(0).action()).isEqualTo("weatherTool");
-        assertThat(plan.get(1).action()).isEqualTo("finish");
+      assertThat(plan.steps()).hasSize(2);
+      assertThat(plan.steps().get(0).step()).isEqualTo(1);
+      assertThat(plan.steps().get(0).action()).isEqualTo("weatherTool");
+      assertThat(plan.steps().get(1).action()).isEqualTo("finish");
+      assertThat(plan.reasoningContent()).isNull();
 
         ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
         verify(requestSpec).user(promptCaptor.capture());
@@ -62,7 +66,7 @@ class TaskPlannerTest {
 
     @Test
     void shouldThrowWhenPlannerOutputIsNotStructuredJson() {
-        when(callResponseSpec.content()).thenReturn("我建议先查天气，再完成任务。");
+      when(callResponseSpec.chatResponse()).thenReturn(chatResponse("我建议先查天气，再完成任务。"));
 
         assertThatThrownBy(() -> taskPlanner.plan("帮我看天气", Map.of("weatherTool", "查询天气")))
                 .isInstanceOf(PlanGenerationException.class)
@@ -71,15 +75,19 @@ class TaskPlannerTest {
 
     @Test
     void shouldThrowWhenRequiredPlanFieldIsMissing() {
-        when(callResponseSpec.content()).thenReturn("""
-                [
-                  {"action": "weatherTool", "reason": "先查询天气"},
-                  {"step": 2, "action": "finish", "reason": "完成任务"}
-                ]
-                """);
+      when(callResponseSpec.chatResponse()).thenReturn(chatResponse("""
+        [
+          {"action": "weatherTool", "reason": "先查询天气"},
+          {"step": 2, "action": "finish", "reason": "完成任务"}
+        ]
+        """));
 
         assertThatThrownBy(() -> taskPlanner.plan("帮我看天气", Map.of("weatherTool", "查询天气")))
                 .isInstanceOf(PlanGenerationException.class)
                 .hasMessage("Planner returned invalid structured output.");
     }
+
+        private ChatResponse chatResponse(String content) {
+      return new ChatResponse(java.util.List.of(new Generation(new AssistantMessage(content))));
+        }
 }

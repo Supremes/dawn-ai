@@ -74,6 +74,8 @@ app:
       max-steps: 10        # 单次对话最多工具调用次数（超出时 LLM 自行收敛）
       show-steps: true    # 响应体中是否包含 steps 详情
       plan-enabled: true   # 是否启用执行前规划（关闭后跳过 TaskPlanner）
+    stream:
+      timeout-ms: 120000   # SSE 单次请求最大等待时长（毫秒）
     rag:
       chunk-size: 500                 # 单个 chunk 的 token 数
       chunk-overlap: 50              # 相邻 chunk 的重叠 token 数

@@ -6,10 +6,12 @@ import com.dawn.ai.agent.registry.ToolRegistry;
 import com.dawn.ai.agent.trace.AgentStep;
 import com.dawn.ai.agent.trace.StepCollector;
 import com.dawn.ai.agent.tools.KnowledgeSearchTool;
+import com.dawn.ai.exception.AiConfigurationException;
 import com.dawn.ai.exception.LLMProviderException;
 import com.dawn.ai.exception.MaxStepsExceededException;
 import com.dawn.ai.exception.PlanGenerationException;
 import com.dawn.ai.service.MemoryService;
+import com.dawn.ai.sse.ChatStreamEvent;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -26,8 +28,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import java.util.Map;
 
 /**
@@ -63,6 +66,9 @@ public class AgentOrchestrator {
     @Value("${app.ai.react.plan-enabled:true}")
     private boolean planEnabled;
 
+    @Value("${spring.ai.openai.chat.options.model:qwen-plus}")
+    private String model;
+
     private Counter inputTokenCounter;
     private Counter outputTokenCounter;
     private DistributionSummary ragCallsSummary;
@@ -90,11 +96,10 @@ public class AgentOrchestrator {
     private AgentResult doChat(String sessionId, String userMessage) {
         StepCollector.init(maxSteps);
         try {
-            List<PlanStep> plan = resolvePlan(userMessage);
+            TaskPlanner.PlannerResult plannerResult = resolvePlan(userMessage);
+            List<PlanStep> plan = plannerResult.steps();
 
-            String systemPrompt = baseSystemPrompt
-                    + formatPlan(plan)
-                    + String.format("%n请在回复中简短说明每次工具调用的原因。最多调用工具 %d 次。", maxSteps);
+            String systemPrompt = buildSystemPrompt(plan);
 
             // 添加历史对话到上下文
             List<Message> history = buildHistory(sessionId);
@@ -111,10 +116,7 @@ public class AgentOrchestrator {
             recordTokenUsage(chatResponse);
 
             List<AgentStep> steps = StepCollector.collect();
-            long ragCalls = steps.stream()
-                    .filter(s -> KnowledgeSearchTool.class.getSimpleName().equals(s.toolName()))
-                    .count();
-            ragCallsSummary.record(ragCalls);
+            recordRagMetrics(steps);
 
             memoryService.addMessage(sessionId, "user", userMessage);
             memoryService.addMessage(sessionId, "assistant", response);
@@ -135,9 +137,9 @@ public class AgentOrchestrator {
         }
     }
 
-    private List<PlanStep> resolvePlan(String userMessage) {
+    private TaskPlanner.PlannerResult resolvePlan(String userMessage) {
         if (!planEnabled) {
-            return Collections.emptyList();
+            return TaskPlanner.PlannerResult.empty();
         }
 
         try {
@@ -146,9 +148,162 @@ public class AgentOrchestrator {
             log.warn("[AgentOrchestrator] Planner failed, falling back to direct execution. userMsg={}, reason={}",
                     userMessage.substring(0, Math.min(50, userMessage.length())),
                     exception.getMessage());
-            return Collections.emptyList();
+            return TaskPlanner.PlannerResult.empty();
         }
     }
+
+    /**
+     * Streaming variant of {@link #chat}.
+     *
+     * <p>Publishes SSE events to {@code sink} in this order:
+     * {@code connected → plan_thinking* → plan? → thinking* → step* → token* → done | error}
+     * (see {@link ChatStreamEvent} for the canonical sequence).
+     *
+     * <p>This method always returns normally; errors are surfaced via an {@code error} event.
+     * The caller must run this on a dedicated non-servlet thread and complete the
+     * {@code SseEmitter} after this method returns.
+     *
+     * @param isCancelled supplier checked before each streamed chunk; when {@code true} the
+     *                    Reactor pipeline is torn down early (client disconnected).
+     */
+    public void streamChat(String sessionId, String userMessage, Consumer<ChatStreamEvent> sink,
+                           BooleanSupplier isCancelled) {
+        long start = System.currentTimeMillis();
+        StringBuilder answer = new StringBuilder();
+        StringBuilder thinkingBuffer = new StringBuilder();
+        StringBuilder planThinkingBuffer = new StringBuilder();
+
+        Consumer<AgentStep> stepEventPublisher = step -> sink.accept(ChatStreamEvent.step(sessionId, step));
+        StepCollector.init(maxSteps, stepEventPublisher);
+        try {
+            TaskPlanner.PlannerResult plannerResult = resolvePlan(userMessage);
+            List<PlanStep> plan = plannerResult.steps();
+
+            String planReasoning = plannerResult.reasoningContent();
+            if (planReasoning != null && !planReasoning.isBlank()) {
+                planThinkingBuffer.append(planReasoning);
+                sink.accept(ChatStreamEvent.planThinking(sessionId, planReasoning, planThinkingBuffer.length()));
+            }
+
+            if (!plan.isEmpty()) {
+                sink.accept(ChatStreamEvent.plan(sessionId, plan, formatPlanSummary(plan)));
+            }
+
+            String systemPrompt = buildSystemPrompt(plan);
+
+            // 添加历史对话到上下文
+            List<Message> history = buildHistory(sessionId);
+
+                log.info("[AI STREAM] --> session={}, planSteps={}, tools={}, historyMessages={}, userMsg={}",
+                        sessionId, plan.size(), toolRegistry.getNames().length, history.size(),
+                    userMessage.substring(0, Math.min(80, userMessage.length())));
+
+            chatClient.prompt()
+                    .system(systemPrompt)
+                    .messages(history)
+                    .user(userMessage)
+                    .toolNames(toolRegistry.getNames())
+                    .stream()
+                    .chatResponse()
+                    .contextCapture()
+                    .takeWhile(chunk -> !isCancelled.getAsBoolean())
+                    .doOnNext(chunk -> {
+                        String reasoning = extractReasoning(chunk);
+                        if (reasoning != null && !reasoning.isBlank()) {
+                            thinkingBuffer.append(reasoning);
+                            sink.accept(ChatStreamEvent.thinking(sessionId, reasoning, thinkingBuffer.length()));
+                        }
+                        String delta = extractDelta(chunk);
+                        if (delta != null && !delta.isBlank()) {
+                            answer.append(delta);
+                            sink.accept(ChatStreamEvent.token(sessionId, delta, answer.length()));
+                        }
+                        if ((reasoning != null && !reasoning.isBlank()) || (delta != null && !delta.isBlank())) {
+                            log.debug("[AI STREAM] chunk session={}, reasoningChars={}, answerChars={}, deltaChars={}",
+                                    sessionId,
+                                    reasoning != null ? reasoning.length() : 0,
+                                    answer.length(),
+                                    delta != null ? delta.length() : 0);
+                        }
+                    })
+                    .blockLast();
+
+            if (isCancelled.getAsBoolean()) {
+                log.info("[AgentOrchestrator] stream cancelled by client, session={}", sessionId);
+                return;
+            }
+
+            List<AgentStep> steps = StepCollector.collect();
+            recordRagMetrics(steps);
+
+            memoryService.addMessage(sessionId, "user", userMessage);
+            memoryService.addMessage(sessionId, "assistant", answer.toString());
+
+            log.info("[AgentOrchestrator] stream session={}, planSteps={}, toolCalls={}, tokens={}",
+                    sessionId, plan.size(), steps.size(), answer.length());
+
+            sink.accept(ChatStreamEvent.done(
+                    sessionId, answer.toString(), steps, plan,
+                    System.currentTimeMillis() - start, model));
+
+        } catch (Exception e) {
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            String code;
+            if (cause instanceof MaxStepsExceededException) {
+                code = "MAX_STEPS_EXCEEDED";
+            } else if (cause instanceof AiConfigurationException) {
+                code = "AI_NOT_CONFIGURED";
+            } else {
+                code = "INTERNAL_ERROR";
+                log.error("[AgentOrchestrator] streamChat error, session={}", sessionId, e);
+            }
+            sink.accept(ChatStreamEvent.error(sessionId, code, cause.getMessage()));
+        } finally {
+            StepCollector.clear();
+        }
+    }
+
+    private String extractDelta(ChatResponse chunk) {
+        if (chunk == null || chunk.getResult() == null) return null;
+        var output = chunk.getResult().getOutput();
+        if (output == null) return null;
+        return output.getText();
+    }
+
+    private String extractReasoning(ChatResponse chunk) {
+        if (chunk == null || chunk.getResult() == null) return null;
+
+        String fromGeneration = chunk.getResult().getMetadata().get("reasoningContent");
+        if (fromGeneration != null && !fromGeneration.isBlank()) {
+            return fromGeneration;
+        }
+
+        var output = chunk.getResult().getOutput();
+        if (output == null || output.getMetadata() == null) {
+            return null;
+        }
+
+        Object fromMessage = output.getMetadata().get("reasoningContent");
+        return fromMessage instanceof String reasoning && !reasoning.isBlank() ? reasoning : null;
+    }
+
+    private void recordRagMetrics(List<AgentStep> steps) {
+        long ragCalls = steps.stream()
+                .filter(s -> KnowledgeSearchTool.class.getSimpleName().equals(s.toolName()))
+                .count();
+        ragCallsSummary.record(ragCalls);
+    }
+
+    private String formatPlanSummary(List<PlanStep> plan) {
+        if (plan == null || plan.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < plan.size(); i++) {
+            if (i > 0) sb.append(" → ");
+            sb.append("步骤").append(plan.get(i).step()).append(": ").append(plan.get(i).action());
+        }
+        return sb.toString();
+    }
+
 
     private void recordTokenUsage(ChatResponse chatResponse) {
         org.springframework.ai.chat.metadata.Usage usage = chatResponse.getMetadata().getUsage();
@@ -193,5 +348,28 @@ public class AgentOrchestrator {
                     .append(step.reason()).append("\n");
         }
         return sb.toString();
+    }
+
+    /**
+     * Returns a mandatory enforcement directive when a non-empty plan exists.
+     * Without this, the LLM may answer from training knowledge and skip tool calls entirely.
+     */
+    /**
+     * Builds the system prompt shared by both sync and stream paths.
+     * Includes the execution plan, plan-enforcement directive, and max-steps constraint.
+     */
+    private String buildSystemPrompt(List<PlanStep> plan) {
+        return baseSystemPrompt
+                + formatPlan(plan)
+                + formatPlanEnforcement(plan)
+                + String.format("%n请在回复中简短说明每次工具调用的原因。最多调用工具 %d 次。", maxSteps);
+    }
+
+    private String formatPlanEnforcement(List<PlanStep> plan) {
+        if (plan.isEmpty()) {
+            return "";
+        }
+        return "\n\n【强制约束】你必须严格按照上方【执行计划】依次调用对应工具，" +
+               "不得依赖自身训练知识直接回答，每个非 finish 步骤均需触发对应工具调用。";
     }
 }

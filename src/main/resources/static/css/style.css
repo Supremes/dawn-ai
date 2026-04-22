@@ -302,6 +302,79 @@ html, body {
     justify-content: flex-end;
 }
 
+/* Thinking Panel */
+.thinking-panel {
+    margin-bottom: 6px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    overflow: hidden;
+    font-size: 12px;
+}
+
+.thinking-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: var(--bg-secondary);
+    border: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 12px;
+    text-align: left;
+    transition: background var(--transition);
+}
+
+.thinking-toggle:hover {
+    background: var(--bg-tertiary);
+}
+
+.thinking-icon {
+    font-size: 13px;
+}
+
+.thinking-label {
+    flex: 1;
+    font-style: italic;
+}
+
+.thinking-chevron {
+    transition: transform var(--transition);
+    flex-shrink: 0;
+}
+
+.thinking-panel.open .thinking-chevron {
+    transform: rotate(180deg);
+}
+
+.thinking-panel.done .thinking-toggle {
+    color: var(--text-secondary);
+}
+
+.thinking-panel.done .thinking-icon::after {
+    content: ' ✓';
+    font-style: normal;
+}
+
+.thinking-content {
+    display: none;
+    padding: 8px 12px;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    line-height: 1.6;
+    max-height: 300px;
+    overflow-y: auto;
+    border-top: 1px solid var(--border-color);
+}
+
+.thinking-panel.open .thinking-content {
+    display: block;
+}
+
 /* Steps Accordion */
 .steps-toggle {
     background: transparent;

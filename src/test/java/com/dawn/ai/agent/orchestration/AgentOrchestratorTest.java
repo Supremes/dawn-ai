@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -48,7 +49,7 @@ class AgentOrchestratorTest {
                 "weatherTool", "查询天气",
                 "calculatorTool", "数学计算"
         ));
-        when(taskPlanner.plan(anyString(), any())).thenReturn(Collections.emptyList());
+        when(taskPlanner.plan(anyString(), any())).thenReturn(TaskPlanner.PlannerResult.empty());
 
         agentOrchestrator = new AgentOrchestrator(
                 chatClient,
@@ -70,7 +71,7 @@ class AgentOrchestratorTest {
                 .thenReturn(List.of(Map.of("role", "assistant", "content", "previous reply")));
         when(chatClient.prompt()).thenReturn(requestSpec);
         when(requestSpec.system(anyString())).thenReturn(requestSpec);
-        when(requestSpec.messages(any(List.class))).thenReturn(requestSpec);
+        when(requestSpec.messages(anyList())).thenReturn(requestSpec);
         when(requestSpec.user(anyString())).thenReturn(requestSpec);
         when(requestSpec.toolNames(any(String[].class))).thenReturn(requestSpec);
         when(requestSpec.call()).thenReturn(callResponseSpec);
@@ -78,7 +79,8 @@ class AgentOrchestratorTest {
 
         AgentResult result = agentOrchestrator.chat("session-1", "current question");
 
-        ArgumentCaptor<List<Message>> historyCaptor = ArgumentCaptor.forClass(List.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<Message>> historyCaptor = (ArgumentCaptor<List<Message>>) (ArgumentCaptor<?>) ArgumentCaptor.forClass(List.class);
         verify(requestSpec).messages(historyCaptor.capture());
         verify(requestSpec).user("current question");
         verify(memoryService).addMessage("session-1", "user", "current question");
@@ -100,7 +102,7 @@ class AgentOrchestratorTest {
         when(memoryService.getHistory("session-2")).thenReturn(Collections.emptyList());
         when(chatClient.prompt()).thenReturn(requestSpec);
         when(requestSpec.system(anyString())).thenReturn(requestSpec);
-        when(requestSpec.messages(any(List.class))).thenReturn(requestSpec);
+        when(requestSpec.messages(anyList())).thenReturn(requestSpec);
         when(requestSpec.user(anyString())).thenReturn(requestSpec);
         when(requestSpec.toolNames(any(String[].class))).thenReturn(requestSpec);
         when(requestSpec.call()).thenReturn(callResponseSpec);
