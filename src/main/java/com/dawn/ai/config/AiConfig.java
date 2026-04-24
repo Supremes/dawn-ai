@@ -98,18 +98,18 @@ public class AiConfig {
                 .requestInterceptor(loggingInterceptor);
     }
 
-            @Bean
-            @Primary
-            public WebClient.Builder openAiWebClientBuilder() {
-            ExchangeStrategies strategies = ExchangeStrategies.builder()
+    @Bean
+    @Primary
+    public WebClient.Builder openAiWebClientBuilder() {
+        ExchangeStrategies strategies = ExchangeStrategies.builder()
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
                 .build();
 
-            return WebClient.builder()
+        return WebClient.builder()
                 .exchangeStrategies(strategies)
                 .filter(logStreamingRequest())
                 .filter(logStreamingResponse());
-            }
+    }
 
     @Bean
     public Timer aiCallTimer(MeterRegistry registry) {

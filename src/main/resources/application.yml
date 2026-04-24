@@ -75,7 +75,7 @@ app:
       show-steps: true    # 响应体中是否包含 steps 详情
       plan-enabled: true   # 是否启用执行前规划（关闭后跳过 TaskPlanner）
     stream:
-      timeout-ms: 120000   # SSE 单次请求最大等待时长（毫秒）
+      timeout-ms: 1200000   # SSE 单次请求最大等待时长（毫秒）
     rag:
       chunk-size: 500                 # 单个 chunk 的 token 数
       chunk-overlap: 50              # 相邻 chunk 的重叠 token 数
@@ -108,4 +108,4 @@ logging:
     com.dawn.ai: DEBUG
     org.springframework.ai: INFO
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36}:%line - %msg%n"
