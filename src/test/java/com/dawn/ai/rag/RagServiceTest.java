@@ -9,6 +9,7 @@ import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import com.dawn.ai.rag.retrieval.RetrievalRouter;
 import com.dawn.ai.rag.retrieval.sparse.SparseRetriever;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,8 @@ import org.springframework.ai.vectorstore.VectorStore;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -38,11 +41,13 @@ class RagServiceTest {
     @Mock private OverlapTextSplitter overlapTextSplitter;
 
     private SimpleMeterRegistry meterRegistry;
+    private ExecutorService ragRetrievalExecutor;
     private RagService ragService;
 
     @BeforeEach
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
+        ragRetrievalExecutor = Executors.newFixedThreadPool(2);
         ragService = new RagService(
                 vectorStore,
                 meterRegistry,
@@ -51,12 +56,18 @@ class RagServiceTest {
                 sparseRetriever,
                 new ReciprocalRankFusion(),
                 new RetrievalRouter(),
-                overlapTextSplitter);
+                overlapTextSplitter,
+                ragRetrievalExecutor);
         // 注入配置值（与 application.yml 一致）
         ragService.setSimilarityThreshold(0.7);
         ragService.setHybridEnabled(false);
         // @PostConstruct 在直接 new 时不自动执行，手动初始化指标
         ragService.initMetrics();
+    }
+
+    @AfterEach
+    void tearDown() {
+        ragRetrievalExecutor.shutdownNow();
     }
 
     // ── ingest 测试 ────────────────────────────────────────────

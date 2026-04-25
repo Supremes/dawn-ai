@@ -4,56 +4,25 @@
     "type": "split",
     "children": [
       {
-        "id": "e732d2c3844a9913",
+        "id": "b69c90f73be88802",
         "type": "tabs",
         "children": [
           {
-            "id": "cbdf16327c09261d",
+            "id": "8df6304ac225832a",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "SSE/code-review-todo-2026-04-22.md",
+                "file": "RAG/postgres-text-search-configs-2026-04-25.md",
                 "mode": "source",
                 "source": false,
                 "backlinks": false
               },
               "icon": "lucide-file",
-              "title": "code-review-todo-2026-04-22"
-            }
-          },
-          {
-            "id": "1e9dfe98c1a773b1",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "SSE/TODO.md",
-                "mode": "source",
-                "source": false,
-                "backlinks": false
-              },
-              "icon": "lucide-file",
-              "title": "TODO"
-            }
-          },
-          {
-            "id": "4423da7a07c09c84",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "SSE/sse-streaming-solution-2026-04-15.md",
-                "mode": "source",
-                "source": false,
-                "backlinks": false
-              },
-              "icon": "lucide-file",
-              "title": "sse-streaming-solution-2026-04-15"
+              "title": "postgres-text-search-configs-2026-04-25"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "vertical"
@@ -126,7 +95,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "SSE/TODO.md",
+                "file": "SSE/code-review-todo-2026-04-22.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -136,7 +105,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "TODO 的反向链接列表"
+              "title": "code-review-todo-2026-04-22 的反向链接列表"
             }
           },
           {
@@ -145,12 +114,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "SSE/TODO.md",
+                "file": "SSE/code-review-todo-2026-04-22.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "TODO 的出链列表"
+              "title": "code-review-todo-2026-04-22 的出链列表"
             }
           },
           {
@@ -188,13 +157,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "SSE/TODO.md",
+                "file": "RAG/postgres-text-search-configs-2026-04-25.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "TODO 的大纲"
+              "title": "postgres-text-search-configs-2026-04-25 的大纲"
             }
           }
         ],
@@ -218,9 +187,25 @@
       "obsidian-shellcommands:Shell commands: Custom variables": false
     }
   },
-  "active": "1e9dfe98c1a773b1",
+  "active": "8df6304ac225832a",
   "lastOpenFiles": [
+    "RAG/postgres-text-search-configs-2026-04-25.md",
+    "SSE/sse-streaming-solution-2026-04-15.md",
+    "SSE/TODO.md",
     "SSE/code-review-todo-2026-04-22.md",
-    "SSE/sse-streaming-solution-2026-04-15.md"
+    "notes/spring-ai-react.excalidraw",
+    "notes/spring-ai-notes-2026-03-19.md",
+    "notes/interview-ai-agent-2026-03-09.md",
+    "notes",
+    "memory/agent-memory-architecture-2026-03-10.md",
+    "memory",
+    "grafana/grafana-setup-guide.md",
+    "grafana/grafana-dashboard-customization.md",
+    "grafana",
+    "SSE/thread-model-context-propagation.svg",
+    "ReAct/react-design.md",
+    "ReAct/react-comparison.html",
+    "ReAct/ReAct-SpringAI.png",
+    "ReAct"
   ]
 }
