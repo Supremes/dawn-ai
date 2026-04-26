@@ -12,7 +12,6 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
@@ -21,6 +20,7 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.filter.Filter;
 import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +28,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 /**
  * RAG (Retrieval Augmented Generation) Service.
@@ -37,7 +39,6 @@ import java.util.UUID;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class RagService {
 
     private final VectorStore vectorStore;
@@ -48,6 +49,30 @@ public class RagService {
     private final ReciprocalRankFusion reciprocalRankFusion;
     private final RetrievalRouter retrievalRouter;
     private final DocumentTransformer splitter;
+    // Keep an explicit constructor with parameter-level @Qualifier because the
+    // application defines multiple ExecutorService beans and this dependency must
+    // bind to the retrieval pool rather than relying on type-only resolution.
+    private final ExecutorService ragRetrievalExecutor;
+
+    public RagService(VectorStore vectorStore,
+                      MeterRegistry meterRegistry,
+                      AiAvailabilityChecker aiAvailabilityChecker,
+                      RetrievalReranker retrievalReranker,
+                      SparseRetriever sparseRetriever,
+                      ReciprocalRankFusion reciprocalRankFusion,
+                      RetrievalRouter retrievalRouter,
+                      DocumentTransformer splitter,
+                      @Qualifier("ragRetrievalExecutor") ExecutorService ragRetrievalExecutor) {
+        this.vectorStore = vectorStore;
+        this.meterRegistry = meterRegistry;
+        this.aiAvailabilityChecker = aiAvailabilityChecker;
+        this.retrievalReranker = retrievalReranker;
+        this.sparseRetriever = sparseRetriever;
+        this.reciprocalRankFusion = reciprocalRankFusion;
+        this.retrievalRouter = retrievalRouter;
+        this.splitter = splitter;
+        this.ragRetrievalExecutor = ragRetrievalExecutor;
+    }
 
     @Setter
     @Value("${app.ai.rag.similarity-threshold:0.7}")
@@ -139,11 +164,24 @@ public class RagService {
         SearchRequest request = builder.build();
 
         RetrievalStrategy strategy = resolveStrategy(retrievalRequest);
-        List<Document> denseResults = vectorStore.similaritySearch(request);
-        List<Document> sparseResults = shouldUseHybridSearch(strategy) ? sparseRetriever.retrieve(retrievalRequest, candidateCount) : List.of();
+        CompletableFuture<List<Document>> denseFuture = CompletableFuture.supplyAsync(
+            () -> vectorStore.similaritySearch(request),
+            ragRetrievalExecutor);
+        CompletableFuture<List<Document>> sparseFuture = CompletableFuture.supplyAsync(() -> shouldUseHybridSearch(strategy)
+                ? sparseRetriever.retrieve(retrievalRequest, candidateCount)
+                : List.of(),
+            ragRetrievalExecutor);
+
+        CompletableFuture.allOf(denseFuture, sparseFuture).join();
+
+        List<Document> denseResults = denseFuture.join();
+        List<Document> sparseResults = sparseFuture.join();
+        log.debug("[RagService] Retrieval candidates: dense={}, sparse={}, strategy={}, query='{}'",
+            denseResults.size(), sparseResults.size(), strategy, retrievalRequest.getQuery());
         List<Document> results = shouldUseHybridSearch(strategy)
-                ? reciprocalRankFusion.fuse(denseResults, sparseResults)
-                : denseResults;
+            ? reciprocalRankFusion.fuse(denseResults, sparseResults)
+            : denseResults;
+
         int filteredOut = Math.max(0, candidateCount - denseResults.size());
         filteredCountSummary.record(filteredOut);
 

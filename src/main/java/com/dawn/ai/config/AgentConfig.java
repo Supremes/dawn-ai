@@ -53,6 +53,21 @@ public class AgentConfig {
         );
     }
 
+    @Bean(name = "ragRetrievalExecutor", destroyMethod = "shutdown")
+    public ExecutorService ragRetrievalExecutor() {
+        return new ThreadPoolExecutor(
+                4, 16,
+                60L, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(128),
+                r -> {
+                    Thread t = new Thread(r, "rag-retrieval-" + System.nanoTime());
+                    t.setDaemon(true);
+                    return t;
+                },
+                new ThreadPoolExecutor.CallerRunsPolicy()
+        );
+    }
+
     /**
      * Enables Micrometer context propagation for the reactive (Reactor) pipeline.
      *
@@ -75,8 +90,10 @@ public class AgentConfig {
     @Bean
     public ApplicationRunner enableReactorContextPropagation() {
         return args -> {
+            // 告诉 Micrometer：存在一个 ThreadLocal 需要传播
             ContextRegistry.getInstance()
                     .registerThreadLocalAccessor(new StepCollectorContextAccessor());
+            // 告诉 Reactor：每次切换线程前自动调用所有 Accessor 的 set/restore
             Hooks.enableAutomaticContextPropagation();
             log.info("[AgentConfig] Reactor automatic context propagation enabled (StepCollector)");
         };

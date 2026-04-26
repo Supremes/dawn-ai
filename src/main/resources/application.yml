@@ -85,6 +85,8 @@ app:
       reranker:
         type: heuristic           # heuristic | cross-encoder
       hybrid-enabled: true        # 是否启用 BM25 + Dense 混合召回
+      sparse:
+        text-search-config: english  # PostgreSQL FTS 配置名，例如 english | simple | custom config
       cross-encoder:
         base-url: ""              # 可选：cross-encoder rerank 服务地址，例如 http://localhost:8081
         rerank-path: /rerank      # rerank 接口路径，默认请求体含 query/documents/top_n

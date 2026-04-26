@@ -4,6 +4,7 @@ import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.ai.document.Document;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -23,28 +24,38 @@ public class PostgresBm25Retriever implements SparseRetriever {
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
 
+    @Value("${app.ai.rag.sparse.text-search-config:english}")
+    private String textSearchConfig = "english";
+
     @Override
     public List<Document> retrieve(RetrievalRequest request, int limit) {
         if (request.getQuery() == null || request.getQuery().isBlank()) {
             return List.of();
         }
 
+        // Keep regconfig parameterized so the search config is application-configurable
+        // without fragile string interpolation inside SQL text blocks.
         StringBuilder sql = new StringBuilder("""
                 SELECT id, content, metadata
                 FROM vector_store
-                WHERE to_tsvector('simple', content) @@ websearch_to_tsquery('simple', ?)
+            WHERE to_tsvector(CAST(? AS regconfig), content)
+              @@ websearch_to_tsquery(CAST(? AS regconfig), ?)
                 """);
         List<Object> params = new ArrayList<>();
+        params.add(textSearchConfig);
+        params.add(textSearchConfig);
         params.add(request.getQuery());
         appendMetadataFilters(sql, params, request.getMetadataFilters());
         sql.append("""
                 
                 ORDER BY ts_rank_cd(
-                    to_tsvector('simple', content),
-                    websearch_to_tsquery('simple', ?)
+                to_tsvector(CAST(? AS regconfig), content),
+                websearch_to_tsquery(CAST(? AS regconfig), ?)
                 ) DESC
                 LIMIT ?
                 """);
+        params.add(textSearchConfig);
+        params.add(textSearchConfig);
         params.add(request.getQuery());
         params.add(limit);
 

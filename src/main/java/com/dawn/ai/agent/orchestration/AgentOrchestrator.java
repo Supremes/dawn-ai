@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.Map;
+import java.util.stream.Stream;
 
 /**
  * Agent Orchestrator — orchestrates the full ReAct loop with planning and step tracing.
@@ -205,7 +206,7 @@ public class AgentOrchestrator {
                     .toolNames(toolRegistry.getNames())
                     .stream()
                     .chatResponse()
-                    .contextCapture()
+                    .contextCapture() // 在当前 pipeline 订阅点主动把所有已注册 ThreadLocal 快照进 Reactor Context
                     .takeWhile(chunk -> !isCancelled.getAsBoolean())
                     .doOnNext(chunk -> {
                         String reasoning = extractReasoning(chunk);
