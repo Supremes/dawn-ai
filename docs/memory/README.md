@@ -18,7 +18,7 @@
 
 | 文档 | 定位 | 备注 |
 |---|---|---|
-| `agent-memory-architecture-2026-03-10.md` | 当前最完整的 memory 架构稿 | 已覆盖 context window 上限、Working / Summary / Long-term 分层、用户画像、RAG 回注、基础可观测性 |
+| `agent-memory-architecture-2026-03-10.md` | 架构总图与主叙事文档，边界定义以 taxonomy 文档为准 | 已覆盖 context window 上限、Working / Summary / Long-term 分层、用户画像、RAG 回注、基础可观测性 |
 
 ## myblog 中可复用的 memory 相关材料
 
@@ -40,10 +40,10 @@
 
 - **Working Memory**：当前轮次对话上下文，直接进入 prompt。
 - **Summary Memory**：对旧对话做压缩后的可携带表示，用来延长有效上下文寿命。
-- **Long-term / Episodic Memory**：跨会话保留的历史事件、行为、对话摘要，通常落向量库。
+- **Long-term Memory（术语映射）**：作为历史性术语，通常泛指跨会话的持久记忆；在 canonical taxonomy 中应映射为 Episodic Memory（事件/会话级历史）以及在语境需要时包括 Semantic / Hard Memory 的部分内容（事实/画像）。
 - **Semantic / Hard Memory**：用户画像、偏好、核心事实，适合结构化存储，并优先注入 system prompt。
 - **Procedural Memory**：Agent 的行为规则、工具使用策略、反思结果。
-- **RAG Knowledge**：偏“外部知识库检索”，不是用户个体记忆，但在实现上常复用相同检索基础设施。
+- **Adjacent subsystem — RAG Knowledge**：偏“外部知识库检索”，不是单个用户的记忆，但会被检索并在需要时注入 prompt 或被摘要后写入 Summary Memory。
 
 ### 2. memory 的生命周期
 
@@ -76,13 +76,17 @@ blog 中已经隐含出一条比较完整的链路：
 
 ## 推荐阅读顺序
 
+- `docs/memory/memory-taxonomy-2026-04-27.md`（先读以统一术语）
+- `docs/memory/memory-lifecycle-2026-04-27.md`（随后阅读生命周期实现细节）
+
 1. `agent-memory-architecture-2026-03-10.md`
-2. `source/_posts/AI/Agent Development Guide.md` 的 Phase 2 / Phase 3
-3. `source/_posts/AI/dawn-ai.md`
-4. `source/_posts/AI/dawn-ai-roadmap.md`
-5. `source/_posts/AI/RAG.md`
-6. `articles_no_render/Agentic Design Patterns/ch08-memory-management-notes.md`
-7. `source/_posts/AI/KV Cache.md`
+2. `docs/memory/memory-lifecycle-2026-04-27.md`（参考 lifecycle 中的触发与降级）
+3. `source/_posts/AI/Agent Development Guide.md` 的 Phase 2 / Phase 3
+4. `source/_posts/AI/dawn-ai.md`
+5. `source/_posts/AI/dawn-ai-roadmap.md`
+6. `source/_posts/AI/RAG.md`
+7. `articles_no_render/Agentic Design Patterns/ch08-memory-management-notes.md`
+8. `source/_posts/AI/KV Cache.md`
 
 ## 直接结论
 
