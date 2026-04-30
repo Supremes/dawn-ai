@@ -29,7 +29,7 @@ public class MemorySummarizer {
     @Async
     public void onSummarizationRequest(SummarizationRequestEvent event) {
         String historyText = event.messages().stream()
-                .map(m -> m.get("role") + ": " + m.get("content"))
+                .map(m -> m.getOrDefault("role", "") + ": " + m.getOrDefault("content", ""))
                 .collect(Collectors.joining("\n"));
 
         SummaryResult result;

@@ -50,7 +50,7 @@ class MemorySummarizerTest {
         verify(eventPublisher).publishEvent(argThat(e ->
                 e instanceof ConsolidationRequestEvent cre &&
                 "session1".equals(cre.result().sessionId()) &&
-                cre.result().text().contains("天气") &&
+                "用户讨论了天气问题，询问了北京气温。".equals(cre.result().text()) &&
                 cre.result().importanceScore() == 0.5
         ));
     }
