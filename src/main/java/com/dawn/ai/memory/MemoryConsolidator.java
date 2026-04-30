@@ -56,11 +56,9 @@ public class MemoryConsolidator {
             return;
         }
 
-        int count = consolidationCount
-                .computeIfAbsent(result.sessionId(), k -> new AtomicInteger())
-                .incrementAndGet();
-        if (count >= reflectionThreshold) {
-            consolidationCount.get(result.sessionId()).set(0);
+        AtomicInteger counter = consolidationCount.computeIfAbsent(result.sessionId(), k -> new AtomicInteger());
+        int count = counter.incrementAndGet();
+        if (count >= reflectionThreshold && counter.compareAndSet(count, 0)) {
             eventPublisher.publishEvent(new ReflectionRequestEvent(result.sessionId()));
         }
     }

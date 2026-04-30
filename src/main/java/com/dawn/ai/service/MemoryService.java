@@ -104,18 +104,21 @@ public class MemoryService {
     }
 
     @SuppressWarnings("unchecked")
-    public List<Map<String, String>> drainPending(String sessionId) {
+    private List<Map<String, String>> drainPending(String sessionId) {
         String pendingKey = SESSION_PREFIX + sessionId + PENDING_SUFFIX;
+        String tempKey = pendingKey + ":drain:" + java.util.UUID.randomUUID();
         try {
-            List<Object> raw = redisTemplate.opsForList().range(pendingKey, 0, -1);
-            redisTemplate.delete(pendingKey);
+            redisTemplate.rename(pendingKey, tempKey);
+            List<Object> raw = redisTemplate.opsForList().range(tempKey, 0, -1);
+            redisTemplate.delete(tempKey);
             if (raw == null) return List.of();
             return raw.stream()
                     .filter(o -> o instanceof Map)
                     .map(o -> (Map<String, String>) o)
                     .toList();
         } catch (Exception e) {
-            log.warn("[MemoryService] Failed to drain pending for session={}: {}", sessionId, e.getMessage());
+            // rename fails when key doesn't exist (lost race or already empty) — normal
+            log.debug("[MemoryService] drain skipped for session={}: {}", sessionId, e.getMessage());
             return List.of();
         }
     }

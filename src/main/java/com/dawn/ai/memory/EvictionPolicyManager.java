@@ -63,6 +63,7 @@ public class EvictionPolicyManager {
     }
 
     private boolean isStale(Document doc, long cutoffMs) {
+        if ("reflection".equals(doc.getMetadata().get("type"))) return false;
         Object imp = doc.getMetadata().get("importance");
         Object ts = doc.getMetadata().get("createdAt");
         double importance = imp instanceof Number n ? n.doubleValue() : 1.0;

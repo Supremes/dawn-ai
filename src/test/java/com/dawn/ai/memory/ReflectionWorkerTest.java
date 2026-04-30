@@ -18,6 +18,7 @@ class ReflectionWorkerTest {
     private ChatClient chatClient;
     private ChatClient.ChatClientRequestSpec requestSpec;
     private ChatClient.CallResponseSpec callSpec;
+    private UserProfileService userProfileService;
     private ReflectionWorker reflectionWorker;
 
     @BeforeEach
@@ -26,13 +27,14 @@ class ReflectionWorkerTest {
         chatClient = mock(ChatClient.class);
         requestSpec = mock(ChatClient.ChatClientRequestSpec.class);
         callSpec = mock(ChatClient.CallResponseSpec.class);
+        userProfileService = mock(UserProfileService.class);
 
         when(chatClient.prompt()).thenReturn(requestSpec);
         when(requestSpec.user(anyString())).thenReturn(requestSpec);
         when(requestSpec.call()).thenReturn(callSpec);
 
         // episodeThreshold=4, so needs >= 2 episodes to proceed
-        reflectionWorker = new ReflectionWorker(vectorStore, chatClient, 4);
+        reflectionWorker = new ReflectionWorker(vectorStore, chatClient, userProfileService, 4);
     }
 
     @Test

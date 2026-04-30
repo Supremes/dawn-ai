@@ -23,6 +23,7 @@ public class ReflectionWorker {
 
     private final VectorStore vectorStore;
     private final ChatClient chatClient;
+    private final UserProfileService userProfileService;
     private final int episodeThreshold;
 
     private static final String REFLECT_PROMPT =
@@ -32,9 +33,11 @@ public class ReflectionWorker {
     public ReflectionWorker(
             VectorStore vectorStore,
             ChatClient chatClient,
+            UserProfileService userProfileService,
             @Value("${app.memory.reflection.episode-threshold:10}") int episodeThreshold) {
         this.vectorStore = vectorStore;
         this.chatClient = chatClient;
+        this.userProfileService = userProfileService;
         this.episodeThreshold = episodeThreshold;
     }
 
@@ -85,6 +88,7 @@ public class ReflectionWorker {
         );
         try {
             vectorStore.add(List.of(reflectionDoc));
+            userProfileService.upsertAttribute(event.sessionId(), "reflection", reflection);
             log.info("[ReflectionWorker] Reflection persisted for session={}", event.sessionId());
         } catch (Exception e) {
             log.warn("[ReflectionWorker] VectorStore write failed session={}: {}", event.sessionId(), e.getMessage());
