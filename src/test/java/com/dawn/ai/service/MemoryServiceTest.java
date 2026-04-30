@@ -29,6 +29,7 @@ class MemoryServiceTest {
         eventPublisher = mock(ApplicationEventPublisher.class);
         when(redisTemplate.opsForList()).thenReturn(listOps);
         memoryService = new MemoryService(redisTemplate, new SimpleMeterRegistry(), eventPublisher);
+        memoryService.initMetrics();
     }
 
     @Test
