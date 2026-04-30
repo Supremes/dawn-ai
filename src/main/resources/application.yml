@@ -107,6 +107,17 @@ app:
       You can help with calculations, weather queries, and answer questions based on your knowledge base.
       Always be concise, accurate, and helpful.
       Before calling a tool, briefly explain your reasoning in one sentence.
+  memory:
+    summary:
+      batch-size: 5
+    consolidation:
+      reflection-threshold: 10
+    eviction:
+      cron: "0 0 3 * * ?"
+      importance-threshold: 0.1
+      max-age-days: 180
+    reflection:
+      episode-threshold: 10
 
 logging:
   level:
