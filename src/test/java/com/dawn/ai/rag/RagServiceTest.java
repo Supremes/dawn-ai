@@ -38,7 +38,7 @@ class RagServiceTest {
     @Mock private VectorStore vectorStore;
     @Mock private AiAvailabilityChecker aiAvailabilityChecker;
     @Mock private SparseRetriever sparseRetriever;
-    @Mock private OverlapTextSplitter overlapTextSplitter;
+    private OverlapTextSplitter overlapTextSplitter;
 
     private SimpleMeterRegistry meterRegistry;
     private ExecutorService ragRetrievalExecutor;
@@ -48,6 +48,7 @@ class RagServiceTest {
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
         ragRetrievalExecutor = Executors.newFixedThreadPool(2);
+        overlapTextSplitter = new OverlapTextSplitter(500, 50);
         ragService = new RagService(
                 vectorStore,
                 meterRegistry,
@@ -115,7 +116,21 @@ class RagServiceTest {
     @Test
     @DisplayName("ingest: 自定义 overlap 生效，后续 chunk 应包含前一个 chunk 的尾部 token")
     void ingest_configuredOverlapProducesOverlappingChunks() {
-        ragService.ingest("one two three four five six seven", "doc", "manual");
+        // chunkSize=4, overlap=2 → step=2; "one two three four five six seven" (7 tokens)
+        // expected chunks: [0..3], [2..5], [4..6]
+        RagService localRagService = new RagService(
+                vectorStore, meterRegistry, aiAvailabilityChecker,
+                new HeuristicRetrievalReranker(),
+                sparseRetriever,
+                new ReciprocalRankFusion(),
+                new RetrievalRouter(),
+                new OverlapTextSplitter(4, 2),
+                ragRetrievalExecutor);
+        localRagService.setSimilarityThreshold(0.7);
+        localRagService.setHybridEnabled(false);
+        localRagService.initMetrics();
+
+        localRagService.ingest("one two three four five six seven", "doc", "manual");
 
         ArgumentCaptor<List<Document>> captor = ArgumentCaptor.forClass(List.class);
         verify(vectorStore).add(captor.capture());

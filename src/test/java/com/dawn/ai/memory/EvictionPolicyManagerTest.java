@@ -3,6 +3,7 @@ package com.dawn.ai.memory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.document.Document;
+import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 
 import java.time.Instant;
@@ -30,11 +31,11 @@ class EvictionPolicyManagerTest {
         long oldTs = Instant.now().minus(200, ChronoUnit.DAYS).toEpochMilli();
         Document stale = new Document("doc1", "old content",
                 Map.of("type", "summary", "importance", 0.05, "createdAt", oldTs));
-        when(vectorStore.similaritySearch(any())).thenReturn(List.of(stale));
+        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of(stale));
 
         manager.evict();
 
-        verify(vectorStore).delete(argThat(ids -> ids.contains("doc1")));
+        verify(vectorStore).delete(argThat((List<String> ids) -> ids.contains("doc1")));
     }
 
     @Test
@@ -42,11 +43,11 @@ class EvictionPolicyManagerTest {
         long oldTs = Instant.now().minus(200, ChronoUnit.DAYS).toEpochMilli();
         Document important = new Document("doc2", "important content",
                 Map.of("type", "summary", "importance", 0.9, "createdAt", oldTs));
-        when(vectorStore.similaritySearch(any())).thenReturn(List.of(important));
+        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of(important));
 
         manager.evict();
 
-        verify(vectorStore, never()).delete(any());
+        verify(vectorStore, never()).delete(any(List.class));
     }
 
     @Test
@@ -54,19 +55,19 @@ class EvictionPolicyManagerTest {
         long recentTs = Instant.now().minus(10, ChronoUnit.DAYS).toEpochMilli();
         Document recent = new Document("doc3", "recent content",
                 Map.of("type", "summary", "importance", 0.05, "createdAt", recentTs));
-        when(vectorStore.similaritySearch(any())).thenReturn(List.of(recent));
+        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of(recent));
 
         manager.evict();
 
-        verify(vectorStore, never()).delete(any());
+        verify(vectorStore, never()).delete(any(List.class));
     }
 
     @Test
     void evict_handlesVectorStoreFailureGracefully() {
-        when(vectorStore.similaritySearch(any())).thenThrow(new RuntimeException("DB down"));
+        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenThrow(new RuntimeException("DB down"));
 
         manager.evict();
 
-        verify(vectorStore, never()).delete(any());
+        verify(vectorStore, never()).delete(any(List.class));
     }
 }

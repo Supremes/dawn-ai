@@ -124,7 +124,7 @@ class KnowledgeSearchToolTest {
     @DisplayName("apply: metadata 条件存在时应透传到 RetrievalRequest")
     void apply_passesMetadataFiltersToRetrievalRequest() {
         when(queryRewriter.rewrite("查询")).thenReturn("查询");
-        when(ragService.retrieve(any(RetrievalRequest.class))).thenReturn(List.of());
+        when(ragService.retrieve(any(RetrievalRequest.class))).thenReturn(List.of(new Document("result")));
 
         tool.apply(new KnowledgeSearchTool.Request("查询", "pricing-doc", "billing", "doc-1"));
 

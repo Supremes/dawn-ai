@@ -108,6 +108,7 @@ public class MemoryService {
         String pendingKey = SESSION_PREFIX + sessionId + PENDING_SUFFIX;
         String tempKey = pendingKey + ":drain:" + java.util.UUID.randomUUID();
         try {
+            // rename操作是原子性的，可以避免竞争条件，但如果pendingKey不存在会抛异常，说明没有待处理项了
             redisTemplate.rename(pendingKey, tempKey);
             List<Object> raw = redisTemplate.opsForList().range(tempKey, 0, -1);
             redisTemplate.delete(tempKey);

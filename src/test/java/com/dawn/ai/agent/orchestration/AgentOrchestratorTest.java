@@ -4,6 +4,7 @@ import com.dawn.ai.agent.planning.TaskPlanner;
 import com.dawn.ai.agent.registry.ToolRegistry;
 import com.dawn.ai.exception.PlanGenerationException;
 import com.dawn.ai.service.MemoryService;
+import com.dawn.ai.memory.UserProfileService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,7 @@ class AgentOrchestratorTest {
     @Mock private MemoryService memoryService;
     @Mock private TaskPlanner taskPlanner;
     @Mock private ToolRegistry toolRegistry;
+    @Mock private UserProfileService userProfileService;
 
     @BeforeEach
     void setUp() {
@@ -56,7 +58,8 @@ class AgentOrchestratorTest {
                 memoryService,
                 taskPlanner,
                 toolRegistry,
-                new SimpleMeterRegistry()
+                new SimpleMeterRegistry(),
+                userProfileService
         );
         agentOrchestrator.initMetrics();
     }

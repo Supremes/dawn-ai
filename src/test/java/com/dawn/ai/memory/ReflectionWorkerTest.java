@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.document.Document;
+import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 
 import java.util.List;
@@ -45,7 +46,7 @@ class ReflectionWorkerTest {
                 new Document("3", "用户在学习Spring", Map.of()),
                 new Document("4", "用户关注性能优化", Map.of())
         );
-        when(vectorStore.similaritySearch(any())).thenReturn(episodes);
+        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(episodes);
         when(callSpec.content()).thenReturn("用户是Java开发者，擅长并发，正在学Spring。");
 
         reflectionWorker.onReflectionRequest(new ReflectionRequestEvent("session1"));
@@ -60,7 +61,7 @@ class ReflectionWorkerTest {
     @Test
     void onReflectionRequest_skipsWhenNotEnoughEpisodes() {
         // episodeThreshold=4, threshold/2=2, only 1 episode → skip
-        when(vectorStore.similaritySearch(any())).thenReturn(
+        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(
                 List.of(new Document("1", "only one episode", Map.of()))
         );
 
@@ -78,7 +79,7 @@ class ReflectionWorkerTest {
                 new Document("3", "e3", Map.of()),
                 new Document("4", "e4", Map.of())
         );
-        when(vectorStore.similaritySearch(any())).thenReturn(episodes);
+        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(episodes);
         when(callSpec.content()).thenThrow(new RuntimeException("LLM error"));
 
         reflectionWorker.onReflectionRequest(new ReflectionRequestEvent("session1"));

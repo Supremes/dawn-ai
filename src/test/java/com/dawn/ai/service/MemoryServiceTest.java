@@ -49,14 +49,14 @@ class MemoryServiceTest {
 
     @Test
     void addMessage_publishesSummarizationEventWhenBatchFull() {
-        when(listOps.rightPush(argThat(k -> !k.contains(":pending")), any())).thenReturn(21L);
-        when(listOps.size(argThat(k -> !k.contains(":pending")))).thenReturn(21L);
+        when(listOps.rightPush(argThat(k -> k != null && !k.contains(":pending")), any())).thenReturn(21L);
+        when(listOps.size(argThat(k -> k != null && !k.contains(":pending")))).thenReturn(21L);
         Map<String, String> poppedMsg = Map.of("role", "user", "content", "old message");
         when(listOps.leftPop(anyString())).thenReturn(poppedMsg);
 
-        when(listOps.rightPush(argThat(k -> k.contains(":pending")), any())).thenReturn(5L);
-        when(listOps.size(argThat(k -> k.contains(":pending")))).thenReturn(5L);
-        when(listOps.range(argThat(k -> k.contains(":pending")), anyLong(), anyLong()))
+        when(listOps.rightPush(argThat(k -> k != null && k.contains(":pending")), any())).thenReturn(5L);
+        when(listOps.size(argThat(k -> k != null && k.contains(":pending")))).thenReturn(5L);
+        when(listOps.range(argThat(k -> k != null && k.contains(":pending")), anyLong(), anyLong()))
                 .thenReturn(List.of(poppedMsg));
 
         memoryService.addMessage("session1", "user", "msg");

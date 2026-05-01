@@ -72,7 +72,7 @@ public class RagController {
     @GetMapping("/search")
     public ResponseEntity<List<Document>> search(
             @RequestParam String query,
-            @RequestParam(defaultValue = "5") @Min(1) @Max(20) int topK,
+            @RequestParam(defaultValue = "5") @Min(1) @Max(value = 20, message = "must be less than or equal to 20") int topK,
             @RequestParam(required = false) List<String> source,
             @RequestParam(required = false) List<String> category,
             @RequestParam(required = false, name = "docId") List<String> docIds,
