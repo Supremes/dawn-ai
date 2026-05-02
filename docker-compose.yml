@@ -1,3 +1,16 @@
+# docker-compose.yml
+# Apple Silicon 本地开发 override：
+#   - embedding 服务由宿主机原生脚本提供（Metal GPU / MPS），不在容器中运行
+#   - 其余服务（postgres / redis / prometheus / grafana / app）保持 Docker 不变
+#
+# 启动步骤：
+#   1. ./scripts/start-embedding-mac.sh --daemon
+#   2. docker compose up -d
+#
+# 停止：
+#   docker compose down
+#   ./scripts/stop-embedding-mac.sh
+
 services:
   app:
     build:
@@ -12,7 +25,7 @@ services:
       - BASE_URL=${BASE_URL}
       - CHAT_MODEL=${CHAT_MODEL}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-BAAI/bge-m3}
-      - EMBEDDING_BASE_URL=${EMBEDDING_BASE_URL:-http://embedding:7997}
+      - EMBEDDING_BASE_URL=http://host.docker.internal:${EMBEDDING_PORT:-7997} # 本地开发时直接访问宿主机地址，生产环境请替换为实际值
       - EMBEDDING_API_KEY=${EMBEDDING_API_KEY:-local-embedding-key} # 当前embedding container不做鉴权，直接使用固定值；生产环境请替换为实际值并做好安全防护
       - EMBEDDING_DIMENSIONS=${EMBEDDING_DIMENSIONS:-1024}
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/dawn_ai
@@ -20,8 +33,6 @@ services:
       - SPRING_DATASOURCE_PASSWORD=dawn123
       - SPRING_DATA_REDIS_HOST=redis
     depends_on:
-      embedding:
-        condition: service_started
       postgres:
         condition: service_healthy
       redis:
@@ -33,25 +44,6 @@ services:
     networks:
       - dawn-network
 
-  embedding:
-    image: michaelf34/infinity:0.0.77
-    restart: unless-stopped
-    command: >-
-      v2
-      --model-id ${EMBEDDING_MODEL:-BAAI/bge-m3}
-      --host 0.0.0.0
-      --port 7997
-      --url-prefix /v1
-      --dtype ${EMBEDDING_DTYPE:-auto}
-      --batch-size ${EMBEDDING_BATCH_SIZE:-8}
-    ports:
-      - "7997:7997"
-    environment:
-      - HF_HOME=/app/.cache
-    volumes:
-      - huggingface_cache:/app/.cache
-    networks:
-      - dawn-network
 
   postgres:
     image: pgvector/pgvector:0.8.0-pg16

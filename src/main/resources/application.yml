@@ -40,14 +40,14 @@ spring:
         options:
           model: ${EMBEDDING_MODEL}
           encodingFormat: float
-          dimensions: ${EMBEDDING_DIMENSIONS:1536}
+          dimensions: ${EMBEDDING_DIMENSIONS:1024}
 
     # Vector Store - PGVector
     vectorstore:
       pgvector:
         index-type: HNSW
         distance-type: COSINE_DISTANCE
-        dimensions: ${EMBEDDING_DIMENSIONS:1536}
+        dimensions: ${EMBEDDING_DIMENSIONS:1024}
         initialize-schema: true
 
 server:
