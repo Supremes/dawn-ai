@@ -24,3 +24,8 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# obsidian
+.obsidian/
+
+.venv-embedding/
