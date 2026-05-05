@@ -47,7 +47,7 @@ public class DocumentTextExtractor {
             ParseContext parseContext = new ParseContext();
             parser.parse(inputStream, handler, metadata, parseContext);
             return handler.toString();
-        } catch (IOException | SAXException | TikaException e) {
+        } catch (Exception e) {
             log.warn("[DocumentTextExtractor] Failed to parse file: {}", file.getOriginalFilename(), e);
             throw new IllegalArgumentException("Unsupported or corrupted document content", e);
         }

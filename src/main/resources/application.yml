@@ -2,6 +2,11 @@ spring:
   application:
     name: dawn-ai
 
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 100MB
+
   # DataSource (PostgreSQL with pgvector extension)
   datasource:
     url: jdbc:postgresql://localhost:5432/dawn_ai

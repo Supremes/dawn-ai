@@ -59,12 +59,6 @@
             <artifactId>spring-ai-starter-vector-store-pgvector</artifactId>
         </dependency>
 
-        <!-- Spring AI - PDF Document Reader -->
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-pdf-document-reader</artifactId>
-        </dependency>
-
         <!-- Apache Tika - Multi-format document text extraction -->
         <dependency>
             <groupId>org.apache.tika</groupId>

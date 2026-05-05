@@ -21,6 +21,7 @@ import org.springframework.validation.beanvalidation.MethodValidationPostProcess
 import java.util.Collections;
 import java.util.List;
 
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -52,7 +53,9 @@ class RagControllerValidationTest {
                         .param("query", "refund policy")
                         .param("topK", "21"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value(containsString("must be less than or equal to 20")));
+                .andExpect(jsonPath("$.message").value(allOf(
+                        containsString("topK"),
+                        containsString("20"))));
     }
 
     @Test
@@ -112,6 +115,29 @@ class RagControllerValidationTest {
 
         verify(documentTextExtractor).extract(any(), eq(DocumentType.TEXT));
         verify(ragService).ingest("refund policy content", "faq.txt", "billing");
+        }
+
+        @Test
+        void shouldIngestMultipartFileWithInferredPdfType() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+            "file",
+            "novel.pdf",
+            "application/pdf",
+            "%PDF-1.4".getBytes()
+        );
+        when(documentTextExtractor.extract(any(), eq(DocumentType.PDF))).thenReturn("pdf extracted content");
+        when(ragService.ingest("pdf extracted content", "novel.pdf", "literature")).thenReturn("doc-pdf");
+
+        mockMvc.perform(multipart("/api/v1/rag/ingest")
+                .file(file)
+                .param("category", "literature"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.docId").value("doc-pdf"))
+            .andExpect(jsonPath("$.status").value("ingested"))
+            .andExpect(jsonPath("$.documentType").value("PDF"));
+
+        verify(documentTextExtractor).extract(any(), eq(DocumentType.PDF));
+        verify(ragService).ingest("pdf extracted content", "novel.pdf", "literature");
         }
 
         @Test

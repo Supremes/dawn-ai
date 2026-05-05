@@ -25,7 +25,7 @@ services:
       - BASE_URL=${BASE_URL}
       - CHAT_MODEL=${CHAT_MODEL}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-BAAI/bge-m3}
-      - EMBEDDING_BASE_URL=http://host.docker.internal:${EMBEDDING_PORT:-7997} # 本地开发时直接访问宿主机地址，生产环境请替换为实际值
+      - EMBEDDING_BASE_URL=${EMBEDDING_BASE_URL} # 本地开发时直接访问宿主机地址，生产环境请替换为实际值
       - EMBEDDING_API_KEY=${EMBEDDING_API_KEY:-local-embedding-key} # 当前embedding container不做鉴权，直接使用固定值；生产环境请替换为实际值并做好安全防护
       - EMBEDDING_DIMENSIONS=${EMBEDDING_DIMENSIONS:-1024}
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/dawn_ai

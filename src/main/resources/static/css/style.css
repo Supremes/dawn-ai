@@ -747,43 +747,75 @@ html, body {
 
 /* ===== File Upload ===== */
 .file-upload-zone {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     border: 2px dashed var(--border-color);
     border-radius: var(--radius-lg);
-    padding: 40px 20px;
+    padding: 36px 20px 28px;
     text-align: center;
     color: var(--text-secondary);
-    cursor: not-allowed;
-    opacity: 0.6;
-    position: relative;
+    cursor: pointer;
+    transition: border-color var(--transition), background var(--transition);
+    min-height: 160px;
+}
+
+.file-upload-zone:focus-visible,
+.file-upload-zone:hover,
+.file-upload-zone.drag-over,
+.file-upload-zone.has-file {
+    border-color: var(--accent);
+    background: var(--accent-light);
+    color: var(--text-primary);
+    outline: none;
+}
+
+.file-input-hidden {
+    display: none;
 }
 
 .file-upload-zone svg {
     margin-bottom: 12px;
+    pointer-events: none;
+    transition: transform var(--transition);
+}
+
+.file-upload-zone:hover svg {
+    transform: translateY(-3px);
 }
 
 .file-upload-zone p {
     font-size: 15px;
     font-weight: 500;
     margin-bottom: 4px;
+    pointer-events: none;
+}
+
+.upload-browse-link {
+    color: var(--accent);
+    text-decoration: underline;
 }
 
 .file-types {
     font-size: 12px;
+    pointer-events: none;
 }
 
-.file-upload-zone input {
-    display: none;
-}
-
-.coming-soon-badge {
-    text-align: center;
-    margin-top: 12px;
-    padding: 8px;
-    background: var(--bg-tertiary);
-    border-radius: var(--radius);
-    font-size: 12px;
-    color: var(--warning);
+.file-selected-name {
+    margin-top: 10px;
+    font-size: 13px;
     font-weight: 500;
+    color: var(--accent);
+    min-height: 20px;
+    pointer-events: none;
+}
+
+.form-hint-inline {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: normal;
 }
 
 /* ===== Result & Search ===== */

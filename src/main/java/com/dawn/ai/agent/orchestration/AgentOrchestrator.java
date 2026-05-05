@@ -220,7 +220,7 @@ public class AgentOrchestrator {
                             sink.accept(ChatStreamEvent.token(sessionId, delta, answer.length()));
                         }
                         if ((reasoning != null && !reasoning.isBlank()) || (delta != null && !delta.isBlank())) {
-                            log.debug("[AI STREAM] chunk session={}, reasoningChars={}, answerChars={}, deltaChars={}",
+                            log.trace("[AI STREAM] chunk session={}, reasoningChars={}, answerChars={}, deltaChars={}",
                                     sessionId,
                                     reasoning != null ? reasoning.length() : 0,
                                     answer.length(),

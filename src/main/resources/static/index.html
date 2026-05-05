@@ -100,13 +100,35 @@
                             <div class="result-area" id="ingestResult"></div>
                         </div>
                         <div class="tab-content" id="tab-file-upload">
-                            <div class="file-upload-zone" id="fileUploadZone">
+                            <div class="file-upload-zone" id="fileUploadZone" role="button" tabindex="0">
+                                <input type="file" id="fileInput" class="file-input-hidden" accept=".txt,.md,.csv,.pdf,.doc,.docx,.xls,.xlsx">
                                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                                <p>Drag & drop files here</p>
-                                <span class="file-types">PDF, Word, TXT (Coming soon)</span>
-                                <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt" disabled>
+                                <p>Drag &amp; drop a file here, or <span class="upload-browse-link">click to browse</span></p>
+                                <span class="file-types">TXT &middot; MD &middot; CSV &middot; PDF &middot; DOC &middot; DOCX &middot; XLS &middot; XLSX</span>
+                                <div class="file-selected-name" id="fileSelectedName"></div>
                             </div>
-                            <div class="coming-soon-badge">Backend file parsing not yet implemented</div>
+                            <div class="form-row" style="margin-top:14px">
+                                <div class="form-group">
+                                    <label for="fileSource">Source</label>
+                                    <input type="text" id="fileSource" placeholder="e.g., product-manual">
+                                </div>
+                                <div class="form-group">
+                                    <label for="fileCategory">Category</label>
+                                    <input type="text" id="fileCategory" placeholder="e.g., documentation">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="fileDocumentType">Document Type <span class="form-hint-inline">(auto-detected if not set)</span></label>
+                                <select id="fileDocumentType">
+                                    <option value="">Auto Detect</option>
+                                    <option value="TEXT">TEXT (txt / md / csv)</option>
+                                    <option value="PDF">PDF</option>
+                                    <option value="WORD">WORD (doc / docx)</option>
+                                    <option value="EXCEL">EXCEL (xls / xlsx)</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-primary" id="uploadBtn" type="button" disabled>Upload &amp; Ingest</button>
+                            <div class="result-area" id="uploadResult"></div>
                         </div>
                     </section>
 

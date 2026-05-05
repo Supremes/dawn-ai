@@ -15,6 +15,7 @@ const state = {
     sessionId: null,
     isLoading: false,
     streamMode: true,  // default to SSE streaming
+    knowledgeUploadFile: null,
 };
 
 // ===== DOM References =====
@@ -479,14 +480,139 @@ function initKnowledge() {
         $('#topKValue').textContent = e.target.value;
     });
 
-    // Ingest
+    // Ingest text
     $('#ingestBtn').addEventListener('click', ingestDocument);
+
+    // File upload
+    initFileUpload();
 
     // Search
     $('#searchBtn').addEventListener('click', searchDocuments);
     $('#searchQuery').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') searchDocuments();
     });
+}
+
+function initFileUpload() {
+    const zone = $('#fileUploadZone');
+    const fileInput = $('#fileInput');
+    const uploadBtn = $('#uploadBtn');
+
+    const openPicker = () => fileInput.click();
+
+    zone.addEventListener('click', openPicker);
+    zone.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openPicker();
+        }
+    });
+
+    fileInput.addEventListener('change', () => {
+        setSelectedKnowledgeFile(fileInput.files[0] || null);
+    });
+
+    zone.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        zone.classList.add('drag-over');
+    });
+    zone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        zone.classList.add('drag-over');
+    });
+    zone.addEventListener('dragleave', (e) => {
+        if (e.currentTarget.contains(e.relatedTarget)) return;
+        zone.classList.remove('drag-over');
+    });
+    zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('drag-over');
+        setSelectedKnowledgeFile((e.dataTransfer && e.dataTransfer.files[0]) || null);
+    });
+
+    uploadBtn.addEventListener('click', ingestFile);
+}
+
+function setSelectedKnowledgeFile(file) {
+    const nameEl = $('#fileSelectedName');
+    const uploadBtn = $('#uploadBtn');
+    const zone = $('#fileUploadZone');
+
+    state.knowledgeUploadFile = file;
+    zone.classList.toggle('has-file', Boolean(file));
+
+    if (file) {
+        nameEl.textContent = `${file.name} (${formatFileSize(file.size)})`;
+        uploadBtn.disabled = false;
+    } else {
+        nameEl.textContent = '';
+        uploadBtn.disabled = true;
+        $('#fileInput').value = '';
+    }
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+}
+
+async function ingestFile() {
+    const file = state.knowledgeUploadFile;
+    if (!file) {
+        toast('Please select a file first', 'error');
+        return;
+    }
+
+    const btn = $('#uploadBtn');
+    btn.disabled = true;
+    btn.textContent = 'Uploading...';
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const docType = $('#fileDocumentType').value;
+    if (docType) formData.append('documentType', docType);
+
+    const source = $('#fileSource').value.trim();
+    if (source) formData.append('source', source);
+
+    const category = $('#fileCategory').value.trim();
+    if (category) formData.append('category', category);
+
+    const result = $('#uploadResult');
+    result.classList.add('show');
+    result.className = 'result-area show';
+    result.textContent = 'Uploading and parsing file...';
+
+    try {
+        const res = await fetch(API.ragIngest, {
+            method: 'POST',
+            body: formData,
+            // Do NOT set Content-Type – browser sets it with boundary automatically
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            result.className = 'result-area show success';
+            result.textContent = `Success: ${JSON.stringify(data)}`;
+            toast('File ingested successfully', 'success');
+            // Reset
+            setSelectedKnowledgeFile(null);
+        } else {
+            const err = await res.json().catch(() => ({ message: res.statusText }));
+            result.className = 'result-area show error';
+            result.textContent = `Error: ${err.message || res.statusText}`;
+            toast('Upload failed', 'error');
+        }
+    } catch (err) {
+        result.className = 'result-area show error';
+        result.textContent = `Network error: ${err.message}`;
+        toast('Network error', 'error');
+    } finally {
+        btn.disabled = !state.knowledgeUploadFile;
+        btn.textContent = 'Upload & Ingest';
+    }
 }
 
 async function ingestDocument() {
