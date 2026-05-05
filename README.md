@@ -31,80 +31,48 @@
 ### Prerequisites
 - Java 17+
 - Docker & Docker Compose
-- OpenAI API Key
-- NVIDIA GPU for local `bge-m3` embedding serving (recommended)
+- AI Model Configuration
+  - Local: with oMLX enabled, deployed LLM and embedding model as belows:
+    - Qwen3.5-9B-MLX-4bit
+    - bge-m3-mlx-fp16
+
+  - Cloud
+
 
 ### Run with Docker Compose
 
 ```bash
-export OPENAI_API_KEY=sk-your-key-here
-export BASE_URL=https://your-chat-provider.example.com
-export CHAT_MODEL=qwen-plus
-export LOCAL_EMBEDDING_MODEL=BAAI/bge-m3
-export LOCAL_EMBEDDING_DIMENSIONS=1024
-docker compose up -d
-```
-
-This starts an `Infinity` embedding service at `http://localhost:7997/v1/embeddings` and wires the app container to use it for embeddings while chat requests keep using `BASE_URL`.
-
-All services in `docker-compose.yml` use `restart: unless-stopped`, so after they are created once with `docker compose up -d`, Docker will bring them back automatically after a host reboot.
-
-On Linux, also enable the Docker daemon at boot time:
-
-```bash
-sudo systemctl enable docker
-sudo systemctl start docker
-```
-
-The base Compose file is CPU-safe by default. If Docker GPU runtime is available on your machine, enable GPU serving with:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
-```
-
-If Docker reports `no known GPU vendor found`, stay on the base `docker-compose.yml` or fix NVIDIA Container Toolkit / Docker Desktop GPU integration first.
-
-### Run locally
-
-```bash
 # Start dependencies
-docker compose up -d postgres redis embedding
+docker compose up -d
 
-# Run application
-export OPENAI_API_KEY=sk-your-key-here
-export BASE_URL=https://your-chat-provider.example.com
-export CHAT_MODEL=qwen-plus
-export EMBEDDING_BASE_URL=http://localhost:7997
-export EMBEDDING_MODEL=BAAI/bge-m3
-export EMBEDDING_DIMENSIONS=1024
-./mvnw spring-boot:run
+# Run application with below env variables configured
+# oMLX - LLM
+OPENAI_API_KEY=2486
+BASE_URL=http://host.docker.internal:8000
+CHAT_MODEL=Qwen3.5-9B-MLX-4bit
+
+# oMXL - EMBEDDING MODEL 
+EMBEDDING_BASE_URL=http://host.docker.internal:8000
+EMBEDDING_API_KEY=2486
+EMBEDDING_DIMENSIONS=1024
+EMBEDDING_MODEL=bge-m3-mlx-fp16
 ```
 
-If you switch an existing pgvector dataset from a 1536-d model to `bge-m3`, rebuild the vector table or re-ingest your knowledge base because the embedding dimension changes to 1024.
+
 
 ## 📡 API Usage
 
-### Chat (with memory + tools)
+### Chat (with agentic RAG + memory + tools)
 ```bash
 curl -X POST http://localhost:8080/api/v1/chat \
   -H "Content-Type: application/json" \
   -d '{
     "message": "What is the weather in Beijing?",
-    "sessionId": "my-session-001",
-    "ragEnabled": false
+    "sessionId": "my-session-001"
   }'
 ```
 
-### Chat with RAG
-```bash
-curl -X POST http://localhost:8080/api/v1/chat \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "What is our refund policy?",
-    "sessionId": "session-002",
-    "ragEnabled": true
-  }'
-```
+
 
 ### Ingest Document into Knowledge Base
 ```bash
@@ -144,5 +112,8 @@ curl "http://localhost:8080/api/v1/rag/search?query=refund+policy&topK=3"
 | `AgentOrchestrator` | ReAct loop, Tool dispatch | Thread Pool Manager |
 | `MemoryService` | Redis-backed conversation history | Circular Buffer + TTL |
 | `RagService` | Vector similarity retrieval | MySQL Index Lookup |
-| `CalculatorTool` | Math expression evaluation | JUC Callable |
-| `WeatherTool` | Weather data fetch | JUC Callable |
+
+
+
+
+
