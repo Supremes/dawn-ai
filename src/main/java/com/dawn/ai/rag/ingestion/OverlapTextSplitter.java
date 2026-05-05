@@ -23,7 +23,7 @@ import java.util.UUID;
  */
 @Component
 public class OverlapTextSplitter implements DocumentTransformer {
-    private static final int DEFAULT_MIN_CHUNK_SIZE_CHARS = 350;
+    private static final int DEFAULT_MIN_CHUNK_SIZE_CHARS = 0;
     private static final int DEFAULT_MIN_CHUNK_LENGTH_TO_EMBED = 5;
     private static final int DEFAULT_MAX_NUM_CHUNKS = 10_000;
     private static final List<Character> DEFAULT_PUNCTUATION_MARKS = List.of('.', '?', '!', '\n');
@@ -119,7 +119,11 @@ public class OverlapTextSplitter implements DocumentTransformer {
             }
 
             int consumedTokens = countConsumedTokens(chunkText, normalizedChunk);
-            start += Math.max(consumedTokens - chunkOverlap, 1);
+            boolean trimmedAtBoundary = !normalizedChunk.equals(chunkText.trim());
+            int advance = trimmedAtBoundary
+                    ? consumedTokens
+                    : Math.max(consumedTokens - chunkOverlap, 1);
+            start += Math.max(advance, 1);
         }
 
         List<Document> chunks = new ArrayList<>(chunkTexts.size());

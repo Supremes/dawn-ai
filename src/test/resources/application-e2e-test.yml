@@ -1,0 +1,61 @@
+# E2E 集成测试专用配置（连接本地 Docker Compose 服务）
+#
+# 前置条件：docker compose up -d （Redis + PostgreSQL 必须健康）
+# 运行方式：mvn test -Dtest=MemoryPipelineE2ETest -Dspring.profiles.active=e2e-test
+#
+# 与 application.yml 的差异：
+#   1. LLM / Embedding 使用无效地址（Bean 仍创建，但 @MockBean 拦截实际调用）
+#   2. Embedding 维度缩小到 4，VectorStore schema 用最小维度初始化
+#   3. 记忆管道阈值大幅缩小，用尽量少的消息触发完整链路
+#   4. 定时驱逐改为手动触发（cron = "-"）
+
+spring:
+  ai:
+    openai:
+      api-key: e2e-test-key-not-real      # 不会真正调用；ChatModel 被 @MockBean 拦截
+      base-url: http://localhost:1         # 无效地址（同上）
+      chat:
+        base-url: http://localhost:1
+        api-key: e2e-test-key-not-real
+        options:
+          model: e2e-test-model
+      embedding:
+        base-url: http://localhost:1
+        api-key: e2e-test-key-not-real
+        options:
+          model: e2e-test-embed
+          dimensions: 4                   # 小维度，配合 mock EmbeddingModel 返回 4 维向量
+
+    vectorstore:
+      pgvector:
+        dimensions: 4                     # 与 embedding 维度对齐
+        table-name: vector_store_e2e      # 独立测试表，不影响生产 vector_store(1024维)
+        initialize-schema: true           # 首次运行自动建表
+        index-type: NONE                  # 小数据量不需要 HNSW 索引
+
+  # DB 连接沿用 application.yml 的默认值（localhost:5432 / localhost:6379）
+  # 确保 docker compose up -d 已经启动
+
+app:
+  memory:
+    summary:
+      batch-size: 3            # 原值 5 → 3；3 条 overflow 即触发摘要
+    consolidation:
+      reflection-threshold: 3  # 原值 10 → 3；3 次 consolidation 即触发 Reflection
+    eviction:
+      cron: "-"                # 禁用定时任务，测试中手动调用
+      importance-threshold: 0.1
+      max-age-days: 180
+    reflection:
+      episode-threshold: 4     # ReflectionWorker 至少需要 ≥2 个 episode 才执行
+
+  ai:
+    react:
+      plan-enabled: false      # 禁用 pre-planning，减少无关 LLM 调用
+      show-steps: false
+    rag:
+      query-rewrite-enabled: false
+
+logging:
+  level:
+    com.dawn.ai: INFO          # E2E 阶段减少日志噪音，聚焦断言
