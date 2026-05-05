@@ -62,6 +62,14 @@ public class ApiExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, exception.getMessage(), request.getRequestURI());
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalArgument(
+            IllegalArgumentException exception,
+            HttpServletRequest request) {
+        recordError("validation_error");
+        return buildResponse(HttpStatus.BAD_REQUEST, exception.getMessage(), request.getRequestURI());
+    }
+
     @ExceptionHandler(PlanGenerationException.class)
     public ResponseEntity<Map<String, Object>> handlePlanGeneration(
             PlanGenerationException exception,

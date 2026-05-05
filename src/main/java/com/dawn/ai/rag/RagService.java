@@ -117,11 +117,13 @@ public class RagService {
     public String ingest(String content, String source, String category) {
         aiAvailabilityChecker.ensureConfigured();
 
+        String docId = UUID.randomUUID().toString();
         Map<String, Object> metadata = Map.of(
                 "source", source != null ? source : "manual",
-                "category", category != null ? category : "general"
+                "category", category != null ? category : "general",
+                "docId", docId
         );
-        Document parentDoc = new Document(UUID.randomUUID().toString(), content, metadata);
+        Document parentDoc = new Document(docId, content, metadata);
 
         List<Document> chunks = splitter.apply(List.of(parentDoc));
 
@@ -129,7 +131,7 @@ public class RagService {
         ingestionCounter.increment(chunks.size());
 
         log.info("[RagService] Ingested {} chunk(s), source={}", chunks.size(), source);
-        return parentDoc.getId();
+        return docId;
     }
 
     /**

@@ -82,12 +82,7 @@ public class AiConfig {
 
             log.info("[AI HTTP] <-- status={} | {}", response.getStatusCode(), summarizeResponseBody(responseBodyText));
             if (log.isDebugEnabled()) {
-                try {
-                    Object parsed = OBJECT_MAPPER.readValue(responseBodyText, Object.class);
-                    log.debug("[AI HTTP] <-- full response body:\n{}", OBJECT_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(parsed));
-                } catch (Exception ignored) {
-                    log.debug("[AI HTTP] <-- full response body: {}", responseBodyText);
-                }
+                log.debug("[AI HTTP] <-- response body detail:\n{}", formatDebugResponseBody(responseBodyText));
             }
 
             return response;
@@ -157,6 +152,14 @@ public class AiConfig {
                     }
                 }
             }
+            if (root.has("input")) {
+                JsonNode input = root.get("input");
+                sb.append(", inputs=").append(input.isArray() ? input.size() : 1);
+                String firstInput = extractFirstInputSnippet(input);
+                if (!firstInput.isBlank()) {
+                    sb.append(", firstInput=「").append(firstInput).append("」");
+                }
+            }
             if (root.has("tools")) {
                 sb.append(", tools=").append(root.get("tools").size());
             }
@@ -176,12 +179,13 @@ public class AiConfig {
         try {
             JsonNode root = OBJECT_MAPPER.readTree(body);
             StringBuilder sb = new StringBuilder();
+            appendEmbeddingSummary(sb, root);
             if (root.has("choices") && root.get("choices").size() > 0) {
                 JsonNode choice = root.get("choices").get(0);
                 sb.append("finishReason=").append(choice.path("finish_reason").asText("?"));
                 String content = choice.path("message").path("content").asText("");
                 if (!content.isBlank()) {
-                    sb.append(", content=「").append(content).append("」");
+                    sb.append(", content=「").append(snippet(content)).append("」");
                 }
                 JsonNode toolCalls = choice.path("message").path("tool_calls");
                 if (toolCalls.isArray() && !toolCalls.isEmpty()) {
@@ -196,14 +200,25 @@ public class AiConfig {
             if (root.has("usage")) {
                 JsonNode usage = root.get("usage");
                 if (!sb.isEmpty()) sb.append(", ");
-                sb.append("promptTokens=").append(usage.path("prompt_tokens").asInt())
-                  .append(", completionTokens=").append(usage.path("completion_tokens").asInt());
+                appendUsageSummary(sb, usage);
             }
             if (root.has("error")) {
                 sb.append(", error=").append(root.get("error").path("message").asText());
             }
             return sb.isEmpty() ? snippet(body) : sb.toString();
         } catch (Exception e) {
+            return snippet(body);
+        }
+    }
+
+    private String formatDebugResponseBody(String body) {
+        try {
+            JsonNode root = OBJECT_MAPPER.readTree(body);
+            if (isEmbeddingResponse(root)) {
+                return summarizeResponseBody(body) + ", embeddingValues=<omitted>";
+            }
+            return OBJECT_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(root);
+        } catch (Exception ignored) {
             return snippet(body);
         }
     }
@@ -227,6 +242,67 @@ public class AiConfig {
     private String snippet(String value) {
         if (value == null || value.length() <= MAX_CONTENT_SNIPPET) return value;
         return value.substring(0, MAX_CONTENT_SNIPPET) + "…";
+    }
+
+    private String extractFirstInputSnippet(JsonNode input) {
+        if (input == null || input.isMissingNode() || input.isNull()) {
+            return "";
+        }
+        if (input.isTextual()) {
+            return snippet(input.asText());
+        }
+        if (input.isArray() && !input.isEmpty()) {
+            JsonNode first = input.get(0);
+            if (first.isTextual()) {
+                return snippet(first.asText());
+            }
+            return snippet(first.toString());
+        }
+        return snippet(input.toString());
+    }
+
+    private void appendEmbeddingSummary(StringBuilder sb, JsonNode root) {
+        if (!isEmbeddingResponse(root)) {
+            return;
+        }
+        JsonNode data = root.path("data");
+        if (!sb.isEmpty()) {
+            sb.append(", ");
+        }
+        sb.append("embeddings=").append(data.size());
+        JsonNode firstEmbedding = data.isEmpty() ? null : data.get(0).path("embedding");
+        if (firstEmbedding != null && firstEmbedding.isArray()) {
+            sb.append(", dimensions=").append(firstEmbedding.size());
+        }
+        if (root.has("model")) {
+            sb.append(", model=").append(root.path("model").asText());
+        }
+    }
+
+    private void appendUsageSummary(StringBuilder sb, JsonNode usage) {
+        boolean appended = false;
+        if (usage.has("prompt_tokens")) {
+            sb.append("promptTokens=").append(usage.path("prompt_tokens").asInt());
+            appended = true;
+        }
+        if (usage.has("completion_tokens")) {
+            if (appended) {
+                sb.append(", ");
+            }
+            sb.append("completionTokens=").append(usage.path("completion_tokens").asInt());
+            appended = true;
+        }
+        if (usage.has("total_tokens")) {
+            if (appended) {
+                sb.append(", ");
+            }
+            sb.append("totalTokens=").append(usage.path("total_tokens").asInt());
+        }
+    }
+
+    private boolean isEmbeddingResponse(JsonNode root) {
+        JsonNode data = root.path("data");
+        return data.isArray() && !data.isEmpty() && data.get(0).has("embedding");
     }
 
     private HttpHeaders sanitizeHeaders(ClientRequest request) {
