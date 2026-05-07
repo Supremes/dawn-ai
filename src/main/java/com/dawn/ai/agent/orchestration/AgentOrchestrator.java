@@ -10,6 +10,7 @@ import com.dawn.ai.exception.AiConfigurationException;
 import com.dawn.ai.exception.LLMProviderException;
 import com.dawn.ai.exception.MaxStepsExceededException;
 import com.dawn.ai.exception.PlanGenerationException;
+import com.dawn.ai.memory.UserProfileService;
 import com.dawn.ai.service.MemoryService;
 import com.dawn.ai.sse.ChatStreamEvent;
 import io.micrometer.core.instrument.Counter;
@@ -17,7 +18,6 @@ import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -49,7 +49,6 @@ import java.util.stream.Stream;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class AgentOrchestrator {
 
     private final ChatClient chatClient;
@@ -57,6 +56,21 @@ public class AgentOrchestrator {
     private final TaskPlanner taskPlanner;
     private final ToolRegistry toolRegistry;
     private final MeterRegistry meterRegistry;
+    private final UserProfileService userProfileService;
+
+    public AgentOrchestrator(ChatClient chatClient,
+                              MemoryService memoryService,
+                              TaskPlanner taskPlanner,
+                              ToolRegistry toolRegistry,
+                              MeterRegistry meterRegistry,
+                              UserProfileService userProfileService) {
+        this.chatClient = chatClient;
+        this.memoryService = memoryService;
+        this.taskPlanner = taskPlanner;
+        this.toolRegistry = toolRegistry;
+        this.meterRegistry = meterRegistry;
+        this.userProfileService = userProfileService;
+    }
 
     @Value("${app.ai.system-prompt:You are a helpful AI assistant.}")
     private String baseSystemPrompt;
@@ -100,7 +114,7 @@ public class AgentOrchestrator {
             TaskPlanner.PlannerResult plannerResult = resolvePlan(userMessage);
             List<PlanStep> plan = plannerResult.steps();
 
-            String systemPrompt = buildSystemPrompt(plan);
+            String systemPrompt = buildSystemPrompt(plan, sessionId);
 
             // 添加历史对话到上下文
             List<Message> history = buildHistory(sessionId);
@@ -190,7 +204,7 @@ public class AgentOrchestrator {
                 sink.accept(ChatStreamEvent.plan(sessionId, plan, formatPlanSummary(plan)));
             }
 
-            String systemPrompt = buildSystemPrompt(plan);
+            String systemPrompt = buildSystemPrompt(plan, sessionId);
 
             // 添加历史对话到上下文
             List<Message> history = buildHistory(sessionId);
@@ -359,8 +373,10 @@ public class AgentOrchestrator {
      * Builds the system prompt shared by both sync and stream paths.
      * Includes the execution plan, plan-enforcement directive, and max-steps constraint.
      */
-    private String buildSystemPrompt(List<PlanStep> plan) {
+    private String buildSystemPrompt(List<PlanStep> plan, String sessionId) {
+        String profileSection = userProfileService.formatForSystemPrompt(sessionId);
         return baseSystemPrompt
+                + profileSection
                 + formatPlan(plan)
                 + formatPlanEnforcement(plan)
                 + String.format("%n请在回复中简短说明每次工具调用的原因。最多调用工具 %d 次。", maxSteps);

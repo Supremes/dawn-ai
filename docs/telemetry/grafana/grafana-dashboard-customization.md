@@ -128,4 +128,4 @@ grafana/
     └── spring-boot.json        ← 当前项目自定义面板
 ```
 
-参考：[grafana-setup-guide.md](./grafana-setup-guide.md)
+参考：[grafana-setup-guide.md](grafana-setup-guide.md)
