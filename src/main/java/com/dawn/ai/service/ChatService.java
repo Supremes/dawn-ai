@@ -67,7 +67,7 @@ public class ChatService {
 
         String userMessage = request.getMessage();
 
-        AgentResult result = agentOrchestrator.chat(sessionId, userMessage, null);
+        AgentResult result = agentOrchestrator.chat(sessionId, userMessage, request.getTopicId());
 
         return ChatResponse.builder()
                 .sessionId(sessionId)
@@ -127,7 +127,7 @@ public class ChatService {
             chatStreamExecutor.execute(() -> {
                 try {
                     sendEvent(emitter, ChatStreamEvent.connected(sessionId, streamId), seqCounter);
-                    agentOrchestrator.streamChat(sessionId, request.getMessage(), null,
+                    agentOrchestrator.streamChat(sessionId, request.getMessage(), request.getTopicId(),
                             event -> sendEvent(emitter, event, seqCounter),
                             cancelled::get);
                 } catch (Exception e) {
