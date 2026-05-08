@@ -276,7 +276,7 @@ class RagServiceTest {
     }
 
     @Test
-    @DisplayName("ingest with topicId should include topicId in chunk metadata")
+    @DisplayName("topicId 存在时应写入 chunk metadata")
     void ingest_withTopicId_shouldIncludeTopicIdInMetadata() {
         ArgumentCaptor<List<Document>> captor = ArgumentCaptor.forClass(List.class);
 
@@ -290,7 +290,7 @@ class RagServiceTest {
     }
 
     @Test
-    @DisplayName("ingest with null topicId should not include topicId key in metadata")
+    @DisplayName("null topicId 不应写入 metadata")
     void ingest_withNullTopicId_shouldNotAddTopicIdKey() {
         ArgumentCaptor<List<Document>> captor = ArgumentCaptor.forClass(List.class);
 
@@ -315,5 +315,18 @@ class RagServiceTest {
                 .build());
 
         verify(sparseRetriever, never()).retrieve(any(RetrievalRequest.class), anyInt());
+    }
+
+    @Test
+    @DisplayName("blank topicId 不应写入 metadata")
+    void ingest_withBlankTopicId_shouldNotAddTopicIdKey() {
+        ArgumentCaptor<List<Document>> captor = ArgumentCaptor.forClass(List.class);
+
+        ragService.ingest("content", "source.pdf", "general", "   ");
+
+        verify(vectorStore).add(captor.capture());
+        assertThat(captor.getValue())
+            .allSatisfy(doc ->
+                assertThat(doc.getMetadata()).doesNotContainKey("topicId"));
     }
 }

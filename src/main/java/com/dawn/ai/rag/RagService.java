@@ -111,9 +111,7 @@ public class RagService {
     }
 
     /**
-     * Ingest a document into the vector store.
-     * Long documents are split into chunks of ~500 tokens with 50-token overlap.
-     * Each chunk inherits the parent document's source and category metadata.
+     * Ingest a document. Delegates to {@link #ingest(String, String, String, String)} with no topicId.
      */
     public String ingest(String content, String source, String category) {
         return ingest(content, source, category, null);
