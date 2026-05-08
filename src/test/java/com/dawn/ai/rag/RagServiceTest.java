@@ -276,6 +276,33 @@ class RagServiceTest {
     }
 
     @Test
+    @DisplayName("ingest with topicId should include topicId in chunk metadata")
+    void ingest_withTopicId_shouldIncludeTopicIdInMetadata() {
+        ArgumentCaptor<List<Document>> captor = ArgumentCaptor.forClass(List.class);
+
+        ragService.ingest("distributed tx content", "saga.pdf", "general", "distributed-tx");
+
+        verify(vectorStore).add(captor.capture());
+        assertThat(captor.getValue())
+            .isNotEmpty()
+            .allSatisfy(doc ->
+                assertThat(doc.getMetadata()).containsEntry("topicId", "distributed-tx"));
+    }
+
+    @Test
+    @DisplayName("ingest with null topicId should not include topicId key in metadata")
+    void ingest_withNullTopicId_shouldNotAddTopicIdKey() {
+        ArgumentCaptor<List<Document>> captor = ArgumentCaptor.forClass(List.class);
+
+        ragService.ingest("content", "source.pdf", "general", null);
+
+        verify(vectorStore).add(captor.capture());
+        assertThat(captor.getValue())
+            .allSatisfy(doc ->
+                assertThat(doc.getMetadata()).doesNotContainKey("topicId"));
+    }
+
+    @Test
     @DisplayName("retrieve: 路由到 dense 时不应调用 sparse retriever")
     void retrieve_denseRouteDoesNotCallSparseRetriever() {
         ragService.setHybridEnabled(true);

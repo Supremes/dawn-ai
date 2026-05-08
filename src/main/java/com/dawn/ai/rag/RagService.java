@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -115,14 +116,20 @@ public class RagService {
      * Each chunk inherits the parent document's source and category metadata.
      */
     public String ingest(String content, String source, String category) {
+        return ingest(content, source, category, null);
+    }
+
+    public String ingest(String content, String source, String category, String topicId) {
         aiAvailabilityChecker.ensureConfigured();
 
         String docId = UUID.randomUUID().toString();
-        Map<String, Object> metadata = Map.of(
-                "source", source != null ? source : "manual",
-                "category", category != null ? category : "general",
-                "docId", docId
-        );
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("source", source != null ? source : "manual");
+        metadata.put("category", category != null ? category : "general");
+        metadata.put("docId", docId);
+        if (topicId != null && !topicId.isBlank()) {
+            metadata.put("topicId", topicId);
+        }
         Document parentDoc = new Document(docId, content, metadata);
 
         List<Document> chunks = splitter.apply(List.of(parentDoc));
@@ -130,7 +137,7 @@ public class RagService {
         vectorStore.add(chunks);
         ingestionCounter.increment(chunks.size());
 
-        log.info("[RagService] Ingested {} chunk(s), source={}", chunks.size(), source);
+        log.info("[RagService] Ingested {} chunk(s), source={}, topicId={}", chunks.size(), source, topicId);
         return docId;
     }
 

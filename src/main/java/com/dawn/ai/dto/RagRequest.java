@@ -12,4 +12,6 @@ public class RagRequest {
     private String source;
 
     private String category;
+
+    private String topicId;
 }
