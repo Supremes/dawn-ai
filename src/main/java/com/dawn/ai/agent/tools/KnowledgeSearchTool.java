@@ -69,10 +69,13 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
             String category,
             @JsonProperty(required = false)
             @JsonPropertyDescription("Only set when the user explicitly provides a document ID. Do NOT guess or invent a value.")
-            String docId
+            String docId,
+            @JsonProperty(required = false)
+            @JsonPropertyDescription("Research topic ID from the system prompt context. Always use the topicId value provided in the system prompt when one is present.")
+            String topicId
     ) {
         public Request(String query) {
-            this(query, null, null, null);
+            this(query, null, null, null, null);
         }
     }
     public record Response(String context, int docsFound) {}
@@ -117,6 +120,7 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
         addFilter(filters, "source", req.source());
         addFilter(filters, "category", req.category());
         addFilter(filters, "docId", req.docId());
+        addFilter(filters, "topicId", req.topicId());
         return filters;
     }
 

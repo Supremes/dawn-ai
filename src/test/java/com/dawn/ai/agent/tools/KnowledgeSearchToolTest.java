@@ -126,7 +126,7 @@ class KnowledgeSearchToolTest {
         when(queryRewriter.rewrite("查询")).thenReturn("查询");
         when(ragService.retrieve(any(RetrievalRequest.class))).thenReturn(List.of(new Document("result")));
 
-        tool.apply(new KnowledgeSearchTool.Request("查询", "pricing-doc", "billing", "doc-1"));
+        tool.apply(new KnowledgeSearchTool.Request("查询", "pricing-doc", "billing", "doc-1", null));
 
         org.mockito.ArgumentCaptor<RetrievalRequest> captor =
                 org.mockito.ArgumentCaptor.forClass(RetrievalRequest.class);
@@ -143,8 +143,8 @@ class KnowledgeSearchToolTest {
         when(queryRewriter.rewrite("月费")).thenReturn("Dawn AI 定价 月费");
         when(ragService.retrieve(any(RetrievalRequest.class))).thenReturn(List.of(new Document("¥99")));
 
-        tool.apply(new KnowledgeSearchTool.Request("月费", null, "billing", null));
-        tool.apply(new KnowledgeSearchTool.Request("月费", null, "pricing", null));
+        tool.apply(new KnowledgeSearchTool.Request("月费", null, "billing", null, null));
+        tool.apply(new KnowledgeSearchTool.Request("月费", null, "pricing", null, null));
 
         verify(ragService, times(2)).retrieve(any(RetrievalRequest.class));
     }
