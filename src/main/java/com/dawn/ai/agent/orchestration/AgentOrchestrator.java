@@ -101,20 +101,20 @@ public class AgentOrchestrator {
                 .register(meterRegistry);
     }
 
-    public AgentResult chat(String sessionId, String userMessage) {
+    public AgentResult chat(String sessionId, String userMessage, String topicId) {
         return Timer.builder("ai.agent.chat.duration")
                 .tag("session", "anonymous")
                 .register(meterRegistry)
-                .record(() -> doChat(sessionId, userMessage));
+                .record(() -> doChat(sessionId, userMessage, topicId));
     }
 
-    private AgentResult doChat(String sessionId, String userMessage) {
+    private AgentResult doChat(String sessionId, String userMessage, String topicId) {
         StepCollector.init(maxSteps);
         try {
             TaskPlanner.PlannerResult plannerResult = resolvePlan(userMessage);
             List<PlanStep> plan = plannerResult.steps();
 
-            String systemPrompt = buildSystemPrompt(plan, sessionId);
+            String systemPrompt = buildSystemPrompt(plan, sessionId, topicId);
 
             // 添加历史对话到上下文
             List<Message> history = buildHistory(sessionId);
@@ -181,8 +181,8 @@ public class AgentOrchestrator {
      * @param isCancelled supplier checked before each streamed chunk; when {@code true} the
      *                    Reactor pipeline is torn down early (client disconnected).
      */
-    public void streamChat(String sessionId, String userMessage, Consumer<ChatStreamEvent> sink,
-                           BooleanSupplier isCancelled) {
+    public void streamChat(String sessionId, String userMessage, String topicId,
+                           Consumer<ChatStreamEvent> sink, BooleanSupplier isCancelled) {
         long start = System.currentTimeMillis();
         StringBuilder answer = new StringBuilder();
         StringBuilder thinkingBuffer = new StringBuilder();
@@ -204,7 +204,7 @@ public class AgentOrchestrator {
                 sink.accept(ChatStreamEvent.plan(sessionId, plan, formatPlanSummary(plan)));
             }
 
-            String systemPrompt = buildSystemPrompt(plan, sessionId);
+            String systemPrompt = buildSystemPrompt(plan, sessionId, topicId);
 
             // 添加历史对话到上下文
             List<Message> history = buildHistory(sessionId);
@@ -373,10 +373,15 @@ public class AgentOrchestrator {
      * Builds the system prompt shared by both sync and stream paths.
      * Includes the execution plan, plan-enforcement directive, and max-steps constraint.
      */
-    private String buildSystemPrompt(List<PlanStep> plan, String sessionId) {
+    private String buildSystemPrompt(List<PlanStep> plan, String sessionId, String topicId) {
         String profileSection = userProfileService.formatForSystemPrompt(sessionId);
+        String topicSection = (topicId != null && !topicId.isBlank())
+                ? String.format("%n%n【研究主题】你当前在帮助用户研究主题：%s。" +
+                  "调用 KnowledgeSearchTool 时，topicId 参数必须使用 \"%s\"。", topicId, topicId)
+                : "";
         return baseSystemPrompt
                 + profileSection
+                + topicSection
                 + formatPlan(plan)
                 + formatPlanEnforcement(plan)
                 + String.format("%n请在回复中简短说明每次工具调用的原因。最多调用工具 %d 次。", maxSteps);
