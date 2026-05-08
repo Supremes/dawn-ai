@@ -38,7 +38,7 @@ public class RagController {
      */
     @PostMapping(value = "/ingest", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, String>> ingest(@Valid @RequestBody RagRequest request) {
-        String docId = ragService.ingest(request.getContent(), request.getSource(), request.getCategory());
+        String docId = ragService.ingest(request.getContent(), request.getSource(), request.getCategory(), request.getTopicId());
         return ResponseEntity.ok(Map.of("docId", docId, "status", "ingested"));
     }
 
@@ -50,7 +50,8 @@ public class RagController {
             @RequestPart("file") MultipartFile file,
             @RequestParam(required = false) DocumentType documentType,
             @RequestParam(required = false) String source,
-            @RequestParam(required = false) String category) {
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String topicId) {
         if (file.isEmpty()) {
             throw new IllegalArgumentException("Uploaded file is empty");
         }
@@ -58,7 +59,7 @@ public class RagController {
         DocumentType resolvedType = documentType != null ? documentType : inferDocumentType(file);
         String content = documentTextExtractor.extract(file, resolvedType);
         String effectiveSource = (source != null && !source.isBlank()) ? source : file.getOriginalFilename();
-        String docId = ragService.ingest(content, effectiveSource, category);
+        String docId = ragService.ingest(content, effectiveSource, category, topicId);
         return ResponseEntity.ok(Map.of(
                 "docId", docId,
                 "status", "ingested",
@@ -76,12 +77,13 @@ public class RagController {
             @RequestParam(required = false) List<String> source,
             @RequestParam(required = false) List<String> category,
             @RequestParam(required = false, name = "docId") List<String> docIds,
+            @RequestParam(required = false) List<String> topicId,
             @RequestParam(defaultValue = "AUTO") RetrievalStrategy strategy) {
         RetrievalRequest request = RetrievalRequest.builder()
                 .query(query)
                 .topK(topK)
                 .strategy(strategy)
-                .metadataFilters(buildMetadataFilters(source, category, docIds))
+                .metadataFilters(buildMetadataFilters(source, category, docIds, topicId))
                 .build();
         List<Document> results = ragService.retrieve(request);
         return ResponseEntity.ok(results);
@@ -90,11 +92,13 @@ public class RagController {
     private Map<String, List<String>> buildMetadataFilters(
             List<String> source,
             List<String> category,
-            List<String> docIds) {
+            List<String> docIds,
+            List<String> topicId) {
         Map<String, List<String>> filters = new LinkedHashMap<>();
         addFilter(filters, "source", source);
         addFilter(filters, "category", category);
         addFilter(filters, "docId", docIds);
+        addFilter(filters, "topicId", topicId);
         return filters;
     }
 
