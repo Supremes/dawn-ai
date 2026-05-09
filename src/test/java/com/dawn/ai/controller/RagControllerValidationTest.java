@@ -103,7 +103,7 @@ class RagControllerValidationTest {
             "refund policy content".getBytes()
         );
         when(documentTextExtractor.extract(any(), eq(DocumentType.TEXT))).thenReturn("refund policy content");
-        when(ragService.ingest("refund policy content", "faq.txt", "billing")).thenReturn("doc-123");
+        when(ragService.ingest("refund policy content", "faq.txt", "billing", null)).thenReturn("doc-123");
 
         mockMvc.perform(multipart("/api/v1/rag/ingest")
                 .file(file)
@@ -114,7 +114,7 @@ class RagControllerValidationTest {
             .andExpect(jsonPath("$.documentType").value("TEXT"));
 
         verify(documentTextExtractor).extract(any(), eq(DocumentType.TEXT));
-        verify(ragService).ingest("refund policy content", "faq.txt", "billing");
+        verify(ragService).ingest("refund policy content", "faq.txt", "billing", null);
         }
 
         @Test
@@ -126,7 +126,7 @@ class RagControllerValidationTest {
             "%PDF-1.4".getBytes()
         );
         when(documentTextExtractor.extract(any(), eq(DocumentType.PDF))).thenReturn("pdf extracted content");
-        when(ragService.ingest("pdf extracted content", "novel.pdf", "literature")).thenReturn("doc-pdf");
+        when(ragService.ingest("pdf extracted content", "novel.pdf", "literature", null)).thenReturn("doc-pdf");
 
         mockMvc.perform(multipart("/api/v1/rag/ingest")
                 .file(file)
@@ -137,7 +137,7 @@ class RagControllerValidationTest {
             .andExpect(jsonPath("$.documentType").value("PDF"));
 
         verify(documentTextExtractor).extract(any(), eq(DocumentType.PDF));
-        verify(ragService).ingest("pdf extracted content", "novel.pdf", "literature");
+        verify(ragService).ingest("pdf extracted content", "novel.pdf", "literature", null);
         }
 
         @Test
@@ -156,6 +156,36 @@ class RagControllerValidationTest {
         verifyNoInteractions(documentTextExtractor);
         verifyNoInteractions(ragService);
         }
+
+    @Test
+    void ingestJson_withTopicId_shouldPassTopicIdToService() throws Exception {
+        when(ragService.ingest(any(), any(), any(), any())).thenReturn("doc-1");
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .post("/api/v1/rag/ingest")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("{\"content\":\"hello\",\"source\":\"s\",\"topicId\":\"distributed-tx\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.docId").value("doc-1"));
+
+        verify(ragService).ingest("hello", "s", null, "distributed-tx");
+    }
+
+    @Test
+    void ingestMultipart_withTopicId_shouldPassTopicIdToService() throws Exception {
+        when(documentTextExtractor.extract(any(), any())).thenReturn("text content");
+        when(ragService.ingest(any(), any(), any(), any())).thenReturn("doc-2");
+
+        MockMultipartFile file = new MockMultipartFile("file", "note.txt",
+                "text/plain", "hello".getBytes());
+
+        mockMvc.perform(multipart("/api/v1/rag/ingest")
+                .file(file)
+                .param("topicId", "distributed-tx"))
+            .andExpect(status().isOk());
+
+        verify(ragService).ingest(eq("text content"), any(), any(), eq("distributed-tx"));
+    }
 
     @TestConfiguration
     static class ValidationConfig {

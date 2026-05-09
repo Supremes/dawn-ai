@@ -11,4 +11,7 @@ public class ChatRequest {
 
     /** Conversation session ID for memory context */
     private String sessionId;
+
+    /** Optional research topic context — restricts KnowledgeSearchTool to this topic */
+    private String topicId;
 }

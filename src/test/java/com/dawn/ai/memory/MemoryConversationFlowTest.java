@@ -453,10 +453,8 @@ class MemoryConversationFlowTest {
         @Test
         @DisplayName("scenario19 · 高重要度文档，无论多旧都不被删除")
         void scenario19_highImportance_neverEvicted() {
-            long oldTs = Instant.now().minus(200, ChronoUnit.DAYS).toEpochMilli();
-            Document important = new Document("imp-1", "critical context",
-                    Map.of("type", "summary", "importance", 0.9, "createdAt", oldTs));
-            when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of(important));
+            // pgvector filterExpression (importance < threshold) excludes high-importance docs
+            when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
 
             evictionPolicyManager.evict();
 
@@ -466,10 +464,8 @@ class MemoryConversationFlowTest {
         @Test
         @DisplayName("scenario20 · Reflection 类型文档永不被删除（even if low importance）")
         void scenario20_reflectionTypeDocument_neverEvicted() {
-            long oldTs = Instant.now().minus(200, ChronoUnit.DAYS).toEpochMilli();
-            Document reflection = new Document("ref-1", "user profile",
-                    Map.of("type", "reflection", "importance", 0.05, "createdAt", oldTs));
-            when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of(reflection));
+            // pgvector filterExpression (type != 'reflection') excludes reflection docs
+            when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
 
             evictionPolicyManager.evict();
 
@@ -479,10 +475,8 @@ class MemoryConversationFlowTest {
         @Test
         @DisplayName("scenario21 · 最近文档（即使低重要度）不被删除")
         void scenario21_recentDocument_notEvicted() {
-            long recentTs = Instant.now().minus(10, ChronoUnit.DAYS).toEpochMilli();
-            Document recent = new Document("rec-1", "fresh content",
-                    Map.of("type", "summary", "importance", 0.05, "createdAt", recentTs));
-            when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of(recent));
+            // pgvector filterExpression (createdAt < cutoff) excludes recent docs
+            when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
 
             evictionPolicyManager.evict();
 

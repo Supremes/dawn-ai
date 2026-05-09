@@ -219,6 +219,21 @@ html, body {
     white-space: nowrap;
 }
 
+.topic-input {
+    font-size: 12px;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    padding: 3px 8px;
+    border-radius: 4px;
+    width: 160px;
+    outline: none;
+}
+
+.topic-input:focus {
+    border-color: var(--accent, #4a8eff);
+}
+
 /* ===== Chat ===== */
 .chat-container {
     flex: 1;

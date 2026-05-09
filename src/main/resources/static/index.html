@@ -42,6 +42,8 @@
                 <div class="page-header">
                     <h2>Chat</h2>
                     <div class="session-info">
+                        <span class="session-label">Topic:</span>
+                        <input type="text" id="chatTopic" class="topic-input" list="allTopics" placeholder="optional, e.g. 分布式事务">
                         <span class="session-label">Session:</span>
                         <span class="session-id" id="sessionId">-</span>
                         <button class="btn-icon" id="newSessionBtn" title="New session">
@@ -95,6 +97,10 @@
                                     <input type="text" id="ingestCategory" placeholder="e.g., documentation">
                                 </div>
                             </div>
+                            <div class="form-group">
+                                <label for="ingestTopic">Topic <span class="form-hint-inline">(optional, group documents under a research topic)</span></label>
+                                <input type="text" id="ingestTopic" list="allTopics" placeholder="e.g., 分布式事务">
+                            </div>
                             <p class="form-hint">All ingestion requests use the current RAG API endpoint.</p>
                             <button class="btn btn-primary" id="ingestBtn">Ingest Document</button>
                             <div class="result-area" id="ingestResult"></div>
@@ -126,6 +132,10 @@
                                     <option value="WORD">WORD (doc / docx)</option>
                                     <option value="EXCEL">EXCEL (xls / xlsx)</option>
                                 </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="fileTopic">Topic <span class="form-hint-inline">(optional, group under a research topic)</span></label>
+                                <input type="text" id="fileTopic" list="allTopics" placeholder="e.g., 分布式事务">
                             </div>
                             <button class="btn btn-primary" id="uploadBtn" type="button" disabled>Upload &amp; Ingest</button>
                             <div class="result-area" id="uploadResult"></div>
@@ -166,6 +176,10 @@
                         <div class="form-group">
                             <label for="searchDocIds">Doc ID Filter</label>
                             <input type="text" id="searchDocIds" placeholder="Optional comma separated doc IDs">
+                        </div>
+                        <div class="form-group">
+                            <label for="searchTopic">Topic Filter</label>
+                            <input type="text" id="searchTopic" list="allTopics" placeholder="Optional, e.g. 分布式事务">
                         </div>
                         <p class="form-hint">Use strategy and metadata filters to test the existing RagController search endpoint more precisely.</p>
                         <button class="btn btn-primary" id="searchBtn">Search</button>
@@ -220,6 +234,9 @@
     </div>
 
     <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Shared topic suggestions for all topic inputs -->
+    <datalist id="allTopics"></datalist>
 
     <script src="/js/app.js"></script>
 </body>

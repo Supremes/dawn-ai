@@ -80,7 +80,7 @@ class AgentOrchestratorTest {
         when(requestSpec.call()).thenReturn(callResponseSpec);
         when(callResponseSpec.chatResponse()).thenReturn(chatResponse);
 
-        AgentResult result = agentOrchestrator.chat("session-1", "current question");
+        AgentResult result = agentOrchestrator.chat("session-1", "current question", null);
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<Message>> historyCaptor = (ArgumentCaptor<List<Message>>) (ArgumentCaptor<?>) ArgumentCaptor.forClass(List.class);
@@ -111,7 +111,7 @@ class AgentOrchestratorTest {
         when(requestSpec.call()).thenReturn(callResponseSpec);
         when(callResponseSpec.chatResponse()).thenReturn(chatResponse);
 
-        AgentResult result = agentOrchestrator.chat("session-2", "current question");
+        AgentResult result = agentOrchestrator.chat("session-2", "current question", null);
 
         assertThat(result.finalAnswer()).isEqualTo("final answer");
         assertThat(result.plan()).isEmpty();

@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -110,19 +111,23 @@ public class RagService {
     }
 
     /**
-     * Ingest a document into the vector store.
-     * Long documents are split into chunks of ~500 tokens with 50-token overlap.
-     * Each chunk inherits the parent document's source and category metadata.
+     * Ingest a document. Delegates to {@link #ingest(String, String, String, String)} with no topicId.
      */
     public String ingest(String content, String source, String category) {
+        return ingest(content, source, category, null);
+    }
+
+    public String ingest(String content, String source, String category, String topicId) {
         aiAvailabilityChecker.ensureConfigured();
 
         String docId = UUID.randomUUID().toString();
-        Map<String, Object> metadata = Map.of(
-                "source", source != null ? source : "manual",
-                "category", category != null ? category : "general",
-                "docId", docId
-        );
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("source", source != null ? source : "manual");
+        metadata.put("category", category != null ? category : "general");
+        metadata.put("docId", docId);
+        if (topicId != null && !topicId.isBlank()) {
+            metadata.put("topicId", topicId);
+        }
         Document parentDoc = new Document(docId, content, metadata);
 
         List<Document> chunks = splitter.apply(List.of(parentDoc));
@@ -130,7 +135,7 @@ public class RagService {
         vectorStore.add(chunks);
         ingestionCounter.increment(chunks.size());
 
-        log.info("[RagService] Ingested {} chunk(s), source={}", chunks.size(), source);
+        log.info("[RagService] Ingested {} chunk(s), source={}, topicId={}", chunks.size(), source, topicId);
         return docId;
     }
 
@@ -184,7 +189,7 @@ public class RagService {
             ? reciprocalRankFusion.fuse(denseResults, sparseResults)
             : denseResults;
 
-        int filteredOut = Math.max(0, candidateCount - denseResults.size());
+        int filteredOut = Math.max(0, candidateCount - results.size());
         filteredCountSummary.record(filteredOut);
 
         if (results.isEmpty()) {

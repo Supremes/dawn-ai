@@ -1,15 +1,22 @@
 # ---- Build Stage ----
+# syntax=docker/dockerfile:1
 FROM maven:3-eclipse-temurin-17 AS builder
 
 WORKDIR /build
 
-# Download dependencies first (layer cache friendly)
+# Layer 1: pom.xml only — invalidated only when dependencies change
 COPY pom.xml .
 COPY .mvn/ .mvn/
 
+# Layer 2: resolve all deps into the BuildKit cache mount (.m2 is NOT baked into the image)
+# --mount=type=cache persists /root/.m2 across builds on the same host, so deps are never re-downloaded
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn -B dependency:go-offline
+
+# Layer 3: source code — changes every commit, but deps are already cached above
 COPY src/ src/
-# RUN mvn clean package -DskipTests -q
-RUN mvn -s .mvn/settings.xml clean package -DskipTests
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn -B clean package -DskipTests
 
 # ---- Runtime Stage ----
 FROM eclipse-temurin:17-jre

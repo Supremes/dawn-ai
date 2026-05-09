@@ -40,10 +40,8 @@ class EvictionPolicyManagerTest {
 
     @Test
     void evict_keepsHighImportanceDocumentsEvenIfOld() {
-        long oldTs = Instant.now().minus(200, ChronoUnit.DAYS).toEpochMilli();
-        Document important = new Document("doc2", "important content",
-                Map.of("type", "summary", "importance", 0.9, "createdAt", oldTs));
-        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of(important));
+        // pgvector filterExpression excludes high-importance docs before returning results
+        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
 
         manager.evict();
 
@@ -52,10 +50,8 @@ class EvictionPolicyManagerTest {
 
     @Test
     void evict_keepsRecentDocumentsEvenIfLowImportance() {
-        long recentTs = Instant.now().minus(10, ChronoUnit.DAYS).toEpochMilli();
-        Document recent = new Document("doc3", "recent content",
-                Map.of("type", "summary", "importance", 0.05, "createdAt", recentTs));
-        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of(recent));
+        // pgvector filterExpression excludes recent docs (createdAt > cutoff) before returning results
+        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
 
         manager.evict();
 

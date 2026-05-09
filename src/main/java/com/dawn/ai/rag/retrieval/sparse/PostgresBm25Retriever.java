@@ -19,7 +19,7 @@ import java.util.StringJoiner;
 @RequiredArgsConstructor
 public class PostgresBm25Retriever implements SparseRetriever {
 
-    private static final Set<String> SUPPORTED_FILTER_KEYS = Set.of("source", "category", "docId");
+    private static final Set<String> SUPPORTED_FILTER_KEYS = Set.of("source", "category", "docId", "topicId");
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
