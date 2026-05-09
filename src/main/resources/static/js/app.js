@@ -6,6 +6,7 @@ const API = {
     chatSimple: '/api/v1/chat/simple',
     ragIngest: '/api/v1/rag/ingest',
     ragSearch: '/api/v1/rag/search',
+    topics: '/api/v1/topics',
     health: '/actuator/health',
     metrics: '/actuator/metrics',
 };
@@ -30,7 +31,25 @@ document.addEventListener('DOMContentLoaded', () => {
     initKnowledge();
     initDashboard();
     newSession();
+    refreshTopics();
 });
+
+// ===== Topics =====
+async function refreshTopics() {
+    try {
+        const res = await fetch(API.topics);
+        if (!res.ok) return;
+        const data = await res.json();
+        const topics = (data && data.topics) || [];
+        const datalist = $('#allTopics');
+        if (!datalist) return;
+        datalist.innerHTML = topics
+            .map(t => `<option value="${escapeHtml(t)}"></option>`)
+            .join('');
+    } catch (err) {
+        // Non-blocking: topic suggestions are optional
+    }
+}
 
 // ===== Navigation =====
 function initNavigation() {
@@ -90,6 +109,12 @@ function initChat() {
     });
 }
 
+function getChatTopicId() {
+    const topicEl = $('#chatTopic');
+    const value = topicEl ? topicEl.value.trim() : '';
+    return value || undefined;
+}
+
 function newSession() {
     state.sessionId = 'session-' + Date.now().toString(36);
     $('#sessionId').textContent = state.sessionId;
@@ -139,7 +164,11 @@ async function sendMessageStream(message) {
         const res = await fetch(API.chatStream, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message, sessionId: state.sessionId }),
+            body: JSON.stringify({
+                message,
+                sessionId: state.sessionId,
+                topicId: getChatTopicId(),
+            }),
         });
 
         typingEl.remove();
@@ -363,6 +392,7 @@ async function sendMessageSync(message) {
             body: JSON.stringify({
                 message: message,
                 sessionId: state.sessionId,
+                topicId: getChatTopicId(),
             }),
         });
 
@@ -580,6 +610,9 @@ async function ingestFile() {
     const category = $('#fileCategory').value.trim();
     if (category) formData.append('category', category);
 
+    const topicId = $('#fileTopic').value.trim();
+    if (topicId) formData.append('topicId', topicId);
+
     const result = $('#uploadResult');
     result.classList.add('show');
     result.className = 'result-area show';
@@ -597,6 +630,7 @@ async function ingestFile() {
             result.className = 'result-area show success';
             result.textContent = `Success: ${JSON.stringify(data)}`;
             toast('File ingested successfully', 'success');
+            refreshTopics();
             // Reset
             setSelectedKnowledgeFile(null);
         } else {
@@ -634,6 +668,7 @@ async function ingestDocument() {
                 content: content,
                 source: $('#ingestSource').value.trim() || undefined,
                 category: $('#ingestCategory').value.trim() || undefined,
+                topicId: $('#ingestTopic').value.trim() || undefined,
             }),
         });
 
@@ -645,6 +680,7 @@ async function ingestDocument() {
             result.className = 'result-area show success';
             result.textContent = `Success: ${JSON.stringify(data)}`;
             toast('Document ingested', 'success');
+            refreshTopics();
         } else {
             const err = await res.json().catch(() => ({ message: res.statusText }));
             result.className = 'result-area show error';
@@ -686,6 +722,7 @@ async function searchDocuments() {
         appendCsvParams(params, 'source', $('#searchSource').value);
         appendCsvParams(params, 'category', $('#searchCategory').value);
         appendCsvParams(params, 'docId', $('#searchDocIds').value);
+        appendCsvParams(params, 'topicId', $('#searchTopic').value);
 
         const url = `${API.ragSearch}?${params.toString()}`;
         const res = await fetch(url);
