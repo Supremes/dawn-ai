@@ -9,7 +9,60 @@ const API = {
     topics: '/api/v1/topics',
     health: '/actuator/health',
     metrics: '/actuator/metrics',
+    aiInteractionLog: '/api/v1/ai-interactions/log',
 };
+
+// ===== Markdown setup =====
+if (typeof marked !== 'undefined') {
+    marked.setOptions({
+        gfm: true,
+        breaks: true,
+        highlight(code, lang) {
+            if (typeof hljs === 'undefined') return code;
+            try {
+                if (lang && hljs.getLanguage(lang)) {
+                    return hljs.highlight(code, { language: lang, ignoreIllegals: true }).value;
+                }
+                return hljs.highlightAuto(code).value;
+            } catch {
+                return code;
+            }
+        },
+    });
+}
+
+function renderMarkdown(text) {
+    if (text == null) return '';
+    if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
+        return escapeHtml(text);
+    }
+    const html = marked.parse(String(text));
+    return DOMPurify.sanitize(html, { ADD_ATTR: ['target', 'class'] });
+}
+
+function enhanceCodeBlocks(root) {
+    if (!root) return;
+    const blocks = root.querySelectorAll('pre');
+    blocks.forEach(pre => {
+        if (pre.parentElement && pre.parentElement.classList.contains('code-block-wrapper')) return;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'code-block-wrapper';
+        pre.parentNode.insertBefore(wrapper, pre);
+        wrapper.appendChild(pre);
+
+        const btn = document.createElement('button');
+        btn.className = 'code-copy-btn';
+        btn.textContent = 'Copy';
+        btn.addEventListener('click', () => {
+            const code = pre.querySelector('code')?.innerText ?? pre.innerText;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => (btn.textContent = 'Copy'), 1500);
+            });
+        });
+        wrapper.appendChild(btn);
+    });
+}
 
 // ===== State =====
 const state = {
@@ -30,6 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initChat();
     initKnowledge();
     initDashboard();
+    initInteractionLogLink();
     newSession();
     refreshTopics();
 });
@@ -70,6 +124,7 @@ function initNavigation() {
 function initTheme() {
     const saved = localStorage.getItem('dawn-theme');
     if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    syncHljsTheme();
 
     $('#themeToggle').addEventListener('click', () => {
         const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -80,7 +135,16 @@ function initTheme() {
             document.documentElement.setAttribute('data-theme', 'dark');
             localStorage.setItem('dawn-theme', 'dark');
         }
+        syncHljsTheme();
     });
+}
+
+function syncHljsTheme() {
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const lightSheet = document.getElementById('hljs-light-theme');
+    const darkSheet = document.getElementById('hljs-dark-theme');
+    if (lightSheet) lightSheet.disabled = dark;
+    if (darkSheet) darkSheet.disabled = !dark;
 }
 
 // ===== Chat =====
@@ -126,6 +190,7 @@ function newSession() {
             <p>Start a conversation to test the AI agent.</p>
         </div>
     `;
+    updateInteractionLogLink();
 }
 
 async function sendMessage() {
@@ -257,7 +322,11 @@ function handleStreamEvent(type, envelope, assistantDiv) {
                 thinkingPanel.classList.add('done');
             }
             const bubble = assistantDiv.querySelector('.message-bubble');
-            bubble.textContent += data.content || '';
+            const prev = bubble.dataset.rawContent || '';
+            const next = prev + (data.content || '');
+            bubble.dataset.rawContent = next;
+            bubble.innerHTML = renderMarkdown(next);
+            enhanceCodeBlocks(bubble);
             $('#chatMessages').scrollTop = $('#chatMessages').scrollHeight;
             break;
         }
@@ -296,8 +365,9 @@ function handleStreamEvent(type, envelope, assistantDiv) {
             break;
         }
         case 'error': {
-            assistantDiv.querySelector('.message-bubble').textContent =
-                `[${data.code}] ${data.message}`;
+            const bubble = assistantDiv.querySelector('.message-bubble');
+            bubble.textContent = `[${data.code}] ${data.message}`;
+            bubble.dataset.rawContent = `[${data.code}] ${data.message}`;
             break;
         }
     }
@@ -462,13 +532,20 @@ function appendMessage(role, content, meta) {
         }
     }
 
+    const bubbleHtml = role === 'assistant'
+        ? renderMarkdown(content)
+        : escapeHtml(content);
+
     div.innerHTML = `
-        <div class="message-bubble">${escapeHtml(content)}</div>
+        <div class="message-bubble" data-raw-content="${escapeHtml(content || '')}">${bubbleHtml}</div>
         ${metaHtml}
         ${stepsHtml}
     `;
 
     container.appendChild(div);
+    if (role === 'assistant') {
+        enhanceCodeBlocks(div.querySelector('.message-bubble'));
+    }
     container.scrollTop = container.scrollHeight;
 }
 
@@ -917,4 +994,18 @@ function toast(message, type = 'info') {
     div.textContent = message;
     container.appendChild(div);
     setTimeout(() => div.remove(), 3000);
+}
+
+// ===== AI Interaction Log link =====
+function initInteractionLogLink() {
+    updateInteractionLogLink();
+}
+
+function updateInteractionLogLink() {
+    const link = $('#interactionsToggle');
+    if (!link) return;
+    const sid = state.sessionId;
+    const params = new URLSearchParams({ tail: '1000', pretty: 'true' });
+    if (sid) params.set('sessionId', sid);
+    link.href = `${API.aiInteractionLog}?${params.toString()}`;
 }
