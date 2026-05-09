@@ -189,7 +189,7 @@ public class RagService {
             ? reciprocalRankFusion.fuse(denseResults, sparseResults)
             : denseResults;
 
-        int filteredOut = Math.max(0, candidateCount - denseResults.size());
+        int filteredOut = Math.max(0, candidateCount - results.size());
         filteredCountSummary.record(filteredOut);
 
         if (results.isEmpty()) {

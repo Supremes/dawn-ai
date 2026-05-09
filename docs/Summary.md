@@ -1,5 +1,5 @@
 
-  Tech points
+## Tech points
   
   - 3 层记忆体系：Working(Redis) → Summary(pgvector) → Long-term(向量反思) — 跨会话持久记忆
   - ReAct Agent + 自动规划：Tool 自动发现、AOP step 追踪、pre-execution 任务规划
@@ -8,6 +8,25 @@
   - 完整可观测：Prometheus + Grafana，token 成本追踪
 
 ## 应用方向
+
+个人学习追踪助手：上传技术书/笔记/论文等   → 问问题 → AI 追踪"你学了什么、还不会什么"
+
+能把 3 层记忆都激活的场景：
+  - Working Memory：当前对话上下文
+  - Summary Memory：上周问过什么、第一次没理解什么
+  - Long-term Reflection：AI 自动归纳"你在系统设计上还有薄弱点"
+
+  没有这套记忆体系，AI 每次对话都失忆——这个痛点在 Demo 里说得出口。
+
+  RAG 负责知识库检索，ReAct 负责分步拆解复杂概念，User Profile 存学习进度，Streaming
+  让解题过程实时可见。所有技术都有合理动机，不是堆砌。
+
+### 方案
+
+Topic 作纯 Metadata 标签（最轻）, 不新建 Topic 实体，仅在现有 RAG 的 metadata 里加 topicId 字段。KnowledgeSearchTool 带 topicId 过滤即可。
+Gap analysis 完全依赖 LLM 推理："在这个 topic 的文档里搜索 X，没结果就是盲点"。
+
+## Reference
 
 三个推荐方向
 
