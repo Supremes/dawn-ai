@@ -1,9 +1,9 @@
 ---
-updated: 2026-05-10 22:23
+updated: 2026-05-11 00:10
 ---
 # Tech
 ## Tech points
-  
+
   - 3 层记忆体系：Working(Redis) → Summary(pgvector) → Long-term(向量反思) — 跨会话持久记忆
   - ReAct Agent + 自动规划：Tool 自动发现、AOP step 追踪、pre-execution 任务规划
   - 高级 RAG 管道：混合检索(dense+sparse) + Query Rewriting + RRF + 两阶段重排序
@@ -21,7 +21,7 @@ updated: 2026-05-10 22:23
 
 ### [SSE] - ThreadLocal 跨线程传播模式
 
-- 详细参考:  [[#ThreadLocal 跨线程传播模式详解]]
+- 详细参考:  [ThreadLocal跨线程传播模式详解 ](#ThreadLocal跨线程传播模式详解 )
 > [!NOTE]
 > 
 > - Servlet/任意线程 → Reactor 调度器线程: 通过 Reactor Context + Micrometer Hook来处理
@@ -40,14 +40,13 @@ ApplicationRunner.run()
     Hooks.enableAutomaticContextPropagation()  ← 开启 Reactor 全局 Hook
 ↓
 第一个真实业务请求进来
-``` 
+```
 
 在这个窗口注册，既能覆盖所有后续的 Reactor pipeline，又能享受完整的 Spring 上下文（条件判断、日志、依赖注入）。
-- 
 
 ### [SSE] - Spring WebMVC(阻塞 io 模型) + SseEmitter
 
-- 详细参考：[[#SseEmitter 与 Spring WebFlux 的核心区别]]
+- 详细参考：[SseEmitter与Spring WebFlux的核心区别](#SseEmitter与SpringWebFlux的核心区别)
 
 项目使用 Spring webmvc 框架，属于阻塞 io 模型，基于 servlet api。对于基于非阻塞模型的 Spring Webflux 模型，有几点不同。
 
@@ -102,7 +101,7 @@ Gap analysis 完全依赖 LLM 推理："在这个 topic 的文档里搜索 X，�
 
   弱点：数据太私人，公开 Demo 需要准备固定的示例素材库。
 
-  ---
+---
   方向 B：AI Code Review 顾问
 
   用例：提交代码 / 贴架构描述 → AI 检索最佳实践 → ReAct 多步分析 → 生成审查报告
@@ -115,7 +114,7 @@ Gap analysis 完全依赖 LLM 推理："在这个 topic 的文档里搜索 X，�
 
   弱点：Tools 目前只有 Weather/Calculator/RAG 三个，需要额外开发"代码解析 Tool"，工作量会增加。
 
-  ---
+---
   方向 C：智能技术客服 + 私有知识库
 
   用例：企业内部问答，员工上传产品手册/SOP/FAQ，AI 回答并记住每个用户的历史问题
@@ -124,7 +123,7 @@ Gap analysis 完全依赖 LLM 推理："在这个 topic 的文档里搜索 X，�
 
   弱点：方向太常见，几乎每个 RAG Demo 都是这个，很难差异化。记忆体系的价值不如方向 A 那么突出。
 
-  ---
+---
   我的建议
 
   首选方向 A（学习追踪助手），理由：
@@ -147,7 +146,7 @@ Gap analysis 完全依赖 LLM 推理："在这个 topic 的文档里搜索 X，�
   优点：改动最小，一两天能做完。
   弱点：没有新的 Agent 工具，ReAct 步骤单薄，面试官看不到工具链的设计能力。
 
-  ---
+---
   方案二：Topic 实体 + 3 个专用 Tool（推荐）
 
   新增 Topic 表，加 3 个 Agent Tool：
@@ -161,7 +160,7 @@ Gap analysis 完全依赖 LLM 推理："在这个 topic 的文档里搜索 X，�
   优点：把现有所有技术栈都激活，工具链设计有层次，最能体现 Agent 架构能力。
   弱点：需要新增概念索引的数据结构，工程量中等。
 
-### ThreadLocal 跨线程传播模式详解
+### ThreadLocal跨线程传播模式详解 
 #### 问题本质
 
 `ThreadLocal` 是线程隔离的，这既是它的优点（天然线程安全），也是它的限制——当任务从线程 A 提交到线程 B 执行时，B 上读不到 A 设置的值。
@@ -254,7 +253,7 @@ Hooks.enableAutomaticContextPropagation();  // 告诉 Reactor 接管所有已注
 **additivity=false 的日志隔离**  
 命名 Logger + `additivity="false"` 是 logback 中将特定日志流路由到独立文件的标准做法，与上下文传播无关，但常配合使用——传播保证"写谁的"，独立 Logger 保证"写到哪"。
 
-### SseEmitter 与 Spring WebFlux 的核心区别
+### SseEmitter与SpringWebFlux的核心区别
 
 从原始需求出发：两者都**可以实现 Server-Sent Events (SSE)**，即服务器单向实时推送数据给客户端（如实时通知、监控、聊天等）。但它们解决问题的**底层模型和适用场景完全不同**。
 
