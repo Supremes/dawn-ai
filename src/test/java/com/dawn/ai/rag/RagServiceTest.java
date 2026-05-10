@@ -1,6 +1,7 @@
 package com.dawn.ai.rag;
 
 import com.dawn.ai.config.AiAvailabilityChecker;
+import com.dawn.ai.memory.MemoryAccessUpdater;
 import com.dawn.ai.rag.ingestion.OverlapTextSplitter;
 import com.dawn.ai.rag.retrieval.rerank.CrossEncoderRetrievalReranker;
 import com.dawn.ai.rag.retrieval.rerank.HeuristicRetrievalReranker;
@@ -58,7 +59,8 @@ class RagServiceTest {
                 new ReciprocalRankFusion(),
                 new RetrievalRouter(),
                 overlapTextSplitter,
-                ragRetrievalExecutor);
+                ragRetrievalExecutor,
+                mock(MemoryAccessUpdater.class));
         // 注入配置值（与 application.yml 一致）
         ragService.setSimilarityThreshold(0.7);
         ragService.setHybridEnabled(false);
@@ -125,7 +127,8 @@ class RagServiceTest {
                 new ReciprocalRankFusion(),
                 new RetrievalRouter(),
                 new OverlapTextSplitter(4, 2),
-                ragRetrievalExecutor);
+                ragRetrievalExecutor,
+                mock(MemoryAccessUpdater.class));
         localRagService.setSimilarityThreshold(0.7);
         localRagService.setHybridEnabled(false);
         localRagService.initMetrics();

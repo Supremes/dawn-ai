@@ -55,7 +55,7 @@ public class AgentConfig {
 
     @Bean(name = "ragRetrievalExecutor", destroyMethod = "shutdown")
     public ExecutorService ragRetrievalExecutor() {
-        return new ThreadPoolExecutor(
+        ThreadPoolExecutor pool = new ThreadPoolExecutor(
                 4, 16,
                 60L, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(128),
@@ -66,36 +66,38 @@ public class AgentConfig {
                 },
                 new ThreadPoolExecutor.CallerRunsPolicy()
         );
+        return new SessionAwareExecutor(pool);
     }
 
     /**
-     * Enables Micrometer context propagation for the reactive (Reactor) pipeline.
+     * 为响应式（Reactor）管道启用 Micrometer 上下文传播。
      *
-     * <p>Without this, {@link com.dawn.ai.agent.trace.StepCollector}'s ThreadLocal state
-     * is invisible to Reactor Netty worker threads that execute Spring AI tool callbacks
-     * during streaming, causing NPEs and silent tool failures.
+     * <p>若不启用，{@link com.dawn.ai.agent.trace.StepCollector} 的 ThreadLocal 状态
+     * 对 Reactor Netty 工作线程不可见——而 Spring AI 的 tool callback 在流式响应期间
+     * 正是运行在这些线程上，从而导致 NPE 和 tool 调用静默失败。
      *
-     * <p>How it works:
+     * <p>工作原理：
      * <ol>
-     *   <li>We register {@link StepCollectorContextAccessor} with Micrometer's
-     *       {@link ContextRegistry} so Micrometer knows which ThreadLocal to capture.</li>
-     *   <li>{@link Hooks#enableAutomaticContextPropagation()} tells Reactor to capture all
-     *       registered ThreadLocals into the reactive pipeline context at subscribe time,
-     *       and restore them before every operator — even across thread hops.</li>
-     *   <li>Since {@link com.dawn.ai.agent.trace.StepCollectorContext} is propagated by
-     *       <em>reference</em>, all threads share the same mutable state object, making
-     *       step counting and collection correct across threads.</li>
+     *   <li>将 {@link StepCollectorContextAccessor} 注册到 Micrometer 的
+     *       {@link ContextRegistry}，告知 Micrometer 哪些 ThreadLocal 需要被捕获。</li>
+     *   <li>{@link Hooks#enableAutomaticContextPropagation()} 指示 Reactor 在订阅时
+     *       将所有已注册的 ThreadLocal 捕获到响应式管道上下文中，并在每个操作符执行前
+     *       自动恢复——即使发生了线程切换。</li>
+     *   <li>由于 {@link com.dawn.ai.agent.trace.StepCollectorContext} 是按
+     *       <em>引用</em> 传播的，所有线程共享同一个可变状态对象，从而保证跨线程的
+     *       步骤计数与收集结果正确。</li>
      * </ol>
      */
     @Bean
     public ApplicationRunner enableReactorContextPropagation() {
         return args -> {
-            // 告诉 Micrometer：存在一个 ThreadLocal 需要传播
+            // 告诉 Micrometer：存在一些 ThreadLocal 需要传播
             ContextRegistry.getInstance()
-                    .registerThreadLocalAccessor(new StepCollectorContextAccessor());
+                    .registerThreadLocalAccessor(new StepCollectorContextAccessor())
+                    .registerThreadLocalAccessor(new AiInteractionContextAccessor());
             // 告诉 Reactor：每次切换线程前自动调用所有 Accessor 的 set/restore
             Hooks.enableAutomaticContextPropagation();
-            log.info("[AgentConfig] Reactor automatic context propagation enabled (StepCollector)");
+            log.info("[AgentConfig] Reactor automatic context propagation enabled (StepCollector, AiInteractionContext)");
         };
     }
 }

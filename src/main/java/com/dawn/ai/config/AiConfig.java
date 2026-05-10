@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -13,19 +14,27 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.BufferingClientHttpRequestFactory;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.reactive.ClientHttpRequest;
+import org.springframework.http.client.reactive.ClientHttpRequestDecorator;
+import org.springframework.web.reactive.function.BodyInserter;
 import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.client.RestClient;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.io.ByteArrayOutputStream;
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
@@ -69,12 +78,17 @@ public class AiConfig {
 
     @Bean
     @Primary
-    public RestClient.Builder openAiRestClientBuilder() {
+    public RestClient.Builder openAiRestClientBuilder(AiInteractionLogger aiInteractionLogger) {
         ClientHttpRequestInterceptor loggingInterceptor = (request, body, execution) -> {
             String reqBodyText = new String(body, StandardCharsets.UTF_8);
-            log.info("[AI HTTP] --> {} {} | {}", request.getMethod(), request.getURI(), summarizeRequestBody(reqBodyText));
+            String sessionId = AiInteractionContext.getSessionId();
 
+            log.info("[AI HTTP] --> {} {} | {}", request.getMethod(), request.getURI(), summarizeRequestBody(reqBodyText));
+            aiInteractionLogger.logRequest(sessionId, request.getMethod().name(), request.getURI().toString(), reqBodyText);
+
+            long start = System.currentTimeMillis();
             ClientHttpResponse response = execution.execute(request, body);
+            long latency = System.currentTimeMillis() - start;
 
             byte[] responseBody = StreamUtils.copyToByteArray(response.getBody());
             String responseBodyText = new String(responseBody, resolveCharset(response.getHeaders()));
@@ -84,6 +98,7 @@ public class AiConfig {
             if (log.isDebugEnabled()) {
                 log.debug("[AI HTTP] <-- response body detail:\n{}", formatDebugResponseBody(responseBodyText));
             }
+            aiInteractionLogger.logResponse(sessionId, response.getStatusCode().value(), responseBodyText, latency);
 
             return response;
         };
@@ -95,15 +110,15 @@ public class AiConfig {
 
     @Bean
     @Primary
-    public WebClient.Builder openAiWebClientBuilder() {
+    public WebClient.Builder openAiWebClientBuilder(AiInteractionLogger aiInteractionLogger) {
         ExchangeStrategies strategies = ExchangeStrategies.builder()
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
                 .build();
 
         return WebClient.builder()
                 .exchangeStrategies(strategies)
-                .filter(logStreamingRequest())
-                .filter(logStreamingResponse());
+                .filter(logStreamingRequest(aiInteractionLogger))
+                .filter(logStreamingResponse(aiInteractionLogger));
     }
 
     @Bean
@@ -223,20 +238,85 @@ public class AiConfig {
         }
     }
 
-    private ExchangeFilterFunction logStreamingRequest() {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private ExchangeFilterFunction logStreamingRequest(AiInteractionLogger aiInteractionLogger) {
         return ExchangeFilterFunction.ofRequestProcessor(request -> {
             log.info("[AI STREAM HTTP] --> {} {} | headers={}",
                     request.method(), request.url(), sanitizeHeaders(request));
-            return Mono.just(request);
+            String sessionId = AiInteractionContext.getSessionId();
+            String url = request.url().toString();
+            String method = request.method().name();
+            BodyInserter<?, ? super ClientHttpRequest> originalInserter = request.body();
+
+            BodyInserter wrappedInserter = (BodyInserter<Object, ClientHttpRequest>) (message, context) -> {
+                BodyCapturingHttpRequest capturing = new BodyCapturingHttpRequest(message);
+                return ((BodyInserter) originalInserter).insert(capturing, context)
+                        .doFinally(signal -> {
+                            try {
+                                aiInteractionLogger.logRequest(sessionId, method, url, capturing.getCapturedBody());
+                            } catch (Exception ex) {
+                                log.warn("[AI STREAM HTTP] failed to log captured request body: {}", ex.getMessage());
+                            }
+                        });
+            };
+
+            return Mono.just(ClientRequest.from(request).body(wrappedInserter).build());
         });
     }
 
-    private ExchangeFilterFunction logStreamingResponse() {
+    private ExchangeFilterFunction logStreamingResponse(AiInteractionLogger aiInteractionLogger) {
         return ExchangeFilterFunction.ofResponseProcessor(response -> {
             log.info("[AI STREAM HTTP] <-- status={} | contentType={}",
                     response.statusCode(), response.headers().contentType().orElse(null));
+            // SSE response body is too large/streamy to capture fully here.
+            // ChatService writes a LOGICAL response with the aggregated answer when streaming completes.
             return Mono.just(response);
         });
+    }
+
+    /**
+     * Reactive client request wrapper that buffers the outgoing body bytes so we can
+     * record them to the AI interaction log. Uses {@link DataBufferUtils#join} to safely
+     * combine all chunks into a single buffer regardless of underlying DataBuffer impl.
+     */
+    private static final class BodyCapturingHttpRequest extends ClientHttpRequestDecorator {
+        private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+
+        BodyCapturingHttpRequest(ClientHttpRequest delegate) {
+            super(delegate);
+        }
+
+        @Override
+        public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
+            return DataBufferUtils.join(Flux.from(body)).flatMap(joined -> {
+                copyToBuffer(joined);
+                return super.writeWith(Mono.just(joined));
+            });
+        }
+
+        @Override
+        public Mono<Void> writeAndFlushWith(Publisher<? extends Publisher<? extends DataBuffer>> body) {
+            return DataBufferUtils.join(Flux.from(body).flatMap(Flux::from)).flatMap(joined -> {
+                copyToBuffer(joined);
+                return super.writeWith(Mono.just(joined));
+            });
+        }
+
+        private void copyToBuffer(DataBuffer dataBuffer) {
+            try {
+                int n = dataBuffer.readableByteCount();
+                if (n <= 0) return;
+                byte[] copy = new byte[n];
+                ByteBuffer view = dataBuffer.toByteBuffer();
+                view.get(copy);
+                buffer.write(copy, 0, n);
+            } catch (Exception ignored) {
+            }
+        }
+
+        String getCapturedBody() {
+            return buffer.toString(StandardCharsets.UTF_8);
+        }
     }
 
     private String snippet(String value) {

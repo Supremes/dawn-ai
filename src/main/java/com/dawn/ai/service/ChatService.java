@@ -4,6 +4,8 @@ import com.dawn.ai.agent.orchestration.AgentOrchestrator;
 import com.dawn.ai.agent.orchestration.AgentResult;
 import com.dawn.ai.agent.planning.PlanStep;
 import com.dawn.ai.config.AiAvailabilityChecker;
+import com.dawn.ai.config.AiInteractionContext;
+import com.dawn.ai.config.AiInteractionLogger;
 import com.dawn.ai.dto.ChatRequest;
 import com.dawn.ai.dto.ChatResponse;
 import com.dawn.ai.sse.ChatStreamEvent;
@@ -34,6 +36,7 @@ public class ChatService {
     private final AiAvailabilityChecker aiAvailabilityChecker;
     private final ExecutorService chatStreamExecutor;
     private final ObjectMapper objectMapper;
+    private final AiInteractionLogger aiInteractionLogger;
 
     @Value("${app.ai.react.show-steps:false}")
     private boolean showSteps;
@@ -48,12 +51,14 @@ public class ChatService {
                        ChatClient chatClient,
                        AiAvailabilityChecker aiAvailabilityChecker,
                        @Qualifier("chatStreamExecutor") ExecutorService chatStreamExecutor,
-                       ObjectMapper objectMapper) {
+                       ObjectMapper objectMapper,
+                       AiInteractionLogger aiInteractionLogger) {
         this.agentOrchestrator = agentOrchestrator;
         this.chatClient = chatClient;
         this.aiAvailabilityChecker = aiAvailabilityChecker;
         this.chatStreamExecutor = chatStreamExecutor;
         this.objectMapper = objectMapper;
+        this.aiInteractionLogger = aiInteractionLogger;
     }
 
     public ChatResponse chat(ChatRequest request) {
@@ -67,17 +72,98 @@ public class ChatService {
 
         String userMessage = request.getMessage();
 
-        AgentResult result = agentOrchestrator.chat(sessionId, userMessage, request.getTopicId());
+        AiInteractionContext.setSessionId(sessionId);
+        writeLogicalChatRequest(sessionId, request, false);
+        try {
+            AgentResult result = agentOrchestrator.chat(sessionId, userMessage, request.getTopicId());
 
-        return ChatResponse.builder()
-                .sessionId(sessionId)
-                .answer(result.finalAnswer())
-                .steps(showSteps ? result.steps() : null)
-                .planSummary(formatPlanSummary(result.plan()))
-                .totalSteps(result.steps().size())
-                .durationMs(System.currentTimeMillis() - start)
-                .model(model)
-                .build();
+            ChatResponse response = ChatResponse.builder()
+                    .sessionId(sessionId)
+                    .answer(result.finalAnswer())
+                    .steps(showSteps ? result.steps() : null)
+                    .planSummary(formatPlanSummary(result.plan()))
+                    .totalSteps(result.steps().size())
+                    .durationMs(System.currentTimeMillis() - start)
+                    .model(model)
+                    .build();
+
+            writeLogicalSyncChatResponse(sessionId, result, response);
+            return response;
+        } finally {
+            AiInteractionContext.clear();
+        }
+    }
+
+    private void writeLogicalChatRequest(String sessionId, ChatRequest request, boolean stream) {
+        try {
+            String body = objectMapper.writeValueAsString(java.util.Map.of(
+                    "model", model,
+                    "stream", stream,
+                    "userMessage", request.getMessage(),
+                    "topicId", request.getTopicId() == null ? "" : request.getTopicId(),
+                    "sessionId", sessionId
+            ));
+            String label = (stream ? "Stream chat → " : "Sync chat → ") + truncate(request.getMessage(), 80);
+            aiInteractionLogger.logLogical(sessionId, "request", label, body, null);
+        } catch (Exception e) {
+            log.warn("[ChatService] failed to write logical request: {}", e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void writeLogicalChatResponse(String sessionId, Object doneData, long latencyMs) {
+        try {
+            java.util.Map<String, Object> data = doneData instanceof java.util.Map
+                    ? (java.util.Map<String, Object>) doneData
+                    : java.util.Map.of();
+            String answer = String.valueOf(data.getOrDefault("answer", ""));
+            String body = objectMapper.writeValueAsString(java.util.Map.of(
+                    "model", data.getOrDefault("model", model),
+                    "answer", answer,
+                    "totalSteps", data.getOrDefault("totalSteps", 0),
+                    "planSummary", data.getOrDefault("planSummary", ""),
+                    "durationMs", data.getOrDefault("durationMs", latencyMs)
+            ));
+            aiInteractionLogger.logLogical(sessionId, "response", "Stream chat answer", body, latencyMs);
+        } catch (Exception e) {
+            log.warn("[ChatService] failed to write logical response: {}", e.getMessage());
+        }
+    }
+
+    private void writeLogicalSyncChatResponse(String sessionId, AgentResult result, ChatResponse response) {
+        try {
+            String body = objectMapper.writeValueAsString(java.util.Map.of(
+                    "model", response.getModel() == null ? model : response.getModel(),
+                    "answer", result.finalAnswer() == null ? "" : result.finalAnswer(),
+                    "totalSteps", response.getTotalSteps(),
+                    "planSummary", response.getPlanSummary() == null ? "" : response.getPlanSummary(),
+                    "durationMs", response.getDurationMs()
+            ));
+            aiInteractionLogger.logLogical(sessionId, "response", "Sync chat answer", body, response.getDurationMs());
+        } catch (Exception e) {
+            log.warn("[ChatService] failed to write sync logical response: {}", e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void writeLogicalChatError(String sessionId, Object errorData) {
+        try {
+            java.util.Map<String, Object> data = errorData instanceof java.util.Map
+                    ? (java.util.Map<String, Object>) errorData
+                    : java.util.Map.of();
+            String body = objectMapper.writeValueAsString(java.util.Map.of(
+                    "code", data.getOrDefault("code", "ERROR"),
+                    "message", data.getOrDefault("message", "")
+            ));
+            aiInteractionLogger.logLogical(sessionId, "response", "Stream chat error", body, null);
+        } catch (Exception e) {
+            log.warn("[ChatService] failed to write logical error: {}", e.getMessage());
+        }
+    }
+
+    private String truncate(String s, int max) {
+        if (s == null) return "";
+        return s.length() <= max ? s : s.substring(0, max) + "…";
     }
 
     /** Simple one-shot chat without memory or tools */
@@ -125,15 +211,27 @@ public class ChatService {
 
         try {
             chatStreamExecutor.execute(() -> {
+                AiInteractionContext.setSessionId(sessionId);
+                long startedAt = System.currentTimeMillis();
+                writeLogicalChatRequest(sessionId, request, true);
                 try {
                     sendEvent(emitter, ChatStreamEvent.connected(sessionId, streamId), seqCounter);
                     agentOrchestrator.streamChat(sessionId, request.getMessage(), request.getTopicId(),
-                            event -> sendEvent(emitter, event, seqCounter),
+                            event -> {
+                                sendEvent(emitter, event, seqCounter);
+                                if ("done".equals(event.getEvent())) {
+                                    writeLogicalChatResponse(sessionId, event.getData(),
+                                            System.currentTimeMillis() - startedAt);
+                                } else if ("error".equals(event.getEvent())) {
+                                    writeLogicalChatError(sessionId, event.getData());
+                                }
+                            },
                             cancelled::get);
                 } catch (Exception e) {
                     log.error("[ChatService] Unexpected error in stream thread, sessionId={}", sessionId, e);
                     sendEvent(emitter, ChatStreamEvent.error(sessionId, "INTERNAL_ERROR", e.getMessage()), seqCounter);
                 } finally {
+                    AiInteractionContext.clear();
                     try { emitter.complete(); } catch (IllegalStateException ignored) {}
                 }
             });

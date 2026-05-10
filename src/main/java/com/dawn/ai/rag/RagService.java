@@ -1,6 +1,7 @@
 package com.dawn.ai.rag;
 
 import com.dawn.ai.config.AiAvailabilityChecker;
+import com.dawn.ai.memory.MemoryAccessUpdater;
 import com.dawn.ai.rag.ingestion.OverlapTextSplitter;
 import com.dawn.ai.rag.retrieval.fusion.ReciprocalRankFusion;
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
@@ -54,6 +55,7 @@ public class RagService {
     // application defines multiple ExecutorService beans and this dependency must
     // bind to the retrieval pool rather than relying on type-only resolution.
     private final ExecutorService ragRetrievalExecutor;
+    private final MemoryAccessUpdater memoryAccessUpdater;
 
     public RagService(VectorStore vectorStore,
                       MeterRegistry meterRegistry,
@@ -63,7 +65,8 @@ public class RagService {
                       ReciprocalRankFusion reciprocalRankFusion,
                       RetrievalRouter retrievalRouter,
                       DocumentTransformer splitter,
-                      @Qualifier("ragRetrievalExecutor") ExecutorService ragRetrievalExecutor) {
+                      @Qualifier("ragRetrievalExecutor") ExecutorService ragRetrievalExecutor,
+                      MemoryAccessUpdater memoryAccessUpdater) {
         this.vectorStore = vectorStore;
         this.meterRegistry = meterRegistry;
         this.aiAvailabilityChecker = aiAvailabilityChecker;
@@ -73,6 +76,7 @@ public class RagService {
         this.retrievalRouter = retrievalRouter;
         this.splitter = splitter;
         this.ragRetrievalExecutor = ragRetrievalExecutor;
+        this.memoryAccessUpdater = memoryAccessUpdater;
     }
 
     @Setter
@@ -205,6 +209,9 @@ public class RagService {
         log.info("[RagService] Retrieved {}/{} docs (strategy={}, threshold={}, filtered={}), query='{}', metadataFilters={}",
                 limited.size(), candidateCount, strategy, similarityThreshold, filteredOut,
                 retrievalRequest.getQuery(), retrievalRequest.getMetadataFilters());
+        // Async: refresh lastAccessedAt for memory docs (type=summary/reflection) that were hit.
+        // RAG knowledge docs have no 'type' field and are silently skipped inside the updater.
+        memoryAccessUpdater.updateAccessTime(limited);
         return limited;
     }
 

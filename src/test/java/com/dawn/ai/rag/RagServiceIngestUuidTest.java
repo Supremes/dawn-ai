@@ -1,6 +1,7 @@
 package com.dawn.ai.rag;
 
 import com.dawn.ai.config.AiAvailabilityChecker;
+import com.dawn.ai.memory.MemoryAccessUpdater;
 import com.dawn.ai.rag.ingestion.OverlapTextSplitter;
 import com.dawn.ai.rag.retrieval.RetrievalRouter;
 import com.dawn.ai.rag.retrieval.fusion.ReciprocalRankFusion;
@@ -24,6 +25,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -53,7 +55,8 @@ class RagServiceIngestUuidTest {
                 new ReciprocalRankFusion(),
                 new RetrievalRouter(),
                 new OverlapTextSplitter(4, 2),
-                ragRetrievalExecutor);
+                ragRetrievalExecutor,
+                mock(MemoryAccessUpdater.class));
         ragService.initMetrics();
     }
 
