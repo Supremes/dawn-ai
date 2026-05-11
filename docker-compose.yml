@@ -35,6 +35,9 @@ services:
       - LANGFUSE_OTLP_ENDPOINT=${LANGFUSE_OTLP_ENDPOINT:-http://langfuse-web:3000/api/public/otel/v1/traces}
       - LANGFUSE_AUTH_BASE64=${LANGFUSE_AUTH_BASE64}
       - LANGFUSE_ENVIRONMENT=${LANGFUSE_ENVIRONMENT:-dev}
+      # Set to false (or to `LANGFUSE_TRACING_ENABLED=false` in .env) when
+      # running without the `observe` profile, to silence OTLP exporter warns.
+      - MANAGEMENT_TRACING_ENABLED=${LANGFUSE_TRACING_ENABLED:-true}
     depends_on:
       postgres:
         condition: service_healthy
@@ -107,10 +110,16 @@ services:
     networks:
       - dawn-network
 
-  # ───────── Langfuse v3 (LLM observability) ─────────
+  # ───────── Langfuse v3 (LLM observability, opt-in profile) ─────────
+  # All services below are gated by `profiles: ["observe"]`. Daily dev:
+  #   docker compose up -d                    # business only, no Langfuse
+  # When you want traces:
+  #   docker compose --profile observe up -d  # adds the full Langfuse stack
   langfuse-postgres:
     image: postgres:16-alpine
+    profiles: ["observe"]
     restart: unless-stopped
+    mem_limit: 192m
     environment:
       POSTGRES_USER: langfuse
       POSTGRES_PASSWORD: langfuse123
@@ -129,8 +138,10 @@ services:
 
   langfuse-redis:
     image: redis:7-alpine
+    profiles: ["observe"]
     restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass langfuse123
+    mem_limit: 64m
+    command: redis-server --appendonly yes --requirepass langfuse123 --maxmemory 32mb --maxmemory-policy allkeys-lru
     volumes:
       - langfuse_redis_data:/data
     healthcheck:
@@ -143,13 +154,16 @@ services:
 
   clickhouse:
     image: clickhouse/clickhouse-server:24.3
+    profiles: ["observe"]
     restart: unless-stopped
+    mem_limit: 768m
     environment:
       CLICKHOUSE_USER: clickhouse
       CLICKHOUSE_PASSWORD: clickhouse123
       CLICKHOUSE_DB: default
     volumes:
       - clickhouse_data:/var/lib/clickhouse
+      - ./clickhouse/config.d:/etc/clickhouse-server/config.d:ro
     ulimits:
       nofile:
         soft: 262144
@@ -164,7 +178,9 @@ services:
 
   minio:
     image: minio/minio:latest
+    profiles: ["observe"]
     restart: unless-stopped
+    mem_limit: 256m
     command: server --address ":9000" --console-address ":9001" /data
     environment:
       MINIO_ROOT_USER: minio
@@ -183,6 +199,7 @@ services:
   # so the `langfuse` bucket must exist before ingestion succeeds.
   minio-init:
     image: minio/mc:latest
+    profiles: ["observe"]
     depends_on:
       minio: { condition: service_healthy }
     restart: "no"
@@ -197,7 +214,9 @@ services:
 
   langfuse-worker:
     image: langfuse/langfuse-worker:3
+    profiles: ["observe"]
     restart: unless-stopped
+    mem_limit: 384m
     depends_on:
       langfuse-postgres: { condition: service_healthy }
       langfuse-redis:    { condition: service_healthy }
@@ -205,6 +224,7 @@ services:
       minio:             { condition: service_healthy }
       minio-init:        { condition: service_completed_successfully }
     environment:
+      NODE_OPTIONS: "--max-old-space-size=320"
       DATABASE_URL: postgresql://langfuse:langfuse123@langfuse-postgres:5432/langfuse
       SALT: "dawn-langfuse-salt-change-me"
       ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
@@ -229,7 +249,9 @@ services:
 
   langfuse-web:
     image: langfuse/langfuse:3
+    profiles: ["observe"]
     restart: unless-stopped
+    mem_limit: 640m
     depends_on:
       langfuse-postgres: { condition: service_healthy }
       langfuse-redis:    { condition: service_healthy }
@@ -239,6 +261,7 @@ services:
     ports:
       - "3001:3000"
     environment:
+      NODE_OPTIONS: "--max-old-space-size=512"
       DATABASE_URL: postgresql://langfuse:langfuse123@langfuse-postgres:5432/langfuse
       NEXTAUTH_URL: http://localhost:3001
       NEXTAUTH_SECRET: "dawn-langfuse-nextauth-secret-change-me"

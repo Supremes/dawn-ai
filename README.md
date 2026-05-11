@@ -115,25 +115,49 @@ curl "http://localhost:8080/api/v1/rag/search?query=refund+policy&topK=3"
 
 ## 📊 Observability with Langfuse
 
-`docker compose up` brings up a self-hosted **Langfuse v3** stack alongside
-the app. Every Spring AI call (chat, embedding, vector-store, tool-call)
-is exported via OTLP to Langfuse — full prompt, completion, and tool I/O
-included.
+A self-hosted **Langfuse v3** stack ships in `docker-compose.yml` behind
+the **`observe`** profile. Every Spring AI call (chat, embedding,
+vector-store, tool-call) is exported via OTLP to Langfuse — full prompt,
+completion, and tool I/O included.
 
-### First run
+### Daily dev (no Langfuse, ~2.4 GB total)
 
 ```bash
 cp .env.example .env
-# (Optional) regenerate the auth header if you change keys:
-scripts/langfuse-auth-header.sh    # paste output into LANGFUSE_AUTH_BASE64
-
-docker compose up -d
+docker compose up -d                 # business services only
 ```
 
-The first start spins up `langfuse-postgres`, `clickhouse`, `langfuse-redis`,
-`minio`, a one-shot `minio-init` (creates the `langfuse` S3 bucket), then
-`langfuse-worker` and `langfuse-web`. Wait ~60 s for `langfuse-web` to
-become healthy.
+Set `LANGFUSE_TRACING_ENABLED=false` in `.env` to suppress OTLP exporter
+warnings while no Langfuse backend is running.
+
+### When you want traces (~3.2 GB total)
+
+```bash
+# (Optional) regenerate the auth header if you changed the keys:
+scripts/langfuse-auth-header.sh      # paste into LANGFUSE_AUTH_BASE64
+# Make sure LANGFUSE_TRACING_ENABLED=true in .env
+
+docker compose --profile observe up -d
+```
+
+The `observe` profile spins up `langfuse-postgres`, `clickhouse`,
+`langfuse-redis`, `minio`, a one-shot `minio-init` (creates the
+`langfuse` S3 bucket), then `langfuse-worker` and `langfuse-web`.
+Wait ~60 s for `langfuse-web` to become healthy.
+
+### Memory budget
+
+| Container | Limit (`mem_limit`) | Notes |
+|---|---:|---|
+| langfuse-web | 640 MB | Node `--max-old-space-size=512` |
+| clickhouse | 768 MB | Custom `clickhouse/config.d/low-memory.xml` caps caches |
+| langfuse-worker | 384 MB | Node `--max-old-space-size=320` |
+| minio | 256 MB | |
+| langfuse-postgres | 192 MB | |
+| langfuse-redis | 64 MB | `--maxmemory 32mb --maxmemory-policy allkeys-lru` |
+
+Hard caps make the dev VM behave; remove them for production and let
+ClickHouse auto-size against the host.
 
 Visit **http://localhost:3001** and log in:
 
@@ -159,6 +183,6 @@ The two are independent — Langfuse downtime never affects the app.
 
 Change `LANGFUSE_INIT_PROJECT_PUBLIC_KEY` and `_SECRET_KEY` in `.env`,
 re-run `scripts/langfuse-auth-header.sh`, paste the new value into
-`LANGFUSE_AUTH_BASE64`, then `docker compose up -d --force-recreate
-langfuse-web app`.
+`LANGFUSE_AUTH_BASE64`, then `docker compose --profile observe up -d
+--force-recreate langfuse-web app`.
 

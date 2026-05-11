@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!--
+  Tight memory caps for local-dev. Production should remove this file
+  and let ClickHouse auto-size against the host.
+    - max_server_memory_usage: hard ceiling, 512 MiB
+    - mark_cache_size:         128 MiB (default ~5 GiB)
+    - uncompressed_cache_size: disabled (Langfuse trace queries don't reuse blocks much)
+    - max_concurrent_queries:  16 (default 100)
+  NOTE: do NOT lower background_pool_size — it conflicts with ClickHouse's
+  mutation pool sanity check (number_of_free_entries_in_pool_to_execute_mutation
+  defaults to 20 and must be ≤ background_pool_size * mutations_concurrency_ratio).
+-->
+<clickhouse>
+    <max_server_memory_usage>536870912</max_server_memory_usage>
+    <mark_cache_size>134217728</mark_cache_size>
+    <uncompressed_cache_size>0</uncompressed_cache_size>
+    <max_concurrent_queries>16</max_concurrent_queries>
+    <!-- Force IPv4 listen. Docker default network often has IPv6 disabled,
+         which makes the default `[::]:9000` listen silently fail and
+         langfuse-web's clickhouse migration step hits "connection refused". -->
+    <listen_host>0.0.0.0</listen_host>
+</clickhouse>
