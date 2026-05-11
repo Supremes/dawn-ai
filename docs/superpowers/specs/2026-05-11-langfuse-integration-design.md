@@ -73,9 +73,9 @@ OpenTelemetry SDK + OTLP/HTTP Exporter
 | langfuse-web | `langfuse/langfuse:3` | **3001** | 3000 | Web UI + OTLP ingestion endpoint. Grafana already owns 3000. |
 | langfuse-worker | `langfuse/langfuse-worker:3` | – | – | Internal-only |
 | langfuse-postgres | `postgres:16-alpine` | 5433 | 5432 | Isolated from business `postgres` (5432) |
-| clickhouse | `clickhouse/clickhouse-server:24.3` | 8123 / 9000 | 8123 / 9000 | Required by Langfuse v3 |
-| langfuse-redis | `redis:7-alpine` | 6380 | 6379 | Isolated from business `redis` (6379) |
-| minio | `minio/minio:latest` | 9100 / 9101 | 9000 / 9001 | S3-compatible blob store |
+| clickhouse | `clickhouse/clickhouse-server:24.3` | – | 8123 / 9000 | **Internal-only** — only consumed by langfuse-web/worker, no host exposure to keep dev port surface small |
+| langfuse-redis | `redis:7-alpine` | – | 6379 | **Internal-only** — only consumed by langfuse stack |
+| minio | `minio/minio:latest` | – | 9000 / 9001 | **Internal-only** — only consumed by langfuse stack |
 
 All services join the existing `dawn-network` bridge. New named volumes:
 `langfuse_postgres_data`, `clickhouse_data`, `langfuse_redis_data`, `minio_data`.
@@ -112,6 +112,7 @@ management:
   otlp:
     tracing:
       endpoint: ${LANGFUSE_OTLP_ENDPOINT:http://localhost:3001/api/public/otel/v1/traces}
+      compression: gzip
       headers:
         Authorization: Basic ${LANGFUSE_AUTH_BASE64:}
 
@@ -139,26 +140,41 @@ spring:
 
 ### 7.1 `LangfuseObservationConfig` (new)
 
-A single `@Configuration` class registering one `ObservationFilter`:
+A single `@Configuration` class with two beans:
+
+**(a) Per-span session filter** — injects `session.id` from
+`AiInteractionContext` onto every observation:
 
 ```java
 @Bean
-ObservationFilter langfuseSessionFilter(
-        @Value("${langfuse.environment:dev}") String env) {
+ObservationFilter langfuseSessionFilter() {
     return ctx -> {
         String sid = AiInteractionContext.getSessionId();
         if (sid != null && !sid.isBlank()) {
             ctx.addLowCardinalityKeyValue(KeyValue.of("session.id", sid));
         }
-        ctx.addLowCardinalityKeyValue(KeyValue.of("langfuse.environment", env));
         return ctx;
     };
 }
 ```
 
-The filter mutates every `Observation.Context`; bridge converts low-cardinality
-KeyValues to OTel span attributes; Langfuse picks up `session.id` natively
-(documented Langfuse OTel attribute) to drive the **Sessions** view.
+**(b) Static resource attribute** — `langfuse.environment` is process-wide
+(not per-span), so it is set as an OTel **resource attribute** via the
+SDK customizer instead of polluting every span:
+
+```java
+@Bean
+OpenTelemetryConfigurer langfuseResourceCustomizer(
+        @Value("${langfuse.environment:dev}") String env) {
+    return otel -> otel.addResourceCustomizer((res, cfg) ->
+        res.merge(Resource.create(Attributes.of(
+            AttributeKey.stringKey("langfuse.environment"), env))));
+}
+```
+
+The bridge converts low-cardinality KeyValues to OTel span attributes;
+Langfuse picks up `session.id` natively (documented Langfuse OTel attribute)
+to drive the **Sessions** view.
 
 ### 7.2 No edits to existing classes
 
@@ -191,7 +207,7 @@ KeyValues to OTel span attributes; Langfuse picks up `session.id` natively
 |---------|----------|-----------|
 | Langfuse stack down | OTLP exporter retries with backoff, eventually drops spans. App requests **succeed**. | OTel SDK default behavior; explicit `otel.exporter.otlp.timeout=10s`. |
 | Wrong `LANGFUSE_AUTH_BASE64` | 401 from ingestion endpoint, spans dropped. | Logged at WARN once per minute (OTel internal logger). |
-| First-run bootstrap race | langfuse-web may need 30–60 s after pg/clickhouse ready. | App `depends_on: langfuse-web (service_started)` only — app does NOT block on healthy, so missing first traces are tolerated. |
+| First-run bootstrap race | langfuse-web may need 30–60 s after pg/clickhouse ready. | App **does NOT** declare `depends_on` on the Langfuse stack at all — observability failure must never block business boot. Early traces (before langfuse-web is up) are dropped silently by the OTel exporter. |
 | ClickHouse / MinIO disk full | langfuse-worker stops persisting | Out of scope for dev; documented in README. |
 
 ## 10. Documentation Changes
