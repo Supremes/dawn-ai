@@ -247,3 +247,139 @@ to drive the **Sessions** view.
 3. Existing users running `docker compose up` get the new stack
    automatically; opt-out is `docker compose up app postgres redis`
    (explicit service list).
+
+---
+
+## Appendix A — How Langfuse Integrates Without an Official Java SDK
+
+dawn-ai never imports a Langfuse client library. The integration is
+**protocol-level, not library-level**:
+
+```
+[1] Spring AI 1.1 auto-instruments ChatModel / Embedding / VectorStore /
+    Advisor / Tool calls via the Micrometer Observation API (built-in,
+    nothing for us to add).
+
+[2] micrometer-tracing-bridge-otel  translates Observation → OpenTelemetry Span.
+
+[3] opentelemetry-exporter-otlp     serializes Spans into OTLP
+    (HTTP + Protobuf, an open industry-standard protocol) and POSTs to
+    http://langfuse-web:3000/api/public/otel/v1/traces
+    Header: Authorization: Basic base64(public_key:secret_key)
+
+[4] Langfuse v3 server implements an OTLP-compatible ingestion endpoint
+    and decodes incoming OTel Spans into its internal
+    Trace / Observation / Generation model, persisted to ClickHouse.
+```
+
+**Why no SDK is needed**: Langfuse exposes itself as a standard OTLP
+trace backend. Any language with an OpenTelemetry exporter can talk to
+it. Analogous to: MySQL has no official Rust driver, but Rust programs
+connect because the MySQL Wire Protocol is public — clients only need
+to speak the protocol.
+
+**Caveat**: span attribute names must follow Langfuse's documented OTel
+semantic conventions (`session.id`, `gen_ai.usage.input_tokens`,
+`gen_ai.prompt`, …) for the UI to interpret them correctly. This is why
+§7.1 explicitly emits `session.id` via an `ObservationFilter` — Spring
+AI does not emit it by default.
+
+> Langfuse also offers a **private** ingestion API (`/api/public/ingestion`,
+> custom JSON) that *does* require an SDK to consume. We deliberately
+> avoid it; OTLP gives us the same coverage with zero proprietary deps.
+
+---
+
+## Appendix B — OTLP / Langfuse vs. Prometheus + Grafana
+
+The two stacks address **different pillars of observability** and stay
+side-by-side, **not as replacements for each other**.
+
+### B.1 Three pillars
+
+| Pillar | Data shape | Question it answers | Owned by |
+|--------|------------|---------------------|----------|
+| **Metrics** | time-series numerics (counter / histogram) | "How fast/stable overall? P99? error rate?" | **Prometheus + Grafana** (existing) |
+| **Traces** | causally-linked span tree + context | "Why was **this one** request slow / wrong / expensive? What prompt? Which tools?" | **OTLP → Langfuse** (new) |
+| Logs | structured text | "What exactly happened at the moment of failure?" | logback (not centralized yet) |
+
+### B.2 Topology after integration
+
+```
+                           dawn-ai (Spring Boot)
+                                   │
+                  ┌────────────────┴────────────────┐
+                  │ Micrometer (unified observation) │
+                  │  - MeterRegistry      (metrics)  │
+                  │  - ObservationRegistry (traces)  │
+                  └──────┬──────────────────┬────────┘
+                         │                  │
+              ┌──────────▼─────┐   ┌────────▼──────────────┐
+              │ Prometheus     │   │ tracing-bridge-otel   │
+              │ Registry       │   │   ↓                   │
+              │ (/actuator/    │   │ OTel SDK              │
+              │  prometheus)   │   │   ↓ OTLP/HTTP (push)  │
+              └────────┬───────┘   │                       │
+                       │ pull       └──────────┬────────────┘
+                       ▼                       ▼
+              ┌────────────────┐      ┌────────────────────┐
+              │ Prometheus TSDB│      │ Langfuse v3        │
+              └────────┬───────┘      │ (OTLP ingest +     │
+                       ▼              │  ClickHouse) + UI  │
+              ┌────────────────┐      └────────────────────┘
+              │ Grafana        │
+              └────────────────┘
+                       ↑                       ↑
+              "Trends, SLOs,             "Per-session deep-dive:
+               aggregated rates"          prompt, tool calls,
+                                          why slow / costly"
+```
+
+### B.3 OTLP vs. Prometheus protocol — clarifying overlap
+
+| Aspect | Prometheus | OTLP |
+|--------|------------|------|
+| Standard owner | Prometheus project (CNCF) | OpenTelemetry (CNCF) |
+| Direction | Server **pulls** `/metrics` from app | App **pushes** to collector / backend |
+| Carries metrics? | Yes (its only purpose) | Yes — but we don't use this leg |
+| Carries traces? | No | **Yes** — what we use |
+| Carries logs? | No | Yes (optional) |
+
+OTLP can theoretically replace Prometheus for metrics too (via OTel
+Collector → `prometheus_remote_write`), but we **deliberately don't**:
+existing metrics pipeline is healthy; refactoring it brings no value
+and risks regression. This integration touches **only the trace leg**.
+
+### B.4 Same instrumentation, two outputs
+
+A single piece of Micrometer instrumentation — e.g. Spring AI's
+`ChatModel` observation — feeds **both** sinks simultaneously:
+
+- the `MeterRegistry` side emits histogram → Prometheus → Grafana
+  ("LLM call latency P99");
+- the `ObservationRegistry` side emits a span → OTLP → Langfuse
+  ("here is the exact prompt and completion of THAT slow call").
+
+Zero double-instrumentation cost.
+
+### B.5 Operational division of labor (worked example)
+
+> User complains: "Today the bot is slow."
+>
+> 1. Open **Grafana** → spot a P99 spike between 14:30 – 14:45.
+> 2. Note from the same dashboard that token rate is normal but tool-call
+>    latency doubled.
+> 3. Switch to **Langfuse** → filter traces in that window, sort by
+>    duration → open one trace → see the offending tool span took 8 s,
+>    inspect its full input/output to identify the root cause (e.g.
+>    upstream API throttling).
+
+Grafana cannot show that single prompt; Langfuse cannot show
+fleet-wide trends. Each owns half the picture.
+
+### B.6 One-line analogy
+
+- **Prometheus + Grafana** = annual physical exam report (trends, alerts).
+- **Langfuse** = patient chart (full record of each consultation, replayable).
+
+Both are necessary; neither replaces the other.
