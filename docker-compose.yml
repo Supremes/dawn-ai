@@ -32,6 +32,9 @@ services:
       - SPRING_DATASOURCE_USERNAME=dawn
       - SPRING_DATASOURCE_PASSWORD=dawn123
       - SPRING_DATA_REDIS_HOST=redis
+      - LANGFUSE_OTLP_ENDPOINT=${LANGFUSE_OTLP_ENDPOINT:-http://langfuse-web:3000/api/public/otel/v1/traces}
+      - LANGFUSE_AUTH_BASE64=${LANGFUSE_AUTH_BASE64}
+      - LANGFUSE_ENVIRONMENT=${LANGFUSE_ENVIRONMENT:-dev}
     depends_on:
       postgres:
         condition: service_healthy
