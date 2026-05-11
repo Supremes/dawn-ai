@@ -179,6 +179,22 @@ services:
     networks:
       - dawn-network
 
+  # One-shot bucket creator. Langfuse v3 writes OTLP events to S3,
+  # so the `langfuse` bucket must exist before ingestion succeeds.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio: { condition: service_healthy }
+    restart: "no"
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minio minio12345 &&
+      mc mb -p local/langfuse || true &&
+      echo 'minio bucket ready'
+      "
+    networks:
+      - dawn-network
+
   langfuse-worker:
     image: langfuse/langfuse-worker:3
     restart: unless-stopped
@@ -187,6 +203,7 @@ services:
       langfuse-redis:    { condition: service_healthy }
       clickhouse:        { condition: service_healthy }
       minio:             { condition: service_healthy }
+      minio-init:        { condition: service_completed_successfully }
     environment:
       DATABASE_URL: postgresql://langfuse:langfuse123@langfuse-postgres:5432/langfuse
       SALT: "dawn-langfuse-salt-change-me"
@@ -218,6 +235,7 @@ services:
       langfuse-redis:    { condition: service_healthy }
       clickhouse:        { condition: service_healthy }
       minio:             { condition: service_healthy }
+      minio-init:        { condition: service_completed_successfully }
     ports:
       - "3001:3000"
     environment:

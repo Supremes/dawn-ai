@@ -55,14 +55,6 @@ spring:
         dimensions: ${EMBEDDING_DIMENSIONS:1024}
         initialize-schema: true
 
-    chat:
-      observations:
-        log-prompt: true
-        log-completion: true
-    tools:
-      observations:
-        include-content: true
-
 server:
   port: 8080
 
