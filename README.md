@@ -113,7 +113,52 @@ curl "http://localhost:8080/api/v1/rag/search?query=refund+policy&topK=3"
 | `MemoryService` | Redis-backed conversation history | Circular Buffer + TTL |
 | `RagService` | Vector similarity retrieval | MySQL Index Lookup |
 
+## 📊 Observability with Langfuse
 
+`docker compose up` brings up a self-hosted **Langfuse v3** stack alongside
+the app. Every Spring AI call (chat, embedding, vector-store, tool-call)
+is exported via OTLP to Langfuse — full prompt, completion, and tool I/O
+included.
 
+### First run
 
+```bash
+cp .env.example .env
+# (Optional) regenerate the auth header if you change keys:
+scripts/langfuse-auth-header.sh    # paste output into LANGFUSE_AUTH_BASE64
+
+docker compose up -d
+```
+
+The first start spins up `langfuse-postgres`, `clickhouse`, `langfuse-redis`,
+`minio`, a one-shot `minio-init` (creates the `langfuse` S3 bucket), then
+`langfuse-worker` and `langfuse-web`. Wait ~60 s for `langfuse-web` to
+become healthy.
+
+Visit **http://localhost:3001** and log in:
+
+| Field | Value (defaults from `.env.example`) |
+|---|---|
+| Email | `admin@dawn.local` |
+| Password | `dawn-admin-123` |
+
+The `dawn-ai` project is auto-created. New chats appear under **Tracing**
+within seconds; the **Sessions** tab groups traces by the `sessionId` you
+pass in the chat request body.
+
+### What goes where
+
+| Stack | Purpose | UI |
+|---|---|---|
+| **Prometheus + Grafana** (existing) | Aggregate metrics, RED, SLOs | http://localhost:3000 |
+| **Langfuse** (new) | Per-request traces, prompts, tool I/O | http://localhost:3001 |
+
+The two are independent — Langfuse downtime never affects the app.
+
+### Rotating keys / production
+
+Change `LANGFUSE_INIT_PROJECT_PUBLIC_KEY` and `_SECRET_KEY` in `.env`,
+re-run `scripts/langfuse-auth-header.sh`, paste the new value into
+`LANGFUSE_AUTH_BASE64`, then `docker compose up -d --force-recreate
+langfuse-web app`.
 
