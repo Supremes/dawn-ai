@@ -244,6 +244,9 @@ services:
       REDIS_HOST: langfuse-redis
       REDIS_PORT: 6379
       REDIS_AUTH: langfuse123
+      # Allow LLM connections to host-machine services (e.g. oMLX via host.docker.internal)
+      # Ref: https://github.com/langfuse/langfuse/pull/13073
+      LANGFUSE_LLM_CONNECTION_WHITELISTED_HOST: host.docker.internal
     networks:
       - dawn-network
 
@@ -292,6 +295,9 @@ services:
       LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:-admin@dawn.local}
       LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:-dawn-admin-123}
       LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME:-Dawn Admin}
+      # Allow LLM connections to host-machine services (e.g. oMLX via host.docker.internal)
+      # Ref: https://github.com/langfuse/langfuse/pull/13073
+      LANGFUSE_LLM_CONNECTION_WHITELISTED_HOST: host.docker.internal
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/public/health"]
       interval: 15s
