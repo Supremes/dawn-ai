@@ -29,3 +29,5 @@ logs/
 .obsidian/
 
 .venv-embedding/
+
+.claude
