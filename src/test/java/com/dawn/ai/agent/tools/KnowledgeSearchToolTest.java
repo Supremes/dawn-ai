@@ -2,6 +2,7 @@ package com.dawn.ai.agent.tools;
 
 import com.dawn.ai.agent.trace.StepCollector;
 import com.dawn.ai.rag.RagService;
+import com.dawn.ai.rag.query.HydeQueryGenerator;
 import com.dawn.ai.rag.query.QueryRewriter;
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -26,6 +27,7 @@ import static org.mockito.Mockito.when;
 class KnowledgeSearchToolTest {
 
     @Mock private QueryRewriter queryRewriter;
+    @Mock private HydeQueryGenerator hydeQueryGenerator;
     @Mock private RagService ragService;
 
     private KnowledgeSearchTool tool;
@@ -34,10 +36,14 @@ class KnowledgeSearchToolTest {
     @BeforeEach
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
-        tool = new KnowledgeSearchTool(queryRewriter, ragService, meterRegistry);
+        tool = new KnowledgeSearchTool(queryRewriter, hydeQueryGenerator, ragService, meterRegistry);
         tool.setDefaultTopK(5);
         tool.initMetrics();
         StepCollector.init(10);
+        // HyDE is disabled by default; mimic that by making generate() return its input unchanged.
+        org.mockito.Mockito.lenient()
+                .when(hydeQueryGenerator.generate(org.mockito.ArgumentMatchers.anyString()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @AfterEach

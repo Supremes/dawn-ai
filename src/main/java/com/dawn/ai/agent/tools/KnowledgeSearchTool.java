@@ -2,6 +2,7 @@ package com.dawn.ai.agent.tools;
 
 import com.dawn.ai.agent.trace.StepCollector;
 import com.dawn.ai.rag.RagService;
+import com.dawn.ai.rag.query.HydeQueryGenerator;
 import com.dawn.ai.rag.query.QueryRewriter;
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -38,6 +39,7 @@ import java.util.function.Function;
 public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request, KnowledgeSearchTool.Response> {
 
     private final QueryRewriter queryRewriter;
+    private final HydeQueryGenerator hydeQueryGenerator;
     private final RagService ragService;
     private final MeterRegistry meterRegistry;
 
@@ -83,7 +85,10 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
     @Override
     public Response apply(Request req) {
         String rewrittenQuery = queryRewriter.rewrite(req.query());
-        String retrievalKey = buildRetrievalKey(rewrittenQuery, req);
+        // HyDE: turn the (rewritten) keyword query into a hypothetical answer passage.
+        // When disabled, returns input unchanged. Failures fall back to input.
+        String retrievalQuery = hydeQueryGenerator.generate(rewrittenQuery);
+        String retrievalKey = buildRetrievalKey(retrievalQuery, req);
 
         if (StepCollector.isQueryRetrieved(retrievalKey)) {
             dedupCounter.increment();
@@ -94,7 +99,7 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
 
         Map<String, List<String>> appliedFilters = buildMetadataFilters(req);
         List<Document> docs = ragService.retrieve(RetrievalRequest.builder()
-                .query(rewrittenQuery)
+                .query(retrievalQuery)
                 .topK(defaultTopK)
                 .metadataFilters(appliedFilters)
                 .build());
@@ -104,13 +109,13 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
         if (docs.isEmpty() && !appliedFilters.isEmpty()) {
             log.warn("[KnowledgeSearchTool] 0 results with filters={}, retrying without metadata filters", appliedFilters);
             docs = ragService.retrieve(RetrievalRequest.builder()
-                    .query(rewrittenQuery)
+                    .query(retrievalQuery)
                     .topK(defaultTopK)
                     .build());
         }
 
-        log.debug("[KnowledgeSearchTool] query='{}' → rewritten='{}', docsFound={}",
-                req.query(), rewrittenQuery, docs.size());
+        log.debug("[KnowledgeSearchTool] query='{}' → rewritten='{}', retrieval='{}', docsFound={}",
+                req.query(), rewrittenQuery, retrievalQuery, docs.size());
 
         return new Response(formatContext(docs), docs.size());
     }

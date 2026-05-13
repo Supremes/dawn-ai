@@ -21,17 +21,19 @@ import static org.mockito.Mockito.*;
 class KnowledgeSearchToolTopicTest {
 
     @Mock private com.dawn.ai.rag.query.QueryRewriter queryRewriter;
+    @Mock private com.dawn.ai.rag.query.HydeQueryGenerator hydeQueryGenerator;
     @Mock private RagService ragService;
 
     private KnowledgeSearchTool tool;
 
     @BeforeEach
     void setUp() {
-        tool = new KnowledgeSearchTool(queryRewriter, ragService, new SimpleMeterRegistry());
+        tool = new KnowledgeSearchTool(queryRewriter, hydeQueryGenerator, ragService, new SimpleMeterRegistry());
         tool.setDefaultTopK(5);
         tool.initMetrics();
         StepCollector.init(10);
         when(queryRewriter.rewrite(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(hydeQueryGenerator.generate(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
     @Test
