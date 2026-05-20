@@ -1,0 +1,272 @@
+# docker-compose.observe.yml
+# 可观测能力 overlay —— 全部 opt-in，无副作用。
+#
+# 两个独立 profile：
+#   --profile metrics  → Prometheus + Grafana（基础设施 / JVM / HTTP 指标）
+#   --profile observe  → Langfuse 全家桶（LLM trace / prompt / tool I/O）
+#
+# 用法（与主 compose 叠加）：
+#   docker compose -f docker-compose.yml -f docker-compose.observe.yml --profile metrics up -d
+#   docker compose -f docker-compose.yml -f docker-compose.observe.yml --profile observe up -d
+#   docker compose -f docker-compose.yml -f docker-compose.observe.yml --profile metrics --profile observe up -d
+#
+# 关闭：同样的 -f / --profile 组合后跟 `down`。
+#
+# 内存预算（dev 单租户，Mac 24GB）：
+#   metrics profile：prometheus 192m + grafana 256m ≈ 448 MB
+#   observe profile：langfuse-postgres 320 + langfuse-redis 64 + clickhouse 700
+#                    + minio 256 + langfuse-worker 320 + langfuse-web 480 ≈ 2.14 GB
+
+services:
+  # ─── 覆盖主 compose 的 app：observe profile 启用时强制 tracing=true ──
+  # service-merge 时，environment mapping 的同名 key 会覆盖主文件 list 中的值；
+  # 没有 observe 服务被启动时（仅 --profile metrics），该覆盖无副作用。
+  app:
+    environment:
+      MANAGEMENT_TRACING_ENABLED: "${MANAGEMENT_TRACING_ENABLED:-true}"
+
+  # ───────── metrics profile ─────────
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    profiles: ["metrics"]
+    restart: unless-stopped
+    mem_limit: 192m
+    mem_reservation: 96m
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - dawn-network
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    profiles: ["metrics"]
+    restart: unless-stopped
+    mem_limit: 256m
+    mem_reservation: 128m
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - dawn-network
+
+  # ───────── observe profile (Langfuse v3) ─────────
+  langfuse-postgres:
+    image: postgres:16-alpine
+    profiles: ["observe"]
+    restart: unless-stopped
+    mem_limit: 320m
+    mem_reservation: 192m
+    command: >
+      postgres -c shared_buffers=96MB
+               -c max_connections=50
+               -c effective_cache_size=192MB
+               -c work_mem=4MB
+    environment:
+      POSTGRES_USER: langfuse
+      POSTGRES_PASSWORD: langfuse123
+      POSTGRES_DB: langfuse
+    volumes:
+      - langfuse_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse -d langfuse"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - dawn-network
+
+  langfuse-redis:
+    image: redis:7-alpine
+    profiles: ["observe"]
+    restart: unless-stopped
+    mem_limit: 64m
+    mem_reservation: 32m
+    command: redis-server --appendonly yes --requirepass langfuse123 --maxmemory 32mb --maxmemory-policy allkeys-lru
+    volumes:
+      - langfuse_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "langfuse123", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - dawn-network
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    profiles: ["observe"]
+    restart: unless-stopped
+    mem_limit: 700m
+    mem_reservation: 512m
+    environment:
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse123
+      CLICKHOUSE_DB: default
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./clickhouse/config.d:/etc/clickhouse-server/config.d:ro
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --user clickhouse --password clickhouse123 --query 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - dawn-network
+
+  minio:
+    image: minio/minio:latest
+    profiles: ["observe"]
+    restart: unless-stopped
+    mem_limit: 256m
+    mem_reservation: 128m
+    command: server --address ":9000" --console-address ":9001" /data
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio12345
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - dawn-network
+
+  # One-shot bucket creator. Langfuse v3 writes OTLP events to S3,
+  # so the `langfuse` bucket must exist before ingestion succeeds.
+  minio-init:
+    image: minio/mc:latest
+    profiles: ["observe"]
+    depends_on:
+      minio: { condition: service_healthy }
+    restart: "no"
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minio minio12345 &&
+      mc mb -p local/langfuse || true &&
+      echo 'minio bucket ready'
+      "
+    networks:
+      - dawn-network
+
+  langfuse-worker:
+    image: langfuse/langfuse-worker:3
+    profiles: ["observe"]
+    restart: unless-stopped
+    mem_limit: 320m
+    mem_reservation: 192m
+    depends_on:
+      langfuse-postgres: { condition: service_healthy }
+      langfuse-redis:    { condition: service_healthy }
+      clickhouse:        { condition: service_healthy }
+      minio:             { condition: service_healthy }
+      minio-init:        { condition: service_completed_successfully }
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=256"
+      DATABASE_URL: postgresql://langfuse:langfuse123@langfuse-postgres:5432/langfuse
+      SALT: "dawn-langfuse-salt-change-me"
+      ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+      TELEMETRY_ENABLED: "false"
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse123
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: minio
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: minio12345
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_EVENT_UPLOAD_PREFIX: "events/"
+      REDIS_HOST: langfuse-redis
+      REDIS_PORT: 6379
+      REDIS_AUTH: langfuse123
+      # Allow LLM connections to host-machine services (e.g. oMLX via host.docker.internal)
+      # Ref: https://github.com/langfuse/langfuse/pull/13073
+      LANGFUSE_LLM_CONNECTION_WHITELISTED_HOST: host.docker.internal
+    networks:
+      - dawn-network
+
+  langfuse-web:
+    image: langfuse/langfuse:3
+    profiles: ["observe"]
+    restart: unless-stopped
+    mem_limit: 480m
+    mem_reservation: 320m
+    depends_on:
+      langfuse-postgres: { condition: service_healthy }
+      langfuse-redis:    { condition: service_healthy }
+      clickhouse:        { condition: service_healthy }
+      minio:             { condition: service_healthy }
+      minio-init:        { condition: service_completed_successfully }
+    ports:
+      - "3001:3000"
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=384"
+      DATABASE_URL: postgresql://langfuse:langfuse123@langfuse-postgres:5432/langfuse
+      NEXTAUTH_URL: http://localhost:3001
+      NEXTAUTH_SECRET: "dawn-langfuse-nextauth-secret-change-me"
+      SALT: "dawn-langfuse-salt-change-me"
+      ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+      TELEMETRY_ENABLED: "false"
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse123
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: minio
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: minio12345
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_EVENT_UPLOAD_PREFIX: "events/"
+      REDIS_HOST: langfuse-redis
+      REDIS_PORT: 6379
+      REDIS_AUTH: langfuse123
+      LANGFUSE_INIT_ORG_ID: ${LANGFUSE_INIT_ORG_ID:-dawn-ai}
+      LANGFUSE_INIT_ORG_NAME: ${LANGFUSE_INIT_ORG_NAME:-Dawn AI}
+      LANGFUSE_INIT_PROJECT_ID: ${LANGFUSE_INIT_PROJECT_ID:-dawn-ai}
+      LANGFUSE_INIT_PROJECT_NAME: ${LANGFUSE_INIT_PROJECT_NAME:-dawn-ai}
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:-pk-lf-dawn-dev}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY:-sk-lf-dawn-dev}
+      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:-admin@dawn.local}
+      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:-dawn-admin-123}
+      LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME:-Dawn Admin}
+      # Allow LLM connections to host-machine services (e.g. oMLX via host.docker.internal)
+      # Ref: https://github.com/langfuse/langfuse/pull/13073
+      LANGFUSE_LLM_CONNECTION_WHITELISTED_HOST: host.docker.internal
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/public/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    networks:
+      - dawn-network
+
+volumes:
+  grafana_data:
+  langfuse_postgres_data:
+  langfuse_redis_data:
+  clickhouse_data:
+  minio_data:
+
+networks:
+  dawn-network:
+    driver: bridge

@@ -58,7 +58,7 @@ spring:
 server:
   port: 8080
 
-# Actuator & Prometheus Metrics
+# Actuator & Prometheus Metrics + OTLP tracing → Langfuse
 management:
   endpoints:
     web:
@@ -71,6 +71,15 @@ management:
     export:
       prometheus:
         enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: ${LANGFUSE_OTLP_ENDPOINT:http://localhost:3001/api/public/otel/v1/traces}
+      compression: gzip
+      headers:
+        Authorization: Basic ${LANGFUSE_AUTH_BASE64:}
 
 # Application config
 app:
@@ -131,3 +140,7 @@ logging:
     org.springframework.ai: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36}:%line - %msg%n"
+
+# Langfuse environment label, attached as OTel resource attribute
+langfuse:
+  environment: ${LANGFUSE_ENVIRONMENT:dev}

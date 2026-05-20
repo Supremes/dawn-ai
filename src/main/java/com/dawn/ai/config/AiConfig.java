@@ -20,7 +20,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.BufferingClientHttpRequestFactory;
 import org.springframework.http.client.ClientHttpResponse;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.http.client.reactive.ClientHttpRequest;
 import org.springframework.http.client.reactive.ClientHttpRequestDecorator;
 import org.springframework.web.reactive.function.BodyInserter;
@@ -94,9 +94,21 @@ public class AiConfig {
             String responseBodyText = new String(responseBody, resolveCharset(response.getHeaders()));
             AiSyncResponseCapture.set(responseBodyText);
 
-            log.info("[AI HTTP] <-- status={} | {}", response.getStatusCode(), summarizeResponseBody(responseBodyText));
-            if (log.isDebugEnabled()) {
-                log.debug("[AI HTTP] <-- response body detail:\n{}", formatDebugResponseBody(responseBodyText));
+            if (response.getStatusCode().isError()) {
+                // Failure path: dump full request + response so the upstream rejection reason is
+                // visible in logs instead of being swallowed inside the IOException wrapper.
+                log.error("[AI HTTP] <-- ERROR status={} latencyMs={} url={} {}\nrequestBody={}\nresponseBody={}",
+                        response.getStatusCode(),
+                        latency,
+                        request.getMethod(),
+                        request.getURI(),
+                        reqBodyText,
+                        responseBodyText);
+            } else {
+                log.info("[AI HTTP] <-- status={} | {}", response.getStatusCode(), summarizeResponseBody(responseBodyText));
+                if (log.isDebugEnabled()) {
+                    log.debug("[AI HTTP] <-- response body detail:\n{}", formatDebugResponseBody(responseBodyText));
+                }
             }
             aiInteractionLogger.logResponse(sessionId, response.getStatusCode().value(), responseBodyText, latency);
 
@@ -104,7 +116,7 @@ public class AiConfig {
         };
 
         return RestClient.builder()
-                .requestFactory(new BufferingClientHttpRequestFactory(new SimpleClientHttpRequestFactory()))
+                .requestFactory(new BufferingClientHttpRequestFactory(new JdkClientHttpRequestFactory()))
                 .requestInterceptor(loggingInterceptor);
     }
 
