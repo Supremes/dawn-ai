@@ -27,7 +27,14 @@ COPY --from=builder /build/target/dawn-ai-1.0.0-SNAPSHOT.jar app.jar
 
 EXPOSE 8080 5005
 
-ENV JAVA_OPTS="-Xms256m -Xmx512m -XX:+UseG1GC"
+# Container-aware heap：跟随 docker `mem_limit` 自动伸缩，无需改两处。
+#   - MaxRAMPercentage=70  →  768m 容器 → ~538m 堆，留 ~230m 给 Metaspace/CodeCache/线程栈/RSS
+#   - SerialGC：小堆（< 2 GB）下比 G1 省 ~30-50MB region 开销，dev 不关心 pause
+#   - MaxMetaspaceSize / ReservedCodeCacheSize：封顶防漏，避免 cgroup OOMKill
+#   - ExitOnOutOfMemoryError：早失败比僵尸进程更易诊断
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=70 -XX:InitialRAMPercentage=20 \
+               -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m \
+               -XX:ReservedCodeCacheSize=64m -XX:+ExitOnOutOfMemoryError"
 ENV JAVA_DEBUG_OPTS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS $JAVA_DEBUG_OPTS -jar app.jar"]

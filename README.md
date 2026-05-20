@@ -113,76 +113,81 @@ curl "http://localhost:8080/api/v1/rag/search?query=refund+policy&topK=3"
 | `MemoryService` | Redis-backed conversation history | Circular Buffer + TTL |
 | `RagService` | Vector similarity retrieval | MySQL Index Lookup |
 
-## 📊 Observability with Langfuse
+## 📊 Observability
 
-A self-hosted **Langfuse v3** stack ships in `docker-compose.yml` behind
-the **`observe`** profile. Every Spring AI call (chat, embedding,
-vector-store, tool-call) is exported via OTLP to Langfuse — full prompt,
-completion, and tool I/O included.
+可观测能力分两条独立线，全部走 **`docker-compose.observe.yml`** overlay 文件，
+按需 opt-in，互不依赖：
 
-### Daily dev (no Langfuse, ~2.4 GB total)
+| Profile | 启动的容器 | 用途 | UI |
+|---|---|---|---|
+| `--profile metrics` | `prometheus` + `grafana` | JVM / HTTP / 业务指标 | http://localhost:3000 |
+| `--profile observe` | `langfuse-*` + `clickhouse` + `minio` 等 7 个 | LLM trace / prompt / tool I/O | http://localhost:3001 |
 
-```bash
-cp .env.example .env
-docker compose up -d                 # business services only
-```
-
-Set `LANGFUSE_TRACING_ENABLED=false` in `.env` to suppress OTLP exporter
-warnings while no Langfuse backend is running.
-
-### When you want traces (~3.2 GB total)
+### 启动命令矩阵
 
 ```bash
-# (Optional) regenerate the auth header if you changed the keys:
-scripts/langfuse-auth-header.sh      # paste into LANGFUSE_AUTH_BASE64
-# Make sure LANGFUSE_TRACING_ENABLED=true in .env
+# 业务最小（仅 app + postgres + redis，~1.1 GB）
+docker compose up -d
 
-docker compose --profile observe up -d
+# + 监控
+docker compose -f docker-compose.yml -f docker-compose.observe.yml --profile metrics up -d
+
+# + Langfuse（首次启动等 ~60s 让 langfuse-web 健康）
+docker compose -f docker-compose.yml -f docker-compose.observe.yml --profile observe up -d
+
+# 全开
+docker compose -f docker-compose.yml -f docker-compose.observe.yml \
+  --profile metrics --profile observe up -d
 ```
 
-The `observe` profile spins up `langfuse-postgres`, `clickhouse`,
-`langfuse-redis`, `minio`, a one-shot `minio-init` (creates the
-`langfuse` S3 bucket), then `langfuse-worker` and `langfuse-web`.
-Wait ~60 s for `langfuse-web` to become healthy.
+> **Tracing 总开关**：`MANAGEMENT_TRACING_ENABLED`（Spring Boot 原生 `management.tracing.enabled`）。
+> 主 compose 默认 `false`；叠加 `-f docker-compose.observe.yml` 时 overlay 会把它覆盖为 `true`。
+> 想强制覆盖时在 `.env` 里设置即可。⚠️ 这是整个 Spring Tracing 子系统的开关，
+> 关掉它所有 `@Observed` 和 OTLP exporter（不限后端）都会失效。
+>
+> **Corner case**：单用 `--profile metrics`（叠加了 overlay 但没启 langfuse-web）时
+> tracing 仍被自动开为 `true`，会持续 OTLP warn。此时在 `.env` 里显式
+> `MANAGEMENT_TRACING_ENABLED=false` 静默即可。
 
-### Memory budget
+### 内存预算
 
-| Container | Limit (`mem_limit`) | Notes |
+| 容器 | mem_limit | 备注 |
 |---|---:|---|
-| langfuse-web | 640 MB | Node `--max-old-space-size=512` |
-| clickhouse | 768 MB | Custom `clickhouse/config.d/low-memory.xml` caps caches |
-| langfuse-worker | 384 MB | Node `--max-old-space-size=320` |
-| minio | 256 MB | |
-| langfuse-postgres | 192 MB | |
-| langfuse-redis | 64 MB | `--maxmemory 32mb --maxmemory-policy allkeys-lru` |
+| **app** | 768 MB | JVM `MaxRAMPercentage=70` + SerialGC |
+| postgres | 256 MB | `shared_buffers=64MB max_connections=50` |
+| redis | 96 MB | `maxmemory 48mb allkeys-lru` |
+| prometheus | 192 MB | metrics profile |
+| grafana | 256 MB | metrics profile |
+| langfuse-web | 480 MB | Node `--max-old-space-size=384` |
+| clickhouse | 700 MB | `clickhouse/config.d/low-memory.xml` 收紧 caches |
+| langfuse-worker | 320 MB | Node `--max-old-space-size=256` |
+| langfuse-postgres | 320 MB | observe profile |
+| minio | 256 MB | observe profile |
+| langfuse-redis | 64 MB | `maxmemory 32mb` |
 
-Hard caps make the dev VM behave; remove them for production and let
-ClickHouse auto-size against the host.
+业务 ≈ 1.1 GB；+metrics ≈ 1.6 GB；+observe ≈ 3.3 GB；全开 ≈ 3.7 GB。
+生产环境删 `mem_limit` 让 ClickHouse 等组件自适应宿主机。
 
-Visit **http://localhost:3001** and log in:
+### Langfuse 登录
+
+Visit **http://localhost:3001**：
 
 | Field | Value (defaults from `.env.example`) |
 |---|---|
 | Email | `admin@dawn.local` |
 | Password | `dawn-admin-123` |
 
-The `dawn-ai` project is auto-created. New chats appear under **Tracing**
-within seconds; the **Sessions** tab groups traces by the `sessionId` you
-pass in the chat request body.
-
-### What goes where
-
-| Stack | Purpose | UI |
-|---|---|---|
-| **Prometheus + Grafana** (existing) | Aggregate metrics, RED, SLOs | http://localhost:3000 |
-| **Langfuse** (new) | Per-request traces, prompts, tool I/O | http://localhost:3001 |
-
-The two are independent — Langfuse downtime never affects the app.
+`dawn-ai` 项目自动创建。新会话几秒后出现在 **Tracing**；**Sessions** 标签按
+你传入的 `sessionId` 聚合。
 
 ### Rotating keys / production
 
 Change `LANGFUSE_INIT_PROJECT_PUBLIC_KEY` and `_SECRET_KEY` in `.env`,
 re-run `scripts/langfuse-auth-header.sh`, paste the new value into
-`LANGFUSE_AUTH_BASE64`, then `docker compose --profile observe up -d
---force-recreate langfuse-web app`.
+`LANGFUSE_AUTH_BASE64`, then:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.observe.yml \
+  --profile observe up -d --force-recreate langfuse-web app
+```
 
