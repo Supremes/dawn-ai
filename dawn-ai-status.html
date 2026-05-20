@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Dawn AI — Project Status</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#000;
+    --bg-elev:#0a0a0a;
+    --bg-card:#0f0f0f;
+    --border:#1f1f1f;
+    --border-strong:#2a2a2a;
+    --fg:#fafafa;
+    --fg-2:#a1a1a1;
+    --fg-3:#666;
+    --accent:#fff;
+    --success:#0bda51;
+    --warn:#f5a623;
+    --danger:#ff4d4d;
+    --link:#52a8ff;
+    --grad-1:#7c3aed;
+    --grad-2:#06b6d4;
+    --grad-3:#ec4899;
+    --radius:10px;
+    --radius-lg:14px;
+    --mono:"Geist Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    --sans:"Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:var(--sans);font-feature-settings:"ss01","cv11";-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  a{color:var(--link);text-decoration:none}
+  a:hover{text-decoration:underline}
+  ::selection{background:#fff;color:#000}
+
+  /* ---------- layout ---------- */
+  .wrap{max-width:1180px;margin:0 auto;padding:0 32px}
+  header.nav{position:sticky;top:0;z-index:50;backdrop-filter:saturate(140%) blur(12px);background:rgba(0,0,0,.7);border-bottom:1px solid var(--border)}
+  header.nav .wrap{display:flex;align-items:center;justify-content:space-between;height:60px}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.01em}
+  .logo svg{width:22px;height:22px}
+  .nav-links{display:flex;gap:22px;font-size:13px;color:var(--fg-2)}
+  .nav-links a{color:var(--fg-2)}
+  .nav-links a:hover{color:var(--fg);text-decoration:none}
+  .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border-strong);border-radius:999px;padding:4px 10px;font-size:11px;color:var(--fg-2);font-family:var(--mono)}
+  .pill .dot{width:6px;height:6px;border-radius:50%;background:var(--success);box-shadow:0 0 8px var(--success)}
+
+  /* ---------- hero ---------- */
+  .hero{position:relative;padding:120px 0 80px;overflow:hidden;border-bottom:1px solid var(--border)}
+  .hero-glow{position:absolute;inset:0;pointer-events:none;background:
+    radial-gradient(600px 300px at 20% 10%, rgba(124,58,237,.18), transparent 60%),
+    radial-gradient(500px 280px at 85% 30%, rgba(6,182,212,.15), transparent 60%),
+    radial-gradient(700px 400px at 50% 100%, rgba(236,72,153,.10), transparent 60%);
+    z-index:0}
+  .hero .wrap{position:relative;z-index:1}
+  .eyebrow{font-family:var(--mono);font-size:12px;color:var(--fg-2);letter-spacing:.04em;text-transform:uppercase;margin-bottom:24px;display:flex;align-items:center;gap:10px}
+  .eyebrow .line{flex:0 0 36px;height:1px;background:var(--border-strong)}
+  h1{font-size:clamp(48px,7vw,96px);line-height:.95;letter-spacing:-.045em;font-weight:700;margin:0 0 28px;background:linear-gradient(180deg,#fff 30%,#888 110%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lede{font-size:20px;line-height:1.55;color:var(--fg-2);max-width:760px;margin:0 0 40px}
+  .lede b{color:var(--fg);font-weight:500}
+  .hero-meta{display:flex;flex-wrap:wrap;gap:10px}
+  .meta-chip{font-family:var(--mono);font-size:12px;color:var(--fg-2);border:1px solid var(--border-strong);padding:6px 12px;border-radius:6px;background:var(--bg-elev)}
+  .meta-chip b{color:var(--fg);font-weight:500;margin-right:6px}
+
+  /* ---------- section ---------- */
+  section{padding:96px 0;border-bottom:1px solid var(--border)}
+  .section-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:48px;gap:32px;flex-wrap:wrap}
+  .section-head h2{font-size:clamp(32px,4vw,52px);letter-spacing:-.03em;font-weight:600;margin:0;line-height:1}
+  .section-head .kicker{font-family:var(--mono);font-size:11px;color:var(--fg-3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px;display:block}
+  .section-head .desc{color:var(--fg-2);font-size:15px;max-width:520px;line-height:1.6}
+
+  /* ---------- cards ---------- */
+  .grid{display:grid;gap:16px}
+  .g-2{grid-template-columns:repeat(2,1fr)}
+  .g-3{grid-template-columns:repeat(3,1fr)}
+  .g-4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:880px){.g-2,.g-3,.g-4{grid-template-columns:1fr}}
+  .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;position:relative;overflow:hidden;transition:border-color .15s ease,transform .15s ease}
+  .card:hover{border-color:var(--border-strong)}
+  .card h3{font-size:16px;margin:0 0 8px;font-weight:600;letter-spacing:-.01em}
+  .card .sub{font-family:var(--mono);font-size:11px;color:var(--fg-3);letter-spacing:.04em;text-transform:uppercase;margin-bottom:14px;display:block}
+  .card p{margin:0;color:var(--fg-2);font-size:14px;line-height:1.6}
+  .card .num{font-size:44px;font-weight:600;letter-spacing:-.03em;line-height:1;margin:8px 0 6px;font-family:var(--sans);background:linear-gradient(180deg,#fff,#888);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+  /* ---------- tech stack grid ---------- */
+  .stack-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
+  @media(max-width:880px){.stack-grid{grid-template-columns:repeat(2,1fr)}}
+  .stack-cell{background:var(--bg-card);padding:24px;min-height:120px;display:flex;flex-direction:column;justify-content:space-between;transition:background .15s ease}
+  .stack-cell:hover{background:#141414}
+  .stack-cell .cat{font-family:var(--mono);font-size:10px;color:var(--fg-3);letter-spacing:.1em;text-transform:uppercase}
+  .stack-cell .name{font-size:18px;font-weight:600;letter-spacing:-.015em;margin-top:auto}
+  .stack-cell .ver{font-family:var(--mono);font-size:12px;color:var(--fg-2);margin-top:4px}
+
+  /* ---------- ascii / diagrams ---------- */
+  pre.ascii{font-family:var(--mono);font-size:12px;line-height:1.55;color:var(--fg);background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;overflow:auto;margin:0}
+  pre.ascii .accent{color:var(--grad-2)}
+  pre.ascii .accent2{color:var(--grad-3)}
+  pre.ascii .accent3{color:var(--grad-1)}
+  pre.ascii .dim{color:var(--fg-3)}
+
+  /* ---------- flow boxes ---------- */
+  .flow{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding-bottom:8px;scrollbar-width:thin}
+  .flow .step{min-width:180px;flex:1;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;display:flex;flex-direction:column;gap:6px}
+  .flow .step + .step{margin-left:-1px;border-left:1px dashed var(--border-strong)}
+  .flow .step .n{font-family:var(--mono);font-size:11px;color:var(--fg-3)}
+  .flow .step .t{font-size:14px;font-weight:600;letter-spacing:-.01em}
+  .flow .step .d{font-size:12px;color:var(--fg-2);line-height:1.5}
+  .flow .arrow{align-self:center;color:var(--fg-3);font-family:var(--mono);font-size:14px;padding:0 4px}
+
+  /* ---------- table ---------- */
+  table.t{width:100%;border-collapse:collapse;font-size:13px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
+  table.t th,table.t td{padding:12px 16px;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}
+  table.t th{font-family:var(--mono);font-size:11px;color:var(--fg-3);letter-spacing:.06em;text-transform:uppercase;font-weight:500;background:#0a0a0a}
+  table.t tr:last-child td{border-bottom:0}
+  table.t td code,table.t td .mono{font-family:var(--mono);font-size:12px;color:var(--fg);background:#181818;padding:2px 6px;border-radius:4px}
+  table.t td .num{font-family:var(--mono);color:var(--grad-2)}
+  table.t tbody tr:hover{background:#141414}
+
+  /* ---------- two-col split (Plan vs ReAct) ---------- */
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:880px){.split{grid-template-columns:1fr}}
+  .panel{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;position:relative;overflow:hidden}
+  .panel .tag{position:absolute;top:18px;right:18px;font-family:var(--mono);font-size:10px;color:var(--fg-3);letter-spacing:.1em;text-transform:uppercase}
+  .panel h3{font-size:24px;margin:0 0 6px;letter-spacing:-.02em;font-weight:600}
+  .panel .role{font-family:var(--mono);font-size:12px;color:var(--fg-2);margin-bottom:20px}
+  .panel ul{margin:0;padding:0 0 0 18px;color:var(--fg-2);font-size:14px;line-height:1.7}
+  .panel ul li::marker{color:var(--fg-3)}
+  .panel.plan{background:linear-gradient(180deg,#0f0a1a 0%,#0a0a0a 60%);border-color:#2a1a4a}
+  .panel.react{background:linear-gradient(180deg,#001a18 0%,#0a0a0a 60%);border-color:#0a4a45}
+
+  /* ---------- memory tier ---------- */
+  .tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:880px){.tiers{grid-template-columns:1fr}}
+  .tier{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;position:relative}
+  .tier .badge{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:4px;margin-bottom:16px}
+  .tier.t1 .badge{background:rgba(11,218,81,.12);color:#0bda51}
+  .tier.t2 .badge{background:rgba(245,166,35,.12);color:#f5a623}
+  .tier.t3 .badge{background:rgba(124,58,237,.18);color:#a78bfa}
+  .tier h3{font-size:20px;margin:0 0 6px;font-weight:600;letter-spacing:-.015em}
+  .tier .store{font-family:var(--mono);font-size:12px;color:var(--fg-2);margin-bottom:14px}
+  .tier .desc{color:var(--fg-2);font-size:13px;line-height:1.65;margin-bottom:16px}
+  .tier .kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:12px;font-family:var(--mono)}
+  .tier .kv .k{color:var(--fg-3)}
+  .tier .kv .v{color:var(--fg)}
+
+  /* ---------- pipeline ---------- */
+  .pipe{display:flex;gap:8px;flex-wrap:wrap;align-items:stretch}
+  .pipe .node{flex:1 1 0;min-width:140px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:4px}
+  .pipe .node .l{font-family:var(--mono);font-size:10px;color:var(--fg-3);letter-spacing:.08em;text-transform:uppercase}
+  .pipe .node .v{font-size:13px;font-weight:500;letter-spacing:-.01em}
+  .pipe .node .n{font-family:var(--mono);font-size:11px;color:var(--grad-2);margin-top:2px}
+  .pipe .sep{align-self:center;color:var(--fg-3);font-family:var(--mono);font-size:14px}
+
+  /* ---------- callout ---------- */
+  .callout{background:linear-gradient(135deg,#0f0a1a 0%,#0a0a0a 100%);border:1px solid #2a1a4a;border-radius:var(--radius-lg);padding:28px;display:flex;gap:24px;align-items:flex-start}
+  .callout .icon{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,var(--grad-1),var(--grad-3));display:grid;place-items:center;flex-shrink:0;font-family:var(--mono);font-weight:700;font-size:18px;color:#fff}
+  .callout h4{margin:0 0 6px;font-size:16px}
+  .callout p{margin:0;color:var(--fg-2);font-size:13px;line-height:1.6}
+
+  /* ---------- code ---------- */
+  pre.code{font-family:var(--mono);font-size:12px;line-height:1.6;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;overflow:auto;margin:0;color:#d4d4d4}
+  pre.code .c{color:#6a737d}
+  pre.code .k{color:#ff7b72}
+  pre.code .s{color:#a5d6ff}
+  pre.code .v{color:#ffa657}
+
+  /* ---------- footer ---------- */
+  footer{padding:60px 0 80px;color:var(--fg-3);font-size:13px}
+  footer .wrap{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+  footer .links a{color:var(--fg-2);margin-left:18px}
+
+  /* ---------- responsive ---------- */
+  @media(max-width:640px){
+    .wrap{padding:0 20px}
+    section{padding:64px 0}
+    .hero{padding:80px 0 60px}
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 2L22 20H2L12 2Z" fill="#fff"/></svg>
+      <span>Dawn&nbsp;AI</span>
+    </div>
+    <nav class="nav-links">
+      <a href="#stack">Stack</a>
+      <a href="#arch">Architecture</a>
+      <a href="#paradigm">Paradigm</a>
+      <a href="#agent">Agent</a>
+      <a href="#memory">Memory</a>
+      <a href="#rag">RAG</a>
+      <a href="#observe">Observability</a>
+    </nav>
+    <span class="pill"><span class="dot"></span>v1.0.0-SNAPSHOT</span>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div class="wrap">
+    <div class="eyebrow"><span class="line"></span>Project Status · <span class="mono">Java AI Agent Application</span></div>
+    <h1>Dawn AI</h1>
+    <p class="lede">
+      基于 <b>Java 17 + Spring Boot 3.2 + Spring AI 1.1.4</b> 的生产级 AI Agent 应用。
+      融合 <b>ReAct</b> 与 <b>Plan-and-Solve</b> 双范式，配备<b>三层记忆体系</b>、
+      <b>混合检索 + 重排序 RAG 管道</b>，以及 <b>Prometheus / Langfuse</b> 全链路可观测。
+    </p>
+    <div class="hero-meta">
+      <span class="meta-chip"><b>Java</b>17</span>
+      <span class="meta-chip"><b>Spring Boot</b>3.2.5</span>
+      <span class="meta-chip"><b>Spring AI</b>1.1.4</span>
+      <span class="meta-chip"><b>LLM</b>Qwen3.5-9B-MLX-4bit</span>
+      <span class="meta-chip"><b>Embedding</b>bge-m3 · 1024d</span>
+      <span class="meta-chip"><b>Vector</b>pgvector · HNSW · cosine</span>
+      <span class="meta-chip"><b>Memory</b>Redis</span>
+      <span class="meta-chip"><b>Trace</b>Langfuse · OTel</span>
+    </div>
+  </div>
+</section>
+
+<!-- STACK -->
+<section id="stack">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <span class="kicker">01 · Tech Stack</span>
+        <h2>技术选型</h2>
+      </div>
+      <p class="desc">每个组件都有明确动机：性能、可观测、可替换。无 Spring AI 之外的额外编排框架，避免抽象冗余。</p>
+    </div>
+
+    <div class="stack-grid">
+      <div class="stack-cell"><span class="cat">Runtime</span><div><div class="name">Java</div><div class="ver">17 (LTS)</div></div></div>
+      <div class="stack-cell"><span class="cat">Framework</span><div><div class="name">Spring Boot</div><div class="ver">3.2.5</div></div></div>
+      <div class="stack-cell"><span class="cat">AI SDK</span><div><div class="name">Spring AI</div><div class="ver">1.1.4 · OpenAI compat</div></div></div>
+      <div class="stack-cell"><span class="cat">Web</span><div><div class="name">Spring MVC + SseEmitter</div><div class="ver">阻塞 IO · 中等并发</div></div></div>
+
+      <div class="stack-cell"><span class="cat">Vector DB</span><div><div class="name">pgvector</div><div class="ver">HNSW · COSINE</div></div></div>
+      <div class="stack-cell"><span class="cat">RDBMS</span><div><div class="name">PostgreSQL</div><div class="ver">JPA + FTS BM25</div></div></div>
+      <div class="stack-cell"><span class="cat">Cache / Memory</span><div><div class="name">Redis</div><div class="ver">List + LRU eviction</div></div></div>
+      <div class="stack-cell"><span class="cat">Doc Parse</span><div><div class="name">Apache Tika</div><div class="ver">2.9.2 · 多格式</div></div></div>
+
+      <div class="stack-cell"><span class="cat">Metrics</span><div><div class="name">Micrometer + Prometheus</div><div class="ver">Counter / Timer / Summary</div></div></div>
+      <div class="stack-cell"><span class="cat">Tracing</span><div><div class="name">OpenTelemetry → Langfuse</div><div class="ver">OTLP HTTP/Protobuf</div></div></div>
+      <div class="stack-cell"><span class="cat">Dashboards</span><div><div class="name">Grafana</div><div class="ver">JVM + Business</div></div></div>
+      <div class="stack-cell"><span class="cat">AOP</span><div><div class="name">Spring AOP</div><div class="ver">@Aspect · Tool tracing</div></div></div>
+
+      <div class="stack-cell"><span class="cat">Async</span><div><div class="name">Reactor + Micrometer Context</div><div class="ver">ThreadLocal 跨线程传播</div></div></div>
+      <div class="stack-cell"><span class="cat">LLM (local)</span><div><div class="name">oMLX · Qwen3.5-9B</div><div class="ver">MLX-4bit</div></div></div>
+      <div class="stack-cell"><span class="cat">Embedding (local)</span><div><div class="name">bge-m3-mlx-fp16</div><div class="ver">1024 维</div></div></div>
+      <div class="stack-cell"><span class="cat">Packaging</span><div><div class="name">Docker Compose</div><div class="ver">profiles: metrics / observe</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section id="arch">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <span class="kicker">02 · Architecture</span>
+        <h2>系统架构</h2>
+      </div>
+      <p class="desc">四层清晰：Controller → Service → Agent/RAG/Memory 协作 → Spring AI 抽象 LLM/Embedding/Tool。</p>
+    </div>
+
+<pre class="ascii">┌──────────────────────────────────────────────────────────────────────────┐
+│                            <span class="accent">REST API Layer</span>                                │
+│   ChatController · RagController · TopicController · AiInteractionCtrl   │
+│              SSE streaming via SseEmitter (Spring MVC)                   │
+└────────────────────────────────┬─────────────────────────────────────────┘
+                                 │
+┌────────────────────────────────▼─────────────────────────────────────────┐
+│                            <span class="accent2">Service Layer</span>                                 │
+│   ChatService · RagService · MemoryService · TopicQueryService           │
+└────┬──────────────────────┬──────────────────────────┬──────────────────┘
+     │                      │                          │
+┌────▼────────────┐  ┌──────▼─────────────┐   ┌────────▼────────────────┐
+│   <span class="accent3">Agent Core</span>    │  │    <span class="accent3">RAG Pipeline</span>      │   │     <span class="accent3">Memory System</span>       │
+│ ─────────────── │  │ ─────────────────  │   │ ─────────────────────── │
+│ AgentOrch.      │  │ DocumentExtractor  │   │ Working  (Redis)        │
+│ TaskPlanner     │  │ OverlapSplitter    │   │ Summary  (pgvector)     │
+│ ToolRegistry    │  │ QueryRewriter+HyDE │   │ Long-term (reflection)  │
+│ StepCollector   │  │ Hybrid Retrieval   │   │ UserProfileService      │
+│  + AOP Aspect   │  │  Dense ⊕ BM25/RRF  │   │ Consolidator / Decay /  │
+│ Tools: ×3       │  │ 2-stage Rerank     │   │ Eviction / Reflection   │
+└────┬────────────┘  └──────┬─────────────┘   └────────┬────────────────┘
+     │                      │                          │
+     └──────────────────────┴──────────────────────────┘
+                                 │
+┌────────────────────────────────▼─────────────────────────────────────────┐
+│                  <span class="accent">Spring AI (1.1.4) · OpenAI-compatible</span>                  │
+│        ChatClient · EmbeddingModel · VectorStore · Function Tools        │
+└──────────────────────────────┬───────────────────────────────────────────┘
+                               │
+                  ┌────────────▼─────────────┐
+                  │  <span class="dim">oMLX local · or Cloud</span>   │
+                  │  Qwen3.5-9B · bge-m3     │
+                  └──────────────────────────┘
+</pre>
+  </div>
+</section>
+
+<!-- AGENT PARADIGM -->
+<section id="paradigm">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <span class="kicker">03 · Agent Paradigm</span>
+        <h2>ReAct&nbsp;+&nbsp;Plan-and-Solve 混合范式</h2>
+      </div>
+      <p class="desc">不是二选一。<b style="color:#fff">Plan 给骨架，ReAct 给灵活性</b>：先一次性低温度规划，再用强制约束驱动 ReAct 严格执行。稳定与灵活的平衡点。</p>
+    </div>
+
+    <div class="split">
+      <div class="panel plan">
+        <span class="tag">PARADIGM A</span>
+        <h3>Plan-and-Solve</h3>
+        <div class="role">TaskPlanner · 独立 LLM 调用 · 结构化输出</div>
+        <ul>
+          <li><b style="color:#fff">先全局规划</b>：不依赖对话历史，低 temperature 拿整体视角</li>
+          <li>使用 Spring AI <code style="font-family:var(--mono);color:#fff;background:#1a1a1a;padding:1px 6px;border-radius:3px">BeanOutputConverter</code> 强制结构化输出 List&lt;PlanStep&gt;</li>
+          <li>每步声明 <span style="font-family:var(--mono);color:#fff">action / reason</span>，可解析、可追溯</li>
+          <li>失败时回退到纯 ReAct（PlanGenerationException → empty plan）</li>
+          <li>Metric：<span style="font-family:var(--mono);color:#a78bfa">ai.planner.result{status=success|parse_error}</span></li>
+        </ul>
+      </div>
+
+      <div class="panel react">
+        <span class="tag">PARADIGM B</span>
+        <h3>ReAct (Reasoning + Acting)</h3>
+        <div class="role">AgentOrchestrator · Spring AI 工具循环</div>
+        <ul>
+          <li><b style="color:#fff">运行时灵活</b>：Spring AI 内置 tool-calling 循环，逐步 Thought → Action → Observation</li>
+          <li>3 个 Tool 自动注册：<code style="font-family:var(--mono);color:#fff;background:#1a1a1a;padding:1px 6px;border-radius:3px">Calculator · Weather · KnowledgeSearch</code></li>
+          <li>每次工具调用被 <b>ToolExecutionAspect (AOP)</b> 拦截 → StepCollector 记录</li>
+          <li>硬上限 <span style="font-family:var(--mono);color:#5eead4">max-steps=10</span>，超出抛 MaxStepsExceededException</li>
+          <li>RAG 工具内部去重：相同 rewritten query 不重复检索</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="margin-top:24px">
+      <h3 style="font-size:14px;font-family:var(--mono);color:var(--fg-3);letter-spacing:.06em;text-transform:uppercase;margin:0 0 16px">·  How they combine  ·</h3>
+      <div class="flow">
+        <div class="step"><span class="n">1 · plan</span><span class="t">TaskPlanner.plan()</span><span class="d">独立 LLM 调用生成 PlanStep[]；附带 reasoningContent</span></div>
+        <span class="arrow">→</span>
+        <div class="step"><span class="n">2 · enforce</span><span class="t">buildSystemPrompt()</span><span class="d">把 plan 注入 system prompt + 强制约束指令</span></div>
+        <span class="arrow">→</span>
+        <div class="step"><span class="n">3 · react</span><span class="t">ChatClient.toolNames()</span><span class="d">ReAct 循环在 plan 骨架下执行，逐步触发对应工具</span></div>
+        <span class="arrow">→</span>
+        <div class="step"><span class="n">4 · trace</span><span class="t">ToolExecutionAspect</span><span class="d">每次工具调用通过 AOP 自动捕获为 AgentStep</span></div>
+        <span class="arrow">→</span>
+        <div class="step"><span class="n">5 · stream</span><span class="t">ChatStreamEvent</span><span class="d">plan_thinking → plan → thinking → step → token → done</span></div>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top:24px">
+      <div class="icon">⚖</div>
+      <div>
+        <h4>设计权衡：为什么要混合？</h4>
+        <p>纯 ReAct 在复杂任务下容易"跑题"或绕过工具直接回答；纯 Plan 牺牲了响应当前上下文的灵活性。
+        混合方案让 LLM <b style="color:#fff">先想清楚再做</b>——Plan 像编译期检查，ReAct 像运行时执行。强制约束指令杜绝模型"拿训练知识糊弄"的退化路径。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- AGENT DESIGN -->
+<section id="agent">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <span class="kicker">04 · Agent Design</span>
+        <h2>Agent 实现细节</h2>
+      </div>
+      <p class="desc">围绕 AgentOrchestrator 的 8 步生命周期。StepCollector 用 ThreadLocal 收集，AOP 切面零侵入。</p>
+    </div>
+
+    <pre class="ascii">┌─ <span class="accent3">AgentOrchestrator.chat() / streamChat()</span> ─────────────────────────────────┐
+│                                                                              │
+│   <span class="dim">1.</span> StepCollector.init(maxSteps)         <span class="dim">// reset thread-local state</span>      │
+│   <span class="dim">2.</span> TaskPlanner.plan()                   <span class="dim">// separate low-temp LLM call</span>     │
+│   <span class="dim">3.</span> buildSystemPrompt(plan, sessionId, topicId)                              │
+│        ├─ baseSystemPrompt                                                  │
+│        ├─ <span class="accent2">UserProfileService.formatForSystemPrompt()</span>   <span class="dim">// 个性化注入</span>      │
+│        ├─ topicSection (若指定 topicId)                                       │
+│        ├─ formatPlan(plan)                                                  │
+│        ├─ formatPlanEnforcement(plan)                  <span class="dim">// 强制工具调用约束</span>     │
+│        └─ maxSteps 提示                                                       │
+│   <span class="dim">4.</span> buildHistory(sessionId)              <span class="dim">// 从 MemoryService 拉取最近 20 条</span>│
+│   <span class="dim">5.</span> chatClient.prompt().toolNames(...).call() / .stream()                    │
+│        ↳ Spring AI 自动管理 ReAct 循环                                         │
+│        ↳ <span class="accent">ToolExecutionAspect (AOP)</span> 拦截每次 apply() → StepCollector       │
+│   <span class="dim">6.</span> recordTokenUsage() · recordRagMetrics()    <span class="dim">// Micrometer counters</span>    │
+│   <span class="dim">7.</span> memoryService.addMessage(user) · addMessage(assistant)                    │
+│   <span class="dim">8.</span> StepCollector.clear()                <span class="dim">// 防止 ThreadLocal 泄漏</span>         │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘</pre>
+
+    <div class="grid g-3" style="margin-top:24px">
+      <div class="card">
+        <span class="sub">Tool · Computation</span>
+        <h3>CalculatorTool</h3>
+        <p>递归下降解析器，支持 + − × ÷ 与括号。Sanitize 后只接受 <code style="font-family:var(--mono);color:#fff;background:#1a1a1a;padding:1px 6px;border-radius:3px">[0-9+\-*/().]</code> 字符。生产可换 exp4j。</p>
+      </div>
+      <div class="card">
+        <span class="sub">Tool · External</span>
+        <h3>WeatherTool</h3>
+        <p>Mock 数据演示 Function Calling 模式（Beijing/Shanghai/Shenzhen/Chengdu）。生产替换为真实 API + Resilience4j 熔断。</p>
+      </div>
+      <div class="card">
+        <span class="sub">Tool · Retrieval</span>
+        <h3>KnowledgeSearchTool</h3>
+        <p>触发完整 RAG 管道：QueryRewriter → HyDE → Hybrid → Rerank。基于 StepCollector 做请求内查询去重，节省 LLM/检索调用。</p>
+      </div>
+    </div>
+
+    <div class="grid g-4" style="margin-top:16px">
+      <div class="card"><span class="sub">Reactor</span><div class="num">10</div><h3>max-steps</h3><p>单次对话工具调用硬上限</p></div>
+      <div class="card"><span class="sub">RAG</span><div class="num">3</div><h3>max-calls-per-session</h3><p>单次请求 RAG 调用上限</p></div>
+      <div class="card"><span class="sub">Stream</span><div class="num">1200s</div><h3>SSE timeout</h3><p>单次流式请求最大等待</p></div>
+      <div class="card"><span class="sub">Planner</span><div class="num">structured</div><h3>BeanOutputConverter</h3><p>JSON Schema 强制输出</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- MEMORY -->
+<section id="memory">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <span class="kicker">05 · Memory System</span>
+        <h2>三层记忆体系</h2>
+      </div>
+      <p class="desc">从 Working → Summary → Long-term，事件驱动逐级蒸馏。配合衰减与淘汰，避免向量库无限膨胀。</p>
+    </div>
+
+    <div class="tiers">
+      <div class="tier t1">
+        <span class="badge">Tier 1 · Hot</span>
+        <h3>Working Memory</h3>
+        <div class="store">Redis · List + TTL</div>
+        <p class="desc">当前会话的原始对话流。新消息 rpush，超过上限 lpop 进入待蒸馏队列。Redis 不可用时自动降级到 ConcurrentHashMap fallback。</p>
+        <div class="kv">
+          <div class="k">key</div><div class="v">ai:session:{id}</div>
+          <div class="k">max</div><div class="v">20 messages</div>
+          <div class="k">ttl</div><div class="v">2 hours</div>
+          <div class="k">fallback</div><div class="v">in-memory map</div>
+        </div>
+      </div>
+
+      <div class="tier t2">
+        <span class="badge">Tier 2 · Warm</span>
+        <h3>Summary Memory</h3>
+        <div class="store">pgvector · Document type=summary</div>
+        <p class="desc">每淘汰满 batch_size 条消息，触发 SummarizationRequestEvent → MemorySummarizer 异步蒸馏成段落，带 importance score 写入向量库供后续检索。</p>
+        <div class="kv">
+          <div class="k">trigger</div><div class="v">batch-size=3</div>
+          <div class="k">flow</div><div class="v">drain → event → async</div>
+          <div class="k">store</div><div class="v">VectorStore.add()</div>
+          <div class="k">meta</div><div class="v">importance · createdAt</div>
+        </div>
+      </div>
+
+      <div class="tier t3">
+        <span class="badge">Tier 3 · Cold</span>
+        <h3>Long-term Reflection</h3>
+        <div class="store">pgvector · type=reflection</div>
+        <p class="desc">每累计 N 个 summary，触发 ReflectionRequestEvent → ReflectionWorker 跨会话归纳"用户的薄弱点 / 偏好"。配合 UserProfileService 反哺 system prompt。</p>
+        <div class="kv">
+          <div class="k">trigger</div><div class="v">reflection-threshold=3</div>
+          <div class="k">episode-min</div><div class="v">4</div>
+          <div class="k">consumer</div><div class="v">UserProfileService</div>
+          <div class="k">inject</div><div class="v">→ system prompt</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:32px">
+      <h3 style="font-size:14px;font-family:var(--mono);color:var(--fg-3);letter-spacing:.06em;text-transform:uppercase;margin:0 0 16px">·  Background Workers  ·</h3>
+      <table class="t">
+        <thead><tr><th>组件</th><th>触发</th><th>职责</th><th>关键配置</th></tr></thead>
+        <tbody>
+          <tr><td><code>MemorySummarizer</code></td><td>SummarizationRequestEvent</td><td>对话片段 → 摘要 + importance score</td><td><span class="mono">batch-size=3</span></td></tr>
+          <tr><td><code>MemoryConsolidator</code></td><td>ConsolidationRequestEvent</td><td>写入 VectorStore，达阈值触发反思</td><td><span class="mono">reflection-threshold=3</span></td></tr>
+          <tr><td><code>ReflectionWorker</code></td><td>ReflectionRequestEvent</td><td>归纳长期模式 → 写回 type=reflection</td><td><span class="mono">episode-threshold=4</span></td></tr>
+          <tr><td><code>ImportanceDecayManager</code></td><td>cron <span class="mono">0 30 3 * * ?</span></td><td>30 天无访问 importance 减半</td><td><span class="mono">half-life=30d · min=0.01</span></td></tr>
+          <tr><td><code>EvictionPolicyManager</code></td><td>cron <span class="mono">0 0 3 * * ?</span></td><td>低重要度 / 过期文档物理淘汰</td><td><span class="mono">threshold=0.1 · max-age=2d</span></td></tr>
+          <tr><td><code>MemoryAccessUpdater</code></td><td>每次检索命中</td><td>更新 lastAccessedAt 时间戳</td><td>—</td></tr>
+          <tr><td><code>UserProfileService</code></td><td>每次 chat 入口</td><td>从 reflection 提取画像 → 注入 system prompt</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- RAG -->
+<section id="rag">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <span class="kicker">06 · RAG Pipeline</span>
+        <h2>检索增强：混合 + 重排</h2>
+      </div>
+      <p class="desc">摄入与查询两条主链路。RetrievalRouter 启发式选择 DENSE / HYBRID / SPARSE，Rerank 支持启发式与 cross-encoder。</p>
+    </div>
+
+    <div style="margin-bottom:12px;font-family:var(--mono);font-size:11px;color:var(--fg-3);letter-spacing:.08em;text-transform:uppercase">Ingestion</div>
+    <div class="pipe">
+      <div class="node"><span class="l">parse</span><span class="v">Apache Tika</span><span class="n">multi-format</span></div>
+      <span class="sep">→</span>
+      <div class="node"><span class="l">split</span><span class="v">OverlapTextSplitter</span><span class="n">500 / 50 tokens</span></div>
+      <span class="sep">→</span>
+      <div class="node"><span class="l">embed</span><span class="v">bge-m3</span><span class="n">1024 dim · fp16</span></div>
+      <span class="sep">→</span>
+      <div class="node"><span class="l">store</span><span class="v">pgvector</span><span class="n">HNSW · cosine</span></div>
+    </div>
+
+    <div style="margin:28px 0 12px;font-family:var(--mono);font-size:11px;color:var(--fg-3);letter-spacing:.08em;text-transform:uppercase">Query</div>
+    <div class="pipe">
+      <div class="node"><span class="l">rewrite</span><span class="v">QueryRewriter</span><span class="n">LLM normalize</span></div>
+      <span class="sep">→</span>
+      <div class="node"><span class="l">expand</span><span class="v">HyDE</span><span class="n">hypothetical doc</span></div>
+      <span class="sep">→</span>
+      <div class="node"><span class="l">route</span><span class="v">RetrievalRouter</span><span class="n">heuristic</span></div>
+      <span class="sep">→</span>
+      <div class="node"><span class="l">recall</span><span class="v">Dense ⊕ BM25</span><span class="n">PG FTS sparse</span></div>
+      <span class="sep">→</span>
+      <div class="node"><span class="l">fuse</span><span class="v">RRF</span><span class="n">reciprocal rank</span></div>
+      <span class="sep">→</span>
+      <div class="node"><span class="l">rerank</span><span class="v">Heuristic / X-Enc</span><span class="n">2-stage</span></div>
+      <span class="sep">→</span>
+      <div class="node"><span class="l">filter</span><span class="v">top-K</span><span class="n">sim ≥ 0.6</span></div>
+    </div>
+
+    <div class="grid g-2" style="margin-top:32px">
+      <div>
+        <h3 style="font-size:14px;font-family:var(--mono);color:var(--fg-3);letter-spacing:.06em;text-transform:uppercase;margin:0 0 12px">Retrieval 配置</h3>
+        <table class="t">
+          <tbody>
+            <tr><td>chunk-size / overlap</td><td><span class="mono">500 / 50</span></td></tr>
+            <tr><td>similarity-threshold</td><td><span class="mono">0.6</span> <span style="color:var(--fg-3)">bge-m3 区间 0.4–0.65</span></td></tr>
+            <tr><td>default-top-k</td><td><span class="mono">5</span></td></tr>
+            <tr><td>hybrid-enabled</td><td><span class="mono" style="color:#0bda51">true</span> · BM25 + Dense</td></tr>
+            <tr><td>sparse FTS config</td><td><span class="mono">english</span></td></tr>
+            <tr><td>rerank-enabled / type</td><td><span class="mono" style="color:#0bda51">true</span> · <span class="mono">heuristic | cross-encoder</span></td></tr>
+            <tr><td>query-rewrite / hyde</td><td><span class="mono" style="color:#0bda51">true</span> / <span class="mono" style="color:#0bda51">true</span></td></tr>
+            <tr><td>max-calls-per-session</td><td><span class="mono">3</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <h3 style="font-size:14px;font-family:var(--mono);color:var(--fg-3);letter-spacing:.06em;text-transform:uppercase;margin:0 0 12px">RetrievalRouter 启发式</h3>
+        <pre class="code"><span class="c">// 自动选择策略</span>
+<span class="k">if</span> (strategy != AUTO)         <span class="k">return</span> strategy;
+<span class="k">if</span> (hasMetadataFilters())     <span class="k">return</span> DENSE;
+
+<span class="c">// 短查询 / 引号 / 含数字 → keyword-like</span>
+<span class="k">boolean</span> keywordLike =
+    tokens.size() &lt;= <span class="v">3</span>
+ || query.contains(<span class="s">"\""</span>)
+ || query.matches(<span class="s">".*\\d.*"</span>);
+
+<span class="k">return</span> keywordLike ? HYBRID : DENSE;</pre>
+        <p style="color:var(--fg-2);font-size:13px;line-height:1.6;margin-top:14px">
+          短查询（核心名词）走 BM25；自然语言长句走 Dense；带过滤器（如 topicId）始终用 Dense 以利用 metadata 过滤。
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- OBSERVABILITY -->
+<section id="observe">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <span class="kicker">07 · Observability</span>
+        <h2>可观测：双线 opt-in</h2>
+      </div>
+      <p class="desc">Metrics 与 LLM Tracing 两条独立线，docker-compose overlay 按需启用，互不依赖。生产可分别下沉到 VictoriaMetrics / Langfuse 自托管。</p>
+    </div>
+
+    <div class="grid g-2">
+      <div>
+        <h3 style="font-size:14px;font-family:var(--mono);color:var(--fg-3);letter-spacing:.06em;text-transform:uppercase;margin:0 0 12px">Profile 矩阵</h3>
+        <table class="t">
+          <thead><tr><th>Profile</th><th>容器</th><th>UI</th></tr></thead>
+          <tbody>
+            <tr><td>base</td><td>app + postgres + redis</td><td>—</td></tr>
+            <tr><td><span class="mono" style="color:#f5a623">--profile metrics</span></td><td>+ prometheus + grafana</td><td>:3000</td></tr>
+            <tr><td><span class="mono" style="color:#a78bfa">--profile observe</span></td><td>+ langfuse-* + clickhouse + minio</td><td>:3001</td></tr>
+            <tr><td>both</td><td>全开</td><td>:3000 + :3001</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <h3 style="font-size:14px;font-family:var(--mono);color:var(--fg-3);letter-spacing:.06em;text-transform:uppercase;margin:0 0 12px">关键 Metric</h3>
+        <table class="t">
+          <tbody>
+            <tr><td><code>ai.agent.chat.duration</code></td><td>Agent 端到端延迟</td></tr>
+            <tr><td><code>ai.token.input / output</code></td><td>Token 成本追踪</td></tr>
+            <tr><td><code>ai.rag.calls_per_session</code></td><td>每会话 RAG 调用分布</td></tr>
+            <tr><td><code>ai.rag.dedup.skipped</code></td><td>请求内查询去重命中</td></tr>
+            <tr><td><code>ai.planner.result{status}</code></td><td>规划成功 / 解析失败</td></tr>
+            <tr><td><code>agent.memory.redis.failure</code></td><td>Redis 读写失败计数</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="margin-top:24px">
+      <h3 style="font-size:14px;font-family:var(--mono);color:var(--fg-3);letter-spacing:.06em;text-transform:uppercase;margin:0 0 12px">内存预算（mem_limit）</h3>
+      <table class="t">
+        <thead><tr><th>容器</th><th>Limit</th><th>备注</th><th>Profile</th></tr></thead>
+        <tbody>
+          <tr><td><b>app</b></td><td><span class="mono num">768 MB</span></td><td>JVM MaxRAMPercentage=70 · SerialGC</td><td>base</td></tr>
+          <tr><td>postgres</td><td><span class="mono num">256 MB</span></td><td>shared_buffers=64MB · max_conn=50</td><td>base</td></tr>
+          <tr><td>redis</td><td><span class="mono num">96 MB</span></td><td>maxmemory 48mb allkeys-lru</td><td>base</td></tr>
+          <tr><td>prometheus</td><td><span class="mono num">192 MB</span></td><td>—</td><td>metrics</td></tr>
+          <tr><td>grafana</td><td><span class="mono num">256 MB</span></td><td>—</td><td>metrics</td></tr>
+          <tr><td>langfuse-web</td><td><span class="mono num">480 MB</span></td><td>Node --max-old-space-size=384</td><td>observe</td></tr>
+          <tr><td>clickhouse</td><td><span class="mono num">700 MB</span></td><td>low-memory.xml 收紧 caches</td><td>observe</td></tr>
+          <tr><td>langfuse-worker</td><td><span class="mono num">320 MB</span></td><td>Node --max-old-space-size=256</td><td>observe</td></tr>
+        </tbody>
+      </table>
+      <p style="color:var(--fg-2);font-size:13px;margin-top:14px;line-height:1.6">
+        总量：业务最小 ≈ <b style="color:#fff">1.1 GB</b> · +metrics ≈ <b style="color:#fff">1.6 GB</b> · +observe ≈ <b style="color:#fff">3.3 GB</b> · 全开 ≈ <b style="color:#fff">3.7 GB</b>。生产删 mem_limit 让 ClickHouse 自适应宿主机。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- SSE -->
+<section id="sse">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <span class="kicker">08 · SSE &amp; ThreadLocal</span>
+        <h2>跨线程上下文传播</h2>
+      </div>
+      <p class="desc">SSE + Reactor + 自定义线程池叠加，ThreadLocal 在三种切换中都要稳。项目用 Micrometer Context Propagation + ExecutorService 装饰器双管齐下。</p>
+    </div>
+
+    <div class="grid g-3">
+      <div class="card">
+        <span class="sub">Pattern A</span>
+        <h3>手动快照</h3>
+        <p>提交线程 <code style="font-family:var(--mono);color:#fff;background:#1a1a1a;padding:1px 6px;border-radius:3px">get()</code> 抓快照，工作线程 finally 恢复原值。一次性任务用，频繁则失控。</p>
+      </div>
+      <div class="card">
+        <span class="sub">Pattern B</span>
+        <h3>ExecutorService 装饰器</h3>
+        <p><code style="font-family:var(--mono);color:#fff;background:#1a1a1a;padding:1px 6px;border-radius:3px">SessionAwareExecutor</code> 在 submit/invoke 入口统一 wrap，调用方无感知。覆盖自定义线程池。</p>
+      </div>
+      <div class="card">
+        <span class="sub">Pattern C</span>
+        <h3>Micrometer Accessor</h3>
+        <p>注册 ThreadLocalAccessor + <code style="font-family:var(--mono);color:#fff;background:#1a1a1a;padding:1px 6px;border-radius:3px">Hooks.enableAutomaticContextPropagation()</code>，Reactor publishOn/subscribeOn 全自动传播。</p>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top:24px">
+      <div class="icon">τ</div>
+      <div>
+        <h4>项目实践：ApplicationRunner 时序控制</h4>
+        <p>用 <code style="font-family:var(--mono);color:#fff;background:#181818;padding:1px 6px;border-radius:3px">ApplicationRunner</code> 在所有 Bean 初始化完成、第一个真实请求之前的窗口注册 Accessor + 开启 Hook，
+        既覆盖后续所有 Reactor pipeline，又能享受 Spring 上下文。这是 "Servlet 任意线程 → Reactor 调度器线程" 的标准解法。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- API -->
+<section id="api">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <span class="kicker">09 · API Surface</span>
+        <h2>主要接口</h2>
+      </div>
+      <p class="desc">REST + SSE 双形态。Agent 通过 sessionId 持续记忆，通过 topicId 限定知识检索域。</p>
+    </div>
+
+    <table class="t">
+      <thead><tr><th>Method</th><th>Path</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><span class="mono" style="color:#0bda51">POST</span></td><td><code>/api/v1/chat</code></td><td>同步 Agent 对话（plan + react + memory + tools）</td></tr>
+        <tr><td><span class="mono" style="color:#0bda51">POST</span></td><td><code>/api/v1/chat/stream</code></td><td>SSE 流式对话：plan_thinking → plan → thinking → step → token → done</td></tr>
+        <tr><td><span class="mono" style="color:#0bda51">POST</span></td><td><code>/api/v1/rag/ingest</code></td><td>文档入库（文本 / 文件 via Tika）</td></tr>
+        <tr><td><span class="mono" style="color:#52a8ff">GET</span></td><td><code>/api/v1/rag/search</code></td><td>向量检索（debug 用）</td></tr>
+        <tr><td><span class="mono" style="color:#52a8ff">GET</span></td><td><code>/actuator/health</code></td><td>健康检查（show-details: always）</td></tr>
+        <tr><td><span class="mono" style="color:#52a8ff">GET</span></td><td><code>/actuator/prometheus</code></td><td>Prometheus 指标抓取端点</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Dawn AI · v1.0.0-SNAPSHOT · <span style="font-family:var(--mono)">com.dawn.ai</span></div>
+    <div class="links">
+      <a href="#stack">Stack</a>
+      <a href="#paradigm">Paradigm</a>
+      <a href="#memory">Memory</a>
+      <a href="#rag">RAG</a>
+      <a href="#observe">Observability</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
