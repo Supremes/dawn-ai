@@ -7,3 +7,10 @@ updated: 2026-05-07 22:46
 4. 引入 Agent 评估系统 #issue26
 5. 支持 Skill 和 MCP 协议 #issue25
 6. 支持更多的 tools 
+
+
+## Issues
+
+```
+[MemoryAccessUpdater] Failed to update lastAccessedAt: PreparedStatementCallback; bad SQL grammar [UPDATE vector_store SET metadata = jsonb_set(metadata, '{lastAccessedAt}', to_jsonb(?::bigint))
+```

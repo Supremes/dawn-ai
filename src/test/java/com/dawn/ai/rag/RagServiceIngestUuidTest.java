@@ -3,6 +3,7 @@ package com.dawn.ai.rag;
 import com.dawn.ai.config.AiAvailabilityChecker;
 import com.dawn.ai.memory.MemoryAccessUpdater;
 import com.dawn.ai.rag.ingestion.OverlapTextSplitter;
+import com.dawn.ai.rag.query.HydeQueryGenerator;
 import com.dawn.ai.rag.retrieval.RetrievalRouter;
 import com.dawn.ai.rag.retrieval.fusion.ReciprocalRankFusion;
 import com.dawn.ai.rag.retrieval.rerank.HeuristicRetrievalReranker;
@@ -56,7 +57,8 @@ class RagServiceIngestUuidTest {
                 new RetrievalRouter(),
                 new OverlapTextSplitter(4, 2),
                 ragRetrievalExecutor,
-                mock(MemoryAccessUpdater.class));
+                mock(MemoryAccessUpdater.class),
+                mock(HydeQueryGenerator.class));
         ragService.initMetrics();
     }
 

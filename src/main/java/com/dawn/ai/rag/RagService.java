@@ -3,6 +3,7 @@ package com.dawn.ai.rag;
 import com.dawn.ai.config.AiAvailabilityChecker;
 import com.dawn.ai.memory.MemoryAccessUpdater;
 import com.dawn.ai.rag.ingestion.OverlapTextSplitter;
+import com.dawn.ai.rag.query.HydeQueryGenerator;
 import com.dawn.ai.rag.retrieval.fusion.ReciprocalRankFusion;
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import com.dawn.ai.rag.retrieval.rerank.RetrievalReranker;
@@ -56,6 +57,7 @@ public class RagService {
     // bind to the retrieval pool rather than relying on type-only resolution.
     private final ExecutorService ragRetrievalExecutor;
     private final MemoryAccessUpdater memoryAccessUpdater;
+    private final HydeQueryGenerator hydeQueryGenerator;
 
     public RagService(VectorStore vectorStore,
                       MeterRegistry meterRegistry,
@@ -66,7 +68,8 @@ public class RagService {
                       RetrievalRouter retrievalRouter,
                       DocumentTransformer splitter,
                       @Qualifier("ragRetrievalExecutor") ExecutorService ragRetrievalExecutor,
-                      MemoryAccessUpdater memoryAccessUpdater) {
+                      MemoryAccessUpdater memoryAccessUpdater,
+                      HydeQueryGenerator hydeQueryGenerator) {
         this.vectorStore = vectorStore;
         this.meterRegistry = meterRegistry;
         this.aiAvailabilityChecker = aiAvailabilityChecker;
@@ -77,6 +80,7 @@ public class RagService {
         this.splitter = splitter;
         this.ragRetrievalExecutor = ragRetrievalExecutor;
         this.memoryAccessUpdater = memoryAccessUpdater;
+        this.hydeQueryGenerator = hydeQueryGenerator;
     }
 
     @Setter
@@ -162,8 +166,12 @@ public class RagService {
         aiAvailabilityChecker.ensureConfigured();
 
         int candidateCount = retrievalRequest.getTopK() * 2;
+
+        // hyde integration
+        String retrievalQuery = hydeQueryGenerator.generate(retrievalRequest.getQuery());
+
         SearchRequest.Builder builder = SearchRequest.builder()
-                .query(retrievalRequest.getQuery())
+                .query(retrievalQuery)
                 .topK(candidateCount)
                 .similarityThreshold(similarityThreshold);
 
@@ -188,7 +196,7 @@ public class RagService {
         List<Document> denseResults = denseFuture.join();
         List<Document> sparseResults = sparseFuture.join();
         log.debug("[RagService] Retrieval candidates: dense={}, sparse={}, strategy={}, query='{}'",
-            denseResults.size(), sparseResults.size(), strategy, retrievalRequest.getQuery());
+            denseResults.size(), sparseResults.size(), strategy, retrievalQuery);
         List<Document> results = shouldUseHybridSearch(strategy)
             ? reciprocalRankFusion.fuse(denseResults, sparseResults)
             : denseResults;
@@ -208,7 +216,7 @@ public class RagService {
         List<Document> limited = reranked.stream().limit(retrievalRequest.getTopK()).toList();
         log.info("[RagService] Retrieved {}/{} docs (strategy={}, threshold={}, filtered={}), query='{}', metadataFilters={}",
                 limited.size(), candidateCount, strategy, similarityThreshold, filteredOut,
-                retrievalRequest.getQuery(), retrievalRequest.getMetadataFilters());
+                retrievalQuery, retrievalRequest.getMetadataFilters());
         // Async: refresh lastAccessedAt for memory docs (type=summary/reflection) that were hit.
         // RAG knowledge docs have no 'type' field and are silently skipped inside the updater.
         memoryAccessUpdater.updateAccessTime(limited);
