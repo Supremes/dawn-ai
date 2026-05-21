@@ -12,31 +12,30 @@ const API = {
     aiInteractionLog: '/api/v1/ai-interactions/log',
 };
 
-// ===== Markdown setup =====
-if (typeof marked !== 'undefined') {
-    marked.setOptions({
-        gfm: true,
-        breaks: true,
-        highlight(code, lang) {
-            if (typeof hljs === 'undefined') return code;
-            try {
-                if (lang && hljs.getLanguage(lang)) {
-                    return hljs.highlight(code, { language: lang, ignoreIllegals: true }).value;
-                }
-                return hljs.highlightAuto(code).value;
-            } catch {
-                return code;
+// ===== Markdown setup (marked + DOMPurify, both served locally) =====
+marked.use({
+    gfm: true,
+    breaks: true,
+});
+
+marked.use({
+    renderer: {
+        code(token) {
+            const lang = token.lang || '';
+            if (typeof hljs !== 'undefined' && lang && hljs.getLanguage(lang)) {
+                try {
+                    const highlighted = hljs.highlight(token.text, { language: lang, ignoreIllegals: true }).value;
+                    return `<pre><code class="hljs language-${escapeHtml(lang)}">${highlighted}</code></pre>`;
+                } catch { /* fall through */ }
             }
+            return `<pre><code>${escapeHtml(token.text)}</code></pre>`;
         },
-    });
-}
+    },
+});
 
 function renderMarkdown(text) {
     if (text == null) return '';
-    if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
-        return escapeHtml(text);
-    }
-    const html = marked.parse(String(text));
+    const html = marked.parse(String(text).replace(/\r\n?/g, '\n'));
     return DOMPurify.sanitize(html, { ADD_ATTR: ['target', 'class'] });
 }
 
@@ -186,8 +185,8 @@ function newSession() {
     const messages = $('#chatMessages');
     messages.innerHTML = `
         <div class="welcome-message">
-            <h3>Welcome to Dawn AI</h3>
-            <p>Start a conversation to test the AI agent.</p>
+            <h3>Dawn AI Agent Workbench</h3>
+            <p>发起对话，观察 Agent 的计划、工具调用、记忆与检索链路。</p>
         </div>
     `;
     updateInteractionLogLink();
@@ -402,6 +401,12 @@ function createAssistantPlaceholder() {
 }
 
 function finaliseAssistantMessage(div, meta) {
+    const bubble = div.querySelector('.message-bubble');
+    if (bubble && bubble.dataset.rawContent) {
+        bubble.innerHTML = renderMarkdown(bubble.dataset.rawContent);
+        enhanceCodeBlocks(bubble);
+    }
+
     const parts = [];
     if (meta.model) parts.push(`Model: ${meta.model}`);
     if (meta.durationMs) parts.push(`${meta.durationMs}ms`);
@@ -940,7 +945,10 @@ async function refreshDashboard() {
 
             grid.innerHTML += `
                 <div class="metric-item">
-                    <div class="metric-name">${escapeHtml(metric.name)}${unit ? ` (${unit})` : ''}</div>
+                    <div class="metric-name">
+                        ${escapeHtml(formatMetricName(metric.name))}
+                        ${unit ? `<span class="metric-unit">(${escapeHtml(unit)})</span>` : ''}
+                    </div>
                     <div class="metric-value">${displayValue}</div>
                 </div>
             `;
@@ -957,6 +965,10 @@ function updateStatusCard(id, isUp, text) {
     const value = card.querySelector('.status-value');
     indicator.className = `status-indicator ${isUp ? 'up' : 'down'}`;
     value.textContent = text;
+}
+
+function formatMetricName(name) {
+    return String(name || '').replace(/\./g, ' · ');
 }
 
 // ===== Utilities =====
