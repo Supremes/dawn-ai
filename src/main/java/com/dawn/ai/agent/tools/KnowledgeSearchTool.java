@@ -28,13 +28,13 @@ import java.util.function.Function;
  * Placed in the tools package so ToolRegistry auto-discovers it.
  * ToolExecutionAspect intercepts apply() for step tracing and metrics automatically.
  *
- * Query transformation (rewrite + HyDE) is owned by {@link RagService#retrieve}; this
- * tool only forwards the user-provided query and metadata filters. Dedup keys use the
- * raw query + filters so duplicate Agent calls within one session are still skipped.
+ * 查询变换（rewrite + HyDE）由 {@link RagService#retrieve} 统一负责；本工具仅把
+ * 用户传入的 query 和 metadata filter 透传过去。dedup key 使用原始 query + filters，
+ * 保证同一次会话内重复的 Agent 调用仍会被跳过。
  *
- * Metadata filter fallback (P0.3 corollary): {@code topicId} and {@code docId} are
- * treated as hard constraints — when retrieval misses, only the soft filters
- * ({@code source} / {@code category}) are dropped on retry.
+ * Metadata filter 兜底（P0.3 推论）：{@code topicId} 与 {@code docId} 视为硬约束 ——
+ * 当检索 0 命中时，仅丢弃软过滤（{@code source} / {@code category}）后重试，
+ * 硬约束永远保留。
  */
 @Slf4j
 @Component
@@ -104,10 +104,10 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
                 .metadataFilters(appliedFilters)
                 .build());
 
-        // Fallback: when retrieval returns nothing AND we used soft filters (source/category),
-        // retry with hard constraints (topicId/docId) preserved. This prevents cross-topic
-        // bleed when the LLM hallucinated a source/category that doesn't match, while still
-        // honoring the system-provided research topic boundary.
+        // 兜底：当检索 0 命中且使用了软过滤（source/category）时，
+        // 保留硬约束（topicId/docId）后重试。这样既能在 LLM 幻觉出
+        // 不存在的 source/category 时不放弃，又能守住系统下发的研究
+        // 主题边界，避免跨主题召回。
         if (docs.isEmpty() && hasSoftFilters(appliedFilters)) {
             Map<String, List<String>> hardOnly = retainHardFilters(appliedFilters);
             if (!hardOnly.equals(appliedFilters)) {

@@ -77,7 +77,7 @@ class RagServiceTest {
         ragRetrievalExecutor.shutdownNow();
     }
 
-    /** Identity-returning HyDE/Rewriter stubs so retrieve() uses the query as-is. */
+    /** 让 HyDE / Rewriter 直接返回原 query 的 stub，retrieve() 按原样使用查询。 */
     private static HydeQueryGenerator hydeNoop() {
         HydeQueryGenerator hyde = mock(HydeQueryGenerator.class);
         org.mockito.Mockito.lenient().when(hyde.generate(any())).thenAnswer(inv -> inv.getArgument(0));

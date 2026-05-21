@@ -15,15 +15,14 @@ public class RetrievalRouter {
         if (request.getStrategy() != null && request.getStrategy() != RetrievalStrategy.AUTO) {
             return request.getStrategy();
         }
-        // Metadata filters narrow the candidate set; they should NOT short-circuit
-        // strategy selection. Short / keyword queries still benefit from BM25 even
-        // when scoped by topicId/category — falling back to dense alone risks
-        // semantically-similar-but-business-irrelevant chunks.
+        // Metadata filter 只负责缩小候选集，不应短路策略选择：短句/关键词在
+        // 限定了 topicId/category 的情况下仍然适合 BM25；只走 dense 反而容易
+        // 召回"语义相似但业务无关"的 chunk。
         boolean keywordLike = isShortQuery(request.getQuery()) || looksLikeExactLookup(request.getQuery());
         return keywordLike ? RetrievalStrategy.HYBRID : RetrievalStrategy.DENSE;
     }
 
-    /** Short keyword-like queries (≤3 tokens) benefit from BM25 keyword matching. */
+    /** 短关键词查询（≤3 tokens）更适合 BM25 关键词匹配。 */
     public boolean isShortQuery(String query) {
         if (query == null || query.isBlank()) {
             return true;
@@ -31,7 +30,7 @@ public class RetrievalRouter {
         return tokenize(query).size() <= 3;
     }
 
-    /** Quoted phrases / digits / error codes signal a precise lookup. */
+    /** 引号短语 / 数字 / 错误码 等特征表明用户在做精确查找。 */
     public boolean looksLikeExactLookup(String query) {
         if (query == null || query.isBlank()) {
             return false;

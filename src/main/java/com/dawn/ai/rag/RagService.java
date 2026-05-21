@@ -101,10 +101,10 @@ public class RagService {
     private boolean hybridEnabled = true;
 
     /**
-     * Minimum cross-encoder rerank score; documents whose {@code rerankScore} metadata
-     * (written by {@link CrossEncoderRetrievalReranker}) falls below this threshold are
-     * dropped before being returned. 0.0 disables filtering. Documents without a rerank
-     * score (e.g. heuristic reranker, or rerank disabled) are never filtered out by this.
+     * cross-encoder rerank 分数下限：rerank 后 metadata 中 {@code rerankScore}
+     * （由 {@link CrossEncoderRetrievalReranker} 写入）低于该阈值的文档会被丢弃。
+     * 设为 0.0 关闭过滤。没有 rerankScore 的文档（如启用 heuristic reranker、
+     * 或整个 rerank 被关闭）永远不会因此被过滤。
      */
     @Setter
     @Value("${app.ai.rag.reranker.min-score:0.0}")
@@ -182,12 +182,12 @@ public class RagService {
 
         int candidateCount = retrievalRequest.getTopK() * 2;
 
-        // ── Query transformation pipeline ──────────────────────────────
-        // 1. Optional LLM rewrite (keyword normalization, removes filler words).
-        // 2. Strategy routing on the rewritten query (short/keyword → HYBRID; otherwise DENSE).
-        // 3. Optional HyDE expansion — ONLY for the dense branch and only when the query is
-        //    long-form natural language. Short queries / exact lookups / metadata-scoped
-        //    queries skip HyDE to avoid embedding-space drift.
+        // ── 查询变换流水线 ─────────────────────────────────────────
+        // 1. 可选的 LLM rewrite：关键词归一化，去掉口语助词。
+        // 2. 在改写后的 query 上做策略路由（短句/关键词 → HYBRID；其他 → DENSE）。
+        // 3. 可选的 HyDE 扩写 —— 只在 dense 分支、且 query 是长自然语言时启用。
+        //    短句 / 精确查找 / 带 metadata 过滤的场景一律跳过 HyDE，
+        //    避免 embedding 空间漂移。
         String originalQuery = retrievalRequest.getQuery();
         String rewrittenQuery = queryRewriter.rewrite(originalQuery);
         RetrievalRequest effectiveRequest = rewrittenQuery.equals(originalQuery)
@@ -214,8 +214,8 @@ public class RagService {
         CompletableFuture<List<Document>> denseFuture = CompletableFuture.supplyAsync(
             () -> vectorStore.similaritySearch(request),
             ragRetrievalExecutor);
-        // Sparse retriever uses the rewritten (keyword-friendly) query, NOT the HyDE
-        // expansion — BM25 wants concise tokens, not a paragraph of hypothetical answer.
+        // 稀疏检索使用改写后的 query（关键词友好），而非 HyDE 扩写的段落 ——
+        // BM25 偏好简短的关键词 token，不需要一整段假设性回答。
         CompletableFuture<List<Document>> sparseFuture = CompletableFuture.supplyAsync(() -> shouldUseHybridSearch(strategy)
                 ? sparseRetriever.retrieve(effectiveRequest, candidateCount)
                 : List.of(),
@@ -263,9 +263,9 @@ public class RagService {
     }
 
     /**
-     * HyDE expansion is appropriate ONLY when the dense retriever is going to embed the
-     * query directly. Short keywords, exact lookups (numbers / quoted phrases), and
-     * metadata-scoped queries either don't need HyDE or get hurt by it (semantic drift).
+     * HyDE 扩写仅适用于 dense 检索直接对 query 做 embedding 的场景。
+     * 短关键词、精确查找（数字/引号短语）、带 metadata filter 的 query 要么不需要
+     * HyDE，要么会被它伤到（语义漂移）。
      */
     private boolean shouldUseHyde(RetrievalStrategy strategy, RetrievalRequest request) {
         if (strategy != RetrievalStrategy.DENSE) {
@@ -286,7 +286,7 @@ public class RagService {
                 .filter(doc -> {
                     Object raw = doc.getMetadata().get(CrossEncoderRetrievalReranker.RERANK_SCORE_METADATA_KEY);
                     if (!(raw instanceof Number score)) {
-                        // No rerank score (heuristic reranker, or rerank disabled) — keep it.
+                        // 没有 rerank score（heuristic reranker 或 rerank 被关闭）—— 保留。
                         return true;
                     }
                     return score.doubleValue() >= rerankMinScore;

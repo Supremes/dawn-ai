@@ -1183,3 +1183,7 @@ LLM Answer
 > 短句 query 不要依赖纯 dense retrieval；应该用 **BM25 + Dense 的 Hybrid Retrieval**，再加 **Reranker**。  
 > 非短句召回错误通常通过 **query decomposition、multi-query、chunk 优化、metadata filter、rerank、threshold** 解决。  
 > “召回了太多无关文档”通常不是单一模型问题，而是 **缺少 rerank、缺少过滤、chunk 质量差、topK 过大、embedding 不适配、知识库噪声高、没有评估集** 共同造成的。
+
+# 进度
+
+![[todo1.png]]

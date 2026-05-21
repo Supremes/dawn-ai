@@ -27,7 +27,7 @@ import java.util.stream.IntStream;
 @RequiredArgsConstructor
 public class CrossEncoderRetrievalReranker {
 
-    /** Metadata key written into reranked documents so downstream can apply min-score filtering. */
+    /** 写入 rerank 后文档 metadata 的 key，供下游按 min-score 过滤使用。 */
     public static final String RERANK_SCORE_METADATA_KEY = "rerankScore";
 
     private final RestClient.Builder restClientBuilder;
