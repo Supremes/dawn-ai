@@ -98,6 +98,7 @@ app:
       rerank-enabled: true        # 是否启用召回后的二阶段重排
       reranker:
         type: heuristic           # heuristic | cross-encoder
+        min-score: 0.0            # cross-encoder rerank 分数下限，低于此分的文档被丢弃（0 = 关闭）
       hybrid-enabled: true        # 是否启用 BM25 + Dense 混合召回
       sparse:
         text-search-config: english  # PostgreSQL FTS 配置名，例如 english | simple | custom config

@@ -4,8 +4,10 @@ import com.dawn.ai.config.AiAvailabilityChecker;
 import com.dawn.ai.memory.MemoryAccessUpdater;
 import com.dawn.ai.rag.ingestion.OverlapTextSplitter;
 import com.dawn.ai.rag.query.HydeQueryGenerator;
+import com.dawn.ai.rag.query.QueryRewriter;
 import com.dawn.ai.rag.retrieval.fusion.ReciprocalRankFusion;
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
+import com.dawn.ai.rag.retrieval.rerank.CrossEncoderRetrievalReranker;
 import com.dawn.ai.rag.retrieval.rerank.RetrievalReranker;
 import com.dawn.ai.rag.retrieval.RetrievalRouter;
 import com.dawn.ai.rag.retrieval.RetrievalStrategy;
@@ -58,6 +60,7 @@ public class RagService {
     private final ExecutorService ragRetrievalExecutor;
     private final MemoryAccessUpdater memoryAccessUpdater;
     private final HydeQueryGenerator hydeQueryGenerator;
+    private final QueryRewriter queryRewriter;
 
     public RagService(VectorStore vectorStore,
                       MeterRegistry meterRegistry,
@@ -69,7 +72,8 @@ public class RagService {
                       DocumentTransformer splitter,
                       @Qualifier("ragRetrievalExecutor") ExecutorService ragRetrievalExecutor,
                       MemoryAccessUpdater memoryAccessUpdater,
-                      HydeQueryGenerator hydeQueryGenerator) {
+                      HydeQueryGenerator hydeQueryGenerator,
+                      QueryRewriter queryRewriter) {
         this.vectorStore = vectorStore;
         this.meterRegistry = meterRegistry;
         this.aiAvailabilityChecker = aiAvailabilityChecker;
@@ -81,6 +85,7 @@ public class RagService {
         this.ragRetrievalExecutor = ragRetrievalExecutor;
         this.memoryAccessUpdater = memoryAccessUpdater;
         this.hydeQueryGenerator = hydeQueryGenerator;
+        this.queryRewriter = queryRewriter;
     }
 
     @Setter
@@ -94,6 +99,16 @@ public class RagService {
     @Setter
     @Value("${app.ai.rag.hybrid-enabled:true}")
     private boolean hybridEnabled = true;
+
+    /**
+     * Minimum cross-encoder rerank score; documents whose {@code rerankScore} metadata
+     * (written by {@link CrossEncoderRetrievalReranker}) falls below this threshold are
+     * dropped before being returned. 0.0 disables filtering. Documents without a rerank
+     * score (e.g. heuristic reranker, or rerank disabled) are never filtered out by this.
+     */
+    @Setter
+    @Value("${app.ai.rag.reranker.min-score:0.0}")
+    private double rerankMinScore = 0.0;
 
     private Counter ingestionCounter;
     private Counter retrievalHitCounter;
@@ -167,27 +182,42 @@ public class RagService {
 
         int candidateCount = retrievalRequest.getTopK() * 2;
 
-        // hyde integration
-        String retrievalQuery = hydeQueryGenerator.generate(retrievalRequest.getQuery());
+        // ── Query transformation pipeline ──────────────────────────────
+        // 1. Optional LLM rewrite (keyword normalization, removes filler words).
+        // 2. Strategy routing on the rewritten query (short/keyword → HYBRID; otherwise DENSE).
+        // 3. Optional HyDE expansion — ONLY for the dense branch and only when the query is
+        //    long-form natural language. Short queries / exact lookups / metadata-scoped
+        //    queries skip HyDE to avoid embedding-space drift.
+        String originalQuery = retrievalRequest.getQuery();
+        String rewrittenQuery = queryRewriter.rewrite(originalQuery);
+        RetrievalRequest effectiveRequest = rewrittenQuery.equals(originalQuery)
+                ? retrievalRequest
+                : retrievalRequest.toBuilder().query(rewrittenQuery).build();
+
+        RetrievalStrategy strategy = resolveStrategy(effectiveRequest);
+        String denseQuery = shouldUseHyde(strategy, effectiveRequest)
+                ? hydeQueryGenerator.generate(rewrittenQuery)
+                : rewrittenQuery;
 
         SearchRequest.Builder builder = SearchRequest.builder()
-                .query(retrievalQuery)
+                .query(denseQuery)
                 .topK(candidateCount)
                 .similarityThreshold(similarityThreshold);
 
-        Filter.Expression filterExpression = buildFilterExpression(retrievalRequest.getMetadataFilters());
+        Filter.Expression filterExpression = buildFilterExpression(effectiveRequest.getMetadataFilters());
         if (filterExpression != null) {
             builder.filterExpression(filterExpression);
         }
 
         SearchRequest request = builder.build();
 
-        RetrievalStrategy strategy = resolveStrategy(retrievalRequest);
         CompletableFuture<List<Document>> denseFuture = CompletableFuture.supplyAsync(
             () -> vectorStore.similaritySearch(request),
             ragRetrievalExecutor);
+        // Sparse retriever uses the rewritten (keyword-friendly) query, NOT the HyDE
+        // expansion — BM25 wants concise tokens, not a paragraph of hypothetical answer.
         CompletableFuture<List<Document>> sparseFuture = CompletableFuture.supplyAsync(() -> shouldUseHybridSearch(strategy)
-                ? sparseRetriever.retrieve(retrievalRequest, candidateCount)
+                ? sparseRetriever.retrieve(effectiveRequest, candidateCount)
                 : List.of(),
             ragRetrievalExecutor);
 
@@ -195,8 +225,8 @@ public class RagService {
 
         List<Document> denseResults = denseFuture.join();
         List<Document> sparseResults = sparseFuture.join();
-        log.debug("[RagService] Retrieval candidates: dense={}, sparse={}, strategy={}, query='{}'",
-            denseResults.size(), sparseResults.size(), strategy, retrievalQuery);
+        log.debug("[RagService] Retrieval candidates: dense={}, sparse={}, strategy={}, denseQuery='{}', sparseQuery='{}'",
+            denseResults.size(), sparseResults.size(), strategy, denseQuery, rewrittenQuery);
         List<Document> results = shouldUseHybridSearch(strategy)
             ? reciprocalRankFusion.fuse(denseResults, sparseResults)
             : denseResults;
@@ -210,17 +240,58 @@ public class RagService {
             retrievalHitCounter.increment();
         }
 
-        List<Document> reranked = shouldRerank(retrievalRequest)
-                ? retrievalReranker.rerank(retrievalRequest, results)
+        List<Document> reranked = shouldRerank(effectiveRequest)
+                ? retrievalReranker.rerank(effectiveRequest, results)
                 : results;
-        List<Document> limited = reranked.stream().limit(retrievalRequest.getTopK()).toList();
-        log.info("[RagService] Retrieved {}/{} docs (strategy={}, threshold={}, filtered={}), query='{}', metadataFilters={}",
+        List<Document> filtered = applyRerankMinScore(reranked);
+        List<Document> limited = filtered.stream().limit(effectiveRequest.getTopK()).toList();
+        log.info("[RagService] Retrieved {}/{} docs (strategy={}, threshold={}, filtered={}, rerankDropped={}), originalQuery='{}', rewritten='{}', denseQuery='{}', metadataFilters={}",
                 limited.size(), candidateCount, strategy, similarityThreshold, filteredOut,
-                retrievalQuery, retrievalRequest.getMetadataFilters());
+                reranked.size() - filtered.size(),
+                originalQuery, rewrittenQuery, denseQuery, effectiveRequest.getMetadataFilters());
+        if (log.isDebugEnabled()) {
+            limited.forEach(doc -> log.debug("[RagService]   → docId={} source={} category={} rerankScore={}",
+                    doc.getMetadata().get("docId"),
+                    doc.getMetadata().get("source"),
+                    doc.getMetadata().get("category"),
+                    doc.getMetadata().get(CrossEncoderRetrievalReranker.RERANK_SCORE_METADATA_KEY)));
+        }
         // Async: refresh lastAccessedAt for memory docs (type=summary/reflection) that were hit.
         // RAG knowledge docs have no 'type' field and are silently skipped inside the updater.
         memoryAccessUpdater.updateAccessTime(limited);
         return limited;
+    }
+
+    /**
+     * HyDE expansion is appropriate ONLY when the dense retriever is going to embed the
+     * query directly. Short keywords, exact lookups (numbers / quoted phrases), and
+     * metadata-scoped queries either don't need HyDE or get hurt by it (semantic drift).
+     */
+    private boolean shouldUseHyde(RetrievalStrategy strategy, RetrievalRequest request) {
+        if (strategy != RetrievalStrategy.DENSE) {
+            return false;
+        }
+        if (request.hasMetadataFilters()) {
+            return false;
+        }
+        return !retrievalRouter.isShortQuery(request.getQuery())
+                && !retrievalRouter.looksLikeExactLookup(request.getQuery());
+    }
+
+    private List<Document> applyRerankMinScore(List<Document> reranked) {
+        if (rerankMinScore <= 0.0 || reranked.isEmpty()) {
+            return reranked;
+        }
+        return reranked.stream()
+                .filter(doc -> {
+                    Object raw = doc.getMetadata().get(CrossEncoderRetrievalReranker.RERANK_SCORE_METADATA_KEY);
+                    if (!(raw instanceof Number score)) {
+                        // No rerank score (heuristic reranker, or rerank disabled) — keep it.
+                        return true;
+                    }
+                    return score.doubleValue() >= rerankMinScore;
+                })
+                .toList();
     }
 
     private boolean shouldRerank(RetrievalRequest retrievalRequest) {

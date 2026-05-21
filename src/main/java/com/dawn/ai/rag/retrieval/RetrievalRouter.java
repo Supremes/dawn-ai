@@ -15,19 +15,28 @@ public class RetrievalRouter {
         if (request.getStrategy() != null && request.getStrategy() != RetrievalStrategy.AUTO) {
             return request.getStrategy();
         }
-        if (request.hasMetadataFilters()) {
-            return RetrievalStrategy.DENSE;
-        }
-
-        List<String> tokens = tokenize(request.getQuery());
-        // Heuristic: it's likely keyword-based
-        // - 短查询（通常是核心名词）更适合关键词搜索
-        // - 如果用户使用了引号，通常代表精确匹配需求
-        // - 包含数字（如型号、日期、ID）。向量模型对精确数字的敏感度通常不如传统的关键词检索
-        boolean keywordLike = tokens.size() <= 3
-                || request.getQuery().contains("\"")
-                || request.getQuery().matches(".*\\d.*");
+        // Metadata filters narrow the candidate set; they should NOT short-circuit
+        // strategy selection. Short / keyword queries still benefit from BM25 even
+        // when scoped by topicId/category — falling back to dense alone risks
+        // semantically-similar-but-business-irrelevant chunks.
+        boolean keywordLike = isShortQuery(request.getQuery()) || looksLikeExactLookup(request.getQuery());
         return keywordLike ? RetrievalStrategy.HYBRID : RetrievalStrategy.DENSE;
+    }
+
+    /** Short keyword-like queries (≤3 tokens) benefit from BM25 keyword matching. */
+    public boolean isShortQuery(String query) {
+        if (query == null || query.isBlank()) {
+            return true;
+        }
+        return tokenize(query).size() <= 3;
+    }
+
+    /** Quoted phrases / digits / error codes signal a precise lookup. */
+    public boolean looksLikeExactLookup(String query) {
+        if (query == null || query.isBlank()) {
+            return false;
+        }
+        return query.contains("\"") || query.matches(".*\\d.*");
     }
 
     /*
@@ -38,6 +47,9 @@ public class RetrievalRouter {
      * 4. 返回处理后的单词列表
      */
     private List<String> tokenize(String query) {
+        if (query == null) {
+            return List.of();
+        }
         return TOKEN_SPLITTER.splitAsStream(query.toLowerCase(Locale.ROOT))
                 .filter(token -> !token.isBlank())
                 .toList();

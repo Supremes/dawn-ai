@@ -58,7 +58,8 @@ class RagServiceIngestUuidTest {
                 new OverlapTextSplitter(4, 2),
                 ragRetrievalExecutor,
                 mock(MemoryAccessUpdater.class),
-                mock(HydeQueryGenerator.class));
+                mock(HydeQueryGenerator.class),
+                mock(com.dawn.ai.rag.query.QueryRewriter.class));
         ragService.initMetrics();
     }
 

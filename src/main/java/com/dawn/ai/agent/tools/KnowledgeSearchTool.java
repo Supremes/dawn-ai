@@ -2,8 +2,6 @@ package com.dawn.ai.agent.tools;
 
 import com.dawn.ai.agent.trace.StepCollector;
 import com.dawn.ai.rag.RagService;
-import com.dawn.ai.rag.query.HydeQueryGenerator;
-import com.dawn.ai.rag.query.QueryRewriter;
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
@@ -21,6 +19,7 @@ import org.springframework.stereotype.Component;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -29,8 +28,13 @@ import java.util.function.Function;
  * Placed in the tools package so ToolRegistry auto-discovers it.
  * ToolExecutionAspect intercepts apply() for step tracing and metrics automatically.
  *
- * Deduplication: uses StepCollector.isQueryRetrieved() to skip identical rewritten
- * queries within the same request, preventing wasted LLM + retrieval calls.
+ * Query transformation (rewrite + HyDE) is owned by {@link RagService#retrieve}; this
+ * tool only forwards the user-provided query and metadata filters. Dedup keys use the
+ * raw query + filters so duplicate Agent calls within one session are still skipped.
+ *
+ * Metadata filter fallback (P0.3 corollary): {@code topicId} and {@code docId} are
+ * treated as hard constraints — when retrieval misses, only the soft filters
+ * ({@code source} / {@code category}) are dropped on retry.
  */
 @Slf4j
 @Component
@@ -38,8 +42,8 @@ import java.util.function.Function;
 @RequiredArgsConstructor
 public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request, KnowledgeSearchTool.Response> {
 
-    private final QueryRewriter queryRewriter;
-    private final HydeQueryGenerator hydeQueryGenerator;
+    private static final Set<String> HARD_FILTER_KEYS = Set.of("topicId", "docId");
+
     private final RagService ragService;
     private final MeterRegistry meterRegistry;
 
@@ -84,11 +88,8 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
 
     @Override
     public Response apply(Request req) {
-        String rewrittenQuery = queryRewriter.rewrite(req.query());
-        // HyDE: turn the (rewritten) keyword query into a hypothetical answer passage.
-        // When disabled, returns input unchanged. Failures fall back to input.
-        String retrievalQuery = hydeQueryGenerator.generate(rewrittenQuery);
-        String retrievalKey = buildRetrievalKey(retrievalQuery, req);
+        Map<String, List<String>> appliedFilters = buildMetadataFilters(req);
+        String retrievalKey = buildRetrievalKey(req.query(), appliedFilters);
 
         if (StepCollector.isQueryRetrieved(retrievalKey)) {
             dedupCounter.increment();
@@ -97,25 +98,31 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
         }
         StepCollector.markQueryRetrieved(retrievalKey);
 
-        Map<String, List<String>> appliedFilters = buildMetadataFilters(req);
         List<Document> docs = ragService.retrieve(RetrievalRequest.builder()
-                .query(retrievalQuery)
+                .query(req.query())
                 .topK(defaultTopK)
                 .metadataFilters(appliedFilters)
                 .build());
 
-        // Fallback: if metadata filters caused zero results, retry without filters.
-        // This guards against the LLM hallucinating metadata values that don't exist in the store.
-        if (docs.isEmpty() && !appliedFilters.isEmpty()) {
-            log.warn("[KnowledgeSearchTool] 0 results with filters={}, retrying without metadata filters", appliedFilters);
-            docs = ragService.retrieve(RetrievalRequest.builder()
-                    .query(retrievalQuery)
-                    .topK(defaultTopK)
-                    .build());
+        // Fallback: when retrieval returns nothing AND we used soft filters (source/category),
+        // retry with hard constraints (topicId/docId) preserved. This prevents cross-topic
+        // bleed when the LLM hallucinated a source/category that doesn't match, while still
+        // honoring the system-provided research topic boundary.
+        if (docs.isEmpty() && hasSoftFilters(appliedFilters)) {
+            Map<String, List<String>> hardOnly = retainHardFilters(appliedFilters);
+            if (!hardOnly.equals(appliedFilters)) {
+                log.warn("[KnowledgeSearchTool] 0 results with filters={}, retrying with hard filters only={}",
+                        appliedFilters, hardOnly);
+                docs = ragService.retrieve(RetrievalRequest.builder()
+                        .query(req.query())
+                        .topK(defaultTopK)
+                        .metadataFilters(hardOnly)
+                        .build());
+            }
         }
 
-        log.debug("[KnowledgeSearchTool] query='{}' → rewritten='{}', retrieval='{}', docsFound={}",
-                req.query(), rewrittenQuery, retrievalQuery, docs.size());
+        log.debug("[KnowledgeSearchTool] query='{}', filters={}, docsFound={}",
+                req.query(), appliedFilters, docs.size());
 
         return new Response(formatContext(docs), docs.size());
     }
@@ -135,8 +142,22 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
         }
     }
 
-    private String buildRetrievalKey(String rewrittenQuery, Request req) {
-        return rewrittenQuery + "|" + buildMetadataFilters(req);
+    private String buildRetrievalKey(String query, Map<String, List<String>> filters) {
+        return query + "|" + filters;
+    }
+
+    private boolean hasSoftFilters(Map<String, List<String>> filters) {
+        return filters.keySet().stream().anyMatch(key -> !HARD_FILTER_KEYS.contains(key));
+    }
+
+    private Map<String, List<String>> retainHardFilters(Map<String, List<String>> filters) {
+        Map<String, List<String>> hard = new LinkedHashMap<>();
+        filters.forEach((key, value) -> {
+            if (HARD_FILTER_KEYS.contains(key)) {
+                hard.put(key, value);
+            }
+        });
+        return hard;
     }
 
     private String formatContext(List<Document> docs) {
