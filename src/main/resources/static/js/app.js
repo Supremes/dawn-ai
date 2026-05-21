@@ -22,10 +22,16 @@ marked.use({
     renderer: {
         code(token) {
             const lang = token.lang || '';
-            if (typeof hljs !== 'undefined' && lang && hljs.getLanguage(lang)) {
+            if (typeof hljs !== 'undefined') {
                 try {
-                    const highlighted = hljs.highlight(token.text, { language: lang, ignoreIllegals: true }).value;
-                    return `<pre><code class="hljs language-${escapeHtml(lang)}">${highlighted}</code></pre>`;
+                    if (lang && hljs.getLanguage(lang)) {
+                        const highlighted = hljs.highlight(token.text, { language: lang, ignoreIllegals: true }).value;
+                        return `<pre><code class="hljs language-${escapeHtml(lang)}">${highlighted}</code></pre>`;
+                    }
+                    const auto = hljs.highlightAuto(token.text);
+                    if (auto.relevance > 4) {
+                        return `<pre><code class="hljs language-${escapeHtml(auto.language || '')}">${auto.value}</code></pre>`;
+                    }
                 } catch { /* fall through */ }
             }
             return `<pre><code>${escapeHtml(token.text)}</code></pre>`;
@@ -62,6 +68,35 @@ function enhanceCodeBlocks(root) {
         wrapper.appendChild(btn);
     });
 }
+
+// ===== Streaming render scheduler =====
+// Throttles markdown re-rendering during token streaming to avoid DOM thrashing.
+const streamRender = (() => {
+    let scheduled = false;
+    let pendingBubble = null;
+    let pendingText = '';
+
+    function flush() {
+        scheduled = false;
+        if (!pendingBubble) return;
+        pendingBubble.innerHTML = renderMarkdown(pendingText);
+        const chatMessages = $('#chatMessages');
+        if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
+        pendingBubble = null;
+        pendingText = '';
+    }
+
+    return {
+        schedule(bubble, text) {
+            pendingBubble = bubble;
+            pendingText = text;
+            if (!scheduled) {
+                scheduled = true;
+                requestAnimationFrame(flush);
+            }
+        },
+    };
+})();
 
 // ===== State =====
 const state = {
@@ -324,9 +359,7 @@ function handleStreamEvent(type, envelope, assistantDiv) {
             const prev = bubble.dataset.rawContent || '';
             const next = prev + (data.content || '');
             bubble.dataset.rawContent = next;
-            bubble.innerHTML = renderMarkdown(next);
-            enhanceCodeBlocks(bubble);
-            $('#chatMessages').scrollTop = $('#chatMessages').scrollHeight;
+            streamRender.schedule(bubble, next);
             break;
         }
         case 'step': {
