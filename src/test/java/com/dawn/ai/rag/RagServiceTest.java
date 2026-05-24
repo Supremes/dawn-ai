@@ -4,6 +4,7 @@ import com.dawn.ai.config.AiAvailabilityChecker;
 import com.dawn.ai.memory.MemoryAccessUpdater;
 import com.dawn.ai.rag.ingestion.OverlapTextSplitter;
 import com.dawn.ai.rag.query.HydeQueryGenerator;
+import com.dawn.ai.rag.query.QueryRewriter;
 import com.dawn.ai.rag.retrieval.rerank.CrossEncoderRetrievalReranker;
 import com.dawn.ai.rag.retrieval.rerank.HeuristicRetrievalReranker;
 import com.dawn.ai.rag.retrieval.fusion.ReciprocalRankFusion;
@@ -62,7 +63,8 @@ class RagServiceTest {
                 overlapTextSplitter,
                 ragRetrievalExecutor,
                 mock(MemoryAccessUpdater.class),
-                mock(HydeQueryGenerator.class));
+                hydeNoop(),
+                rewriteNoop());
         // 注入配置值（与 application.yml 一致）
         ragService.setSimilarityThreshold(0.7);
         ragService.setHybridEnabled(false);
@@ -73,6 +75,19 @@ class RagServiceTest {
     @AfterEach
     void tearDown() {
         ragRetrievalExecutor.shutdownNow();
+    }
+
+    /** 让 HyDE / Rewriter 直接返回原 query 的 stub，retrieve() 按原样使用查询。 */
+    private static HydeQueryGenerator hydeNoop() {
+        HydeQueryGenerator hyde = mock(HydeQueryGenerator.class);
+        org.mockito.Mockito.lenient().when(hyde.generate(any())).thenAnswer(inv -> inv.getArgument(0));
+        return hyde;
+    }
+
+    private static QueryRewriter rewriteNoop() {
+        QueryRewriter rewriter = mock(QueryRewriter.class);
+        org.mockito.Mockito.lenient().when(rewriter.rewrite(any())).thenAnswer(inv -> inv.getArgument(0));
+        return rewriter;
     }
 
     // ── ingest 测试 ────────────────────────────────────────────
@@ -131,7 +146,8 @@ class RagServiceTest {
                 new OverlapTextSplitter(4, 2),
                 ragRetrievalExecutor,
                 mock(MemoryAccessUpdater.class),
-                mock(HydeQueryGenerator.class));
+                hydeNoop(),
+                rewriteNoop());
         localRagService.setSimilarityThreshold(0.7);
         localRagService.setHybridEnabled(false);
         localRagService.initMetrics();
@@ -334,5 +350,108 @@ class RagServiceTest {
         assertThat(captor.getValue())
             .allSatisfy(doc ->
                 assertThat(doc.getMetadata()).doesNotContainKey("topicId"));
+    }
+
+    @Test
+    @DisplayName("retrieve: 短 query 不调用 HyDE (策略走 HYBRID)")
+    void retrieve_shortQuery_skipsHyDE() {
+        HydeQueryGenerator hyde = mock(HydeQueryGenerator.class);
+        RagService svc = new RagService(
+                vectorStore, meterRegistry, aiAvailabilityChecker,
+                new HeuristicRetrievalReranker(), sparseRetriever,
+                new ReciprocalRankFusion(), new RetrievalRouter(),
+                overlapTextSplitter, ragRetrievalExecutor,
+                mock(MemoryAccessUpdater.class), hyde, rewriteNoop());
+        svc.setSimilarityThreshold(0.7);
+        svc.setHybridEnabled(false);
+        svc.initMetrics();
+        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
+
+        svc.retrieve("登录失败", 5);
+
+        verifyNoInteractions(hyde);
+    }
+
+    @Test
+    @DisplayName("retrieve: 长自然语言 + dense + 无 metadata 时调用 HyDE，并把假设文本送给向量库")
+    void retrieve_longQueryDenseRoute_invokesHyDE() {
+        HydeQueryGenerator hyde = mock(HydeQueryGenerator.class);
+        when(hyde.generate(any())).thenReturn("hypothetical answer paragraph");
+        RagService svc = new RagService(
+                vectorStore, meterRegistry, aiAvailabilityChecker,
+                new HeuristicRetrievalReranker(), sparseRetriever,
+                new ReciprocalRankFusion(), new RetrievalRouter(),
+                overlapTextSplitter, ragRetrievalExecutor,
+                mock(MemoryAccessUpdater.class), hyde, rewriteNoop());
+        svc.setSimilarityThreshold(0.7);
+        svc.setHybridEnabled(false);
+        svc.initMetrics();
+        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
+
+        svc.retrieve("请详细解释 Dawn AI 的退款政策以及申请流程", 5);
+
+        verify(hyde).generate("请详细解释 Dawn AI 的退款政策以及申请流程");
+        ArgumentCaptor<SearchRequest> captor = ArgumentCaptor.forClass(SearchRequest.class);
+        verify(vectorStore).similaritySearch(captor.capture());
+        assertThat(captor.getValue().getQuery()).isEqualTo("hypothetical answer paragraph");
+    }
+
+    @Test
+    @DisplayName("retrieve: 带 metadata filter 时即使长 query 也跳过 HyDE")
+    void retrieve_withMetadataFilter_skipsHyDE() {
+        HydeQueryGenerator hyde = mock(HydeQueryGenerator.class);
+        RagService svc = new RagService(
+                vectorStore, meterRegistry, aiAvailabilityChecker,
+                new HeuristicRetrievalReranker(), sparseRetriever,
+                new ReciprocalRankFusion(), new RetrievalRouter(),
+                overlapTextSplitter, ragRetrievalExecutor,
+                mock(MemoryAccessUpdater.class), hyde, rewriteNoop());
+        svc.setSimilarityThreshold(0.7);
+        svc.setHybridEnabled(false);
+        svc.initMetrics();
+        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
+
+        svc.retrieve(RetrievalRequest.builder()
+                .query("请详细解释 Dawn AI 的退款政策以及申请流程")
+                .topK(5)
+                .metadataFilters(Map.of("topicId", List.of("billing-policy")))
+                .build());
+
+        verifyNoInteractions(hyde);
+    }
+
+    @Test
+    @DisplayName("retrieve: rerankScore < min-score 的文档被过滤掉")
+    void retrieve_filtersOutBelowMinRerankScore() {
+        ragService.setRerankMinScore(0.5);
+        Document highScore = new Document("doc-hi", "highly relevant",
+                Map.of(com.dawn.ai.rag.retrieval.rerank.CrossEncoderRetrievalReranker.RERANK_SCORE_METADATA_KEY, 0.9));
+        Document lowScore = new Document("doc-lo", "barely relevant",
+                Map.of(com.dawn.ai.rag.retrieval.rerank.CrossEncoderRetrievalReranker.RERANK_SCORE_METADATA_KEY, 0.1));
+        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of(highScore, lowScore));
+
+        List<Document> result = ragService.retrieve(RetrievalRequest.builder()
+                .query("a longer natural language question about billing flow")
+                .topK(5)
+                .rerankEnabled(false)
+                .build());
+
+        assertThat(result).extracting(Document::getId).containsExactly("doc-hi");
+    }
+
+    @Test
+    @DisplayName("retrieve: 未带 rerankScore 的文档不会被 min-score 过滤掉")
+    void retrieve_minScore_doesNotDropDocsWithoutScore() {
+        ragService.setRerankMinScore(0.5);
+        when(vectorStore.similaritySearch(any(SearchRequest.class)))
+                .thenReturn(List.of(new Document("doc-1", "no rerank score", Map.of())));
+
+        List<Document> result = ragService.retrieve(RetrievalRequest.builder()
+                .query("a longer natural language question")
+                .topK(5)
+                .rerankEnabled(false)
+                .build());
+
+        assertThat(result).extracting(Document::getId).containsExactly("doc-1");
     }
 }

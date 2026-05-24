@@ -27,6 +27,9 @@ import java.util.stream.IntStream;
 @RequiredArgsConstructor
 public class CrossEncoderRetrievalReranker {
 
+    /** 写入 rerank 后文档 metadata 的 key，供下游按 min-score 过滤使用。 */
+    public static final String RERANK_SCORE_METADATA_KEY = "rerankScore";
+
     private final RestClient.Builder restClientBuilder;
     private final ObjectMapper objectMapper;
 
@@ -138,7 +141,7 @@ public class CrossEncoderRetrievalReranker {
                     if (scoredIndex.index() >= 0
                             && scoredIndex.index() < candidates.size()
                             && seenIndices.add(scoredIndex.index())) {
-                        reranked.add(candidates.get(scoredIndex.index()));
+                        reranked.add(annotateScore(candidates.get(scoredIndex.index()), scoredIndex.score()));
                     }
                 });
 
@@ -147,6 +150,12 @@ public class CrossEncoderRetrievalReranker {
                 .mapToObj(candidates::get)
                 .forEach(reranked::add);
         return reranked;
+    }
+
+    private Document annotateScore(Document original, double score) {
+        Map<String, Object> metadata = new java.util.LinkedHashMap<>(original.getMetadata());
+        metadata.put(RERANK_SCORE_METADATA_KEY, score);
+        return new Document(original.getId(), original.getText(), metadata);
     }
 
     private String normalizeDocumentText(Document document) {

@@ -2,8 +2,6 @@ package com.dawn.ai.agent.tools;
 
 import com.dawn.ai.agent.trace.StepCollector;
 import com.dawn.ai.rag.RagService;
-import com.dawn.ai.rag.query.HydeQueryGenerator;
-import com.dawn.ai.rag.query.QueryRewriter;
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
@@ -21,6 +19,7 @@ import org.springframework.stereotype.Component;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -29,8 +28,13 @@ import java.util.function.Function;
  * Placed in the tools package so ToolRegistry auto-discovers it.
  * ToolExecutionAspect intercepts apply() for step tracing and metrics automatically.
  *
- * Deduplication: uses StepCollector.isQueryRetrieved() to skip identical rewritten
- * queries within the same request, preventing wasted LLM + retrieval calls.
+ * 查询变换（rewrite + HyDE）由 {@link RagService#retrieve} 统一负责；本工具仅把
+ * 用户传入的 query 和 metadata filter 透传过去。dedup key 使用原始 query + filters，
+ * 保证同一次会话内重复的 Agent 调用仍会被跳过。
+ *
+ * Metadata filter 兜底（P0.3 推论）：{@code topicId} 与 {@code docId} 视为硬约束 ——
+ * 当检索 0 命中时，仅丢弃软过滤（{@code source} / {@code category}）后重试，
+ * 硬约束永远保留。
  */
 @Slf4j
 @Component
@@ -38,8 +42,8 @@ import java.util.function.Function;
 @RequiredArgsConstructor
 public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request, KnowledgeSearchTool.Response> {
 
-    private final QueryRewriter queryRewriter;
-    private final HydeQueryGenerator hydeQueryGenerator;
+    private static final Set<String> HARD_FILTER_KEYS = Set.of("topicId", "docId");
+
     private final RagService ragService;
     private final MeterRegistry meterRegistry;
 
@@ -84,11 +88,8 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
 
     @Override
     public Response apply(Request req) {
-        String rewrittenQuery = queryRewriter.rewrite(req.query());
-        // HyDE: turn the (rewritten) keyword query into a hypothetical answer passage.
-        // When disabled, returns input unchanged. Failures fall back to input.
-        String retrievalQuery = hydeQueryGenerator.generate(rewrittenQuery);
-        String retrievalKey = buildRetrievalKey(retrievalQuery, req);
+        Map<String, List<String>> appliedFilters = buildMetadataFilters(req);
+        String retrievalKey = buildRetrievalKey(req.query(), appliedFilters);
 
         if (StepCollector.isQueryRetrieved(retrievalKey)) {
             dedupCounter.increment();
@@ -97,25 +98,31 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
         }
         StepCollector.markQueryRetrieved(retrievalKey);
 
-        Map<String, List<String>> appliedFilters = buildMetadataFilters(req);
         List<Document> docs = ragService.retrieve(RetrievalRequest.builder()
-                .query(retrievalQuery)
+                .query(req.query())
                 .topK(defaultTopK)
                 .metadataFilters(appliedFilters)
                 .build());
 
-        // Fallback: if metadata filters caused zero results, retry without filters.
-        // This guards against the LLM hallucinating metadata values that don't exist in the store.
-        if (docs.isEmpty() && !appliedFilters.isEmpty()) {
-            log.warn("[KnowledgeSearchTool] 0 results with filters={}, retrying without metadata filters", appliedFilters);
-            docs = ragService.retrieve(RetrievalRequest.builder()
-                    .query(retrievalQuery)
-                    .topK(defaultTopK)
-                    .build());
+        // 兜底：当检索 0 命中且使用了软过滤（source/category）时，
+        // 保留硬约束（topicId/docId）后重试。这样既能在 LLM 幻觉出
+        // 不存在的 source/category 时不放弃，又能守住系统下发的研究
+        // 主题边界，避免跨主题召回。
+        if (docs.isEmpty() && hasSoftFilters(appliedFilters)) {
+            Map<String, List<String>> hardOnly = retainHardFilters(appliedFilters);
+            if (!hardOnly.equals(appliedFilters)) {
+                log.warn("[KnowledgeSearchTool] 0 results with filters={}, retrying with hard filters only={}",
+                        appliedFilters, hardOnly);
+                docs = ragService.retrieve(RetrievalRequest.builder()
+                        .query(req.query())
+                        .topK(defaultTopK)
+                        .metadataFilters(hardOnly)
+                        .build());
+            }
         }
 
-        log.debug("[KnowledgeSearchTool] query='{}' → rewritten='{}', retrieval='{}', docsFound={}",
-                req.query(), rewrittenQuery, retrievalQuery, docs.size());
+        log.debug("[KnowledgeSearchTool] query='{}', filters={}, docsFound={}",
+                req.query(), appliedFilters, docs.size());
 
         return new Response(formatContext(docs), docs.size());
     }
@@ -135,8 +142,22 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
         }
     }
 
-    private String buildRetrievalKey(String rewrittenQuery, Request req) {
-        return rewrittenQuery + "|" + buildMetadataFilters(req);
+    private String buildRetrievalKey(String query, Map<String, List<String>> filters) {
+        return query + "|" + filters;
+    }
+
+    private boolean hasSoftFilters(Map<String, List<String>> filters) {
+        return filters.keySet().stream().anyMatch(key -> !HARD_FILTER_KEYS.contains(key));
+    }
+
+    private Map<String, List<String>> retainHardFilters(Map<String, List<String>> filters) {
+        Map<String, List<String>> hard = new LinkedHashMap<>();
+        filters.forEach((key, value) -> {
+            if (HARD_FILTER_KEYS.contains(key)) {
+                hard.put(key, value);
+            }
+        });
+        return hard;
     }
 
     private String formatContext(List<Document> docs) {

@@ -15,19 +15,27 @@ public class RetrievalRouter {
         if (request.getStrategy() != null && request.getStrategy() != RetrievalStrategy.AUTO) {
             return request.getStrategy();
         }
-        if (request.hasMetadataFilters()) {
-            return RetrievalStrategy.DENSE;
-        }
-
-        List<String> tokens = tokenize(request.getQuery());
-        // Heuristic: it's likely keyword-based
-        // - 短查询（通常是核心名词）更适合关键词搜索
-        // - 如果用户使用了引号，通常代表精确匹配需求
-        // - 包含数字（如型号、日期、ID）。向量模型对精确数字的敏感度通常不如传统的关键词检索
-        boolean keywordLike = tokens.size() <= 3
-                || request.getQuery().contains("\"")
-                || request.getQuery().matches(".*\\d.*");
+        // Metadata filter 只负责缩小候选集，不应短路策略选择：短句/关键词在
+        // 限定了 topicId/category 的情况下仍然适合 BM25；只走 dense 反而容易
+        // 召回"语义相似但业务无关"的 chunk。
+        boolean keywordLike = isShortQuery(request.getQuery()) || looksLikeExactLookup(request.getQuery());
         return keywordLike ? RetrievalStrategy.HYBRID : RetrievalStrategy.DENSE;
+    }
+
+    /** 短关键词查询（≤3 tokens）更适合 BM25 关键词匹配。 */
+    public boolean isShortQuery(String query) {
+        if (query == null || query.isBlank()) {
+            return true;
+        }
+        return tokenize(query).size() <= 3;
+    }
+
+    /** 引号短语 / 数字 / 错误码 等特征表明用户在做精确查找。 */
+    public boolean looksLikeExactLookup(String query) {
+        if (query == null || query.isBlank()) {
+            return false;
+        }
+        return query.contains("\"") || query.matches(".*\\d.*");
     }
 
     /*
@@ -38,6 +46,9 @@ public class RetrievalRouter {
      * 4. 返回处理后的单词列表
      */
     private List<String> tokenize(String query) {
+        if (query == null) {
+            return List.of();
+        }
         return TOKEN_SPLITTER.splitAsStream(query.toLowerCase(Locale.ROOT))
                 .filter(token -> !token.isBlank())
                 .toList();

@@ -4,8 +4,10 @@ import com.dawn.ai.config.AiAvailabilityChecker;
 import com.dawn.ai.memory.MemoryAccessUpdater;
 import com.dawn.ai.rag.ingestion.OverlapTextSplitter;
 import com.dawn.ai.rag.query.HydeQueryGenerator;
+import com.dawn.ai.rag.query.QueryRewriter;
 import com.dawn.ai.rag.retrieval.fusion.ReciprocalRankFusion;
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
+import com.dawn.ai.rag.retrieval.rerank.CrossEncoderRetrievalReranker;
 import com.dawn.ai.rag.retrieval.rerank.RetrievalReranker;
 import com.dawn.ai.rag.retrieval.RetrievalRouter;
 import com.dawn.ai.rag.retrieval.RetrievalStrategy;
@@ -58,6 +60,7 @@ public class RagService {
     private final ExecutorService ragRetrievalExecutor;
     private final MemoryAccessUpdater memoryAccessUpdater;
     private final HydeQueryGenerator hydeQueryGenerator;
+    private final QueryRewriter queryRewriter;
 
     public RagService(VectorStore vectorStore,
                       MeterRegistry meterRegistry,
@@ -69,7 +72,8 @@ public class RagService {
                       DocumentTransformer splitter,
                       @Qualifier("ragRetrievalExecutor") ExecutorService ragRetrievalExecutor,
                       MemoryAccessUpdater memoryAccessUpdater,
-                      HydeQueryGenerator hydeQueryGenerator) {
+                      HydeQueryGenerator hydeQueryGenerator,
+                      QueryRewriter queryRewriter) {
         this.vectorStore = vectorStore;
         this.meterRegistry = meterRegistry;
         this.aiAvailabilityChecker = aiAvailabilityChecker;
@@ -81,6 +85,7 @@ public class RagService {
         this.ragRetrievalExecutor = ragRetrievalExecutor;
         this.memoryAccessUpdater = memoryAccessUpdater;
         this.hydeQueryGenerator = hydeQueryGenerator;
+        this.queryRewriter = queryRewriter;
     }
 
     @Setter
@@ -94,6 +99,16 @@ public class RagService {
     @Setter
     @Value("${app.ai.rag.hybrid-enabled:true}")
     private boolean hybridEnabled = true;
+
+    /**
+     * cross-encoder rerank 分数下限：rerank 后 metadata 中 {@code rerankScore}
+     * （由 {@link CrossEncoderRetrievalReranker} 写入）低于该阈值的文档会被丢弃。
+     * 设为 0.0 关闭过滤。没有 rerankScore 的文档（如启用 heuristic reranker、
+     * 或整个 rerank 被关闭）永远不会因此被过滤。
+     */
+    @Setter
+    @Value("${app.ai.rag.reranker.min-score:0.0}")
+    private double rerankMinScore = 0.0;
 
     private Counter ingestionCounter;
     private Counter retrievalHitCounter;
@@ -167,27 +182,42 @@ public class RagService {
 
         int candidateCount = retrievalRequest.getTopK() * 2;
 
-        // hyde integration
-        String retrievalQuery = hydeQueryGenerator.generate(retrievalRequest.getQuery());
+        // ── 查询变换流水线 ─────────────────────────────────────────
+        // 1. 可选的 LLM rewrite：关键词归一化，去掉口语助词。
+        // 2. 在改写后的 query 上做策略路由（短句/关键词 → HYBRID；其他 → DENSE）。
+        // 3. 可选的 HyDE 扩写 —— 只在 dense 分支、且 query 是长自然语言时启用。
+        //    短句 / 精确查找 / 带 metadata 过滤的场景一律跳过 HyDE，
+        //    避免 embedding 空间漂移。
+        String originalQuery = retrievalRequest.getQuery();
+        String rewrittenQuery = queryRewriter.rewrite(originalQuery);
+        RetrievalRequest effectiveRequest = rewrittenQuery.equals(originalQuery)
+                ? retrievalRequest
+                : retrievalRequest.toBuilder().query(rewrittenQuery).build();
+
+        RetrievalStrategy strategy = resolveStrategy(effectiveRequest);
+        String denseQuery = shouldUseHyde(strategy, effectiveRequest)
+                ? hydeQueryGenerator.generate(rewrittenQuery)
+                : rewrittenQuery;
 
         SearchRequest.Builder builder = SearchRequest.builder()
-                .query(retrievalQuery)
+                .query(denseQuery)
                 .topK(candidateCount)
                 .similarityThreshold(similarityThreshold);
 
-        Filter.Expression filterExpression = buildFilterExpression(retrievalRequest.getMetadataFilters());
+        Filter.Expression filterExpression = buildFilterExpression(effectiveRequest.getMetadataFilters());
         if (filterExpression != null) {
             builder.filterExpression(filterExpression);
         }
 
         SearchRequest request = builder.build();
 
-        RetrievalStrategy strategy = resolveStrategy(retrievalRequest);
         CompletableFuture<List<Document>> denseFuture = CompletableFuture.supplyAsync(
             () -> vectorStore.similaritySearch(request),
             ragRetrievalExecutor);
+        // 稀疏检索使用改写后的 query（关键词友好），而非 HyDE 扩写的段落 ——
+        // BM25 偏好简短的关键词 token，不需要一整段假设性回答。
         CompletableFuture<List<Document>> sparseFuture = CompletableFuture.supplyAsync(() -> shouldUseHybridSearch(strategy)
-                ? sparseRetriever.retrieve(retrievalRequest, candidateCount)
+                ? sparseRetriever.retrieve(effectiveRequest, candidateCount)
                 : List.of(),
             ragRetrievalExecutor);
 
@@ -195,8 +225,8 @@ public class RagService {
 
         List<Document> denseResults = denseFuture.join();
         List<Document> sparseResults = sparseFuture.join();
-        log.debug("[RagService] Retrieval candidates: dense={}, sparse={}, strategy={}, query='{}'",
-            denseResults.size(), sparseResults.size(), strategy, retrievalQuery);
+        log.debug("[RagService] Retrieval candidates: dense={}, sparse={}, strategy={}, denseQuery='{}', sparseQuery='{}'",
+            denseResults.size(), sparseResults.size(), strategy, denseQuery, rewrittenQuery);
         List<Document> results = shouldUseHybridSearch(strategy)
             ? reciprocalRankFusion.fuse(denseResults, sparseResults)
             : denseResults;
@@ -210,17 +240,58 @@ public class RagService {
             retrievalHitCounter.increment();
         }
 
-        List<Document> reranked = shouldRerank(retrievalRequest)
-                ? retrievalReranker.rerank(retrievalRequest, results)
+        List<Document> reranked = shouldRerank(effectiveRequest)
+                ? retrievalReranker.rerank(effectiveRequest, results)
                 : results;
-        List<Document> limited = reranked.stream().limit(retrievalRequest.getTopK()).toList();
-        log.info("[RagService] Retrieved {}/{} docs (strategy={}, threshold={}, filtered={}), query='{}', metadataFilters={}",
+        List<Document> filtered = applyRerankMinScore(reranked);
+        List<Document> limited = filtered.stream().limit(effectiveRequest.getTopK()).toList();
+        log.info("[RagService] Retrieved {}/{} docs (strategy={}, threshold={}, filtered={}, rerankDropped={}), originalQuery='{}', rewritten='{}', denseQuery='{}', metadataFilters={}",
                 limited.size(), candidateCount, strategy, similarityThreshold, filteredOut,
-                retrievalQuery, retrievalRequest.getMetadataFilters());
+                reranked.size() - filtered.size(),
+                originalQuery, rewrittenQuery, denseQuery, effectiveRequest.getMetadataFilters());
+        if (log.isDebugEnabled()) {
+            limited.forEach(doc -> log.debug("[RagService]   → docId={} source={} category={} rerankScore={}",
+                    doc.getMetadata().get("docId"),
+                    doc.getMetadata().get("source"),
+                    doc.getMetadata().get("category"),
+                    doc.getMetadata().get(CrossEncoderRetrievalReranker.RERANK_SCORE_METADATA_KEY)));
+        }
         // Async: refresh lastAccessedAt for memory docs (type=summary/reflection) that were hit.
         // RAG knowledge docs have no 'type' field and are silently skipped inside the updater.
         memoryAccessUpdater.updateAccessTime(limited);
         return limited;
+    }
+
+    /**
+     * HyDE 扩写仅适用于 dense 检索直接对 query 做 embedding 的场景。
+     * 短关键词、精确查找（数字/引号短语）、带 metadata filter 的 query 要么不需要
+     * HyDE，要么会被它伤到（语义漂移）。
+     */
+    private boolean shouldUseHyde(RetrievalStrategy strategy, RetrievalRequest request) {
+        if (strategy != RetrievalStrategy.DENSE) {
+            return false;
+        }
+        if (request.hasMetadataFilters()) {
+            return false;
+        }
+        return !retrievalRouter.isShortQuery(request.getQuery())
+                && !retrievalRouter.looksLikeExactLookup(request.getQuery());
+    }
+
+    private List<Document> applyRerankMinScore(List<Document> reranked) {
+        if (rerankMinScore <= 0.0 || reranked.isEmpty()) {
+            return reranked;
+        }
+        return reranked.stream()
+                .filter(doc -> {
+                    Object raw = doc.getMetadata().get(CrossEncoderRetrievalReranker.RERANK_SCORE_METADATA_KEY);
+                    if (!(raw instanceof Number score)) {
+                        // 没有 rerank score（heuristic reranker 或 rerank 被关闭）—— 保留。
+                        return true;
+                    }
+                    return score.doubleValue() >= rerankMinScore;
+                })
+                .toList();
     }
 
     private boolean shouldRerank(RetrievalRequest retrievalRequest) {

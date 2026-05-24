@@ -82,4 +82,27 @@ class CrossEncoderRetrievalRerankerTest {
         assertThat(reranked).extracting(Document::getText).containsExactly("first", "second");
         server.verify();
     }
+
+    @Test
+    @DisplayName("rerank: 应把 relevance_score 写入文档 metadata 的 rerankScore 字段")
+    void rerank_writesScoreIntoMetadata() {
+        server.expect(requestTo("https://rerank.test/rerank"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("""
+                        {"results":[
+                          {"index":0,"relevance_score":0.91},
+                          {"index":1,"relevance_score":0.18}
+                        ]}
+                        """, MediaType.APPLICATION_JSON));
+
+        List<Document> reranked = reranker.rerank(
+                RetrievalRequest.builder().query("refund policy").topK(2).build(),
+                List.of(new Document("a"), new Document("b")));
+
+        assertThat(reranked).hasSize(2);
+        assertThat(reranked.get(0).getMetadata())
+                .containsEntry(com.dawn.ai.rag.retrieval.rerank.CrossEncoderRetrievalReranker.RERANK_SCORE_METADATA_KEY, 0.91);
+        assertThat(reranked.get(1).getMetadata())
+                .containsEntry(com.dawn.ai.rag.retrieval.rerank.CrossEncoderRetrievalReranker.RERANK_SCORE_METADATA_KEY, 0.18);
+    }
 }
