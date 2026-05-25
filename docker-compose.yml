@@ -1,7 +1,7 @@
 # docker-compose.yml
 # Apple Silicon 本地开发：
 #   - embedding 服务由宿主机原生脚本提供（Metal GPU / MPS），不在容器中运行
-#   - 业务侧默认启动：app / postgres / redis（最小内存占用，~1.1 GB）
+#   - 业务侧默认启动：app / postgres / redis
 #   - 可观测能力全部移到 docker-compose.observe.yml，按需 opt-in：
 #       --profile metrics  → Prometheus + Grafana
 #       --profile observe  → Langfuse 全家桶
@@ -26,8 +26,6 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    mem_limit: 768m
-    mem_reservation: 384m
     ports:
       - "8080:8080"
       - "5005:5005"
@@ -61,13 +59,7 @@ services:
   postgres:
     image: pgvector/pgvector:0.8.0-pg16
     restart: unless-stopped
-    mem_limit: 256m
-    mem_reservation: 128m
-    command: >
-      postgres -c shared_buffers=64MB
-               -c max_connections=50
-               -c effective_cache_size=128MB
-               -c work_mem=4MB
+    command: postgres -c max_connections=50
     environment:
       POSTGRES_DB: dawn_ai
       POSTGRES_USER: dawn
@@ -87,13 +79,11 @@ services:
   redis:
     image: redis:7
     restart: unless-stopped
-    mem_limit: 96m
-    mem_reservation: 32m
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes --maxmemory 48mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s

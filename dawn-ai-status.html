@@ -624,22 +624,9 @@
     </div>
 
     <div style="margin-top:24px">
-      <h3 style="font-size:14px;font-family:var(--mono);color:var(--fg-3);letter-spacing:.06em;text-transform:uppercase;margin:0 0 12px">内存预算（mem_limit）</h3>
-      <table class="t">
-        <thead><tr><th>容器</th><th>Limit</th><th>备注</th><th>Profile</th></tr></thead>
-        <tbody>
-          <tr><td><b>app</b></td><td><span class="mono num">768 MB</span></td><td>JVM MaxRAMPercentage=70 · SerialGC</td><td>base</td></tr>
-          <tr><td>postgres</td><td><span class="mono num">256 MB</span></td><td>shared_buffers=64MB · max_conn=50</td><td>base</td></tr>
-          <tr><td>redis</td><td><span class="mono num">96 MB</span></td><td>maxmemory 48mb allkeys-lru</td><td>base</td></tr>
-          <tr><td>prometheus</td><td><span class="mono num">192 MB</span></td><td>—</td><td>metrics</td></tr>
-          <tr><td>grafana</td><td><span class="mono num">256 MB</span></td><td>—</td><td>metrics</td></tr>
-          <tr><td>langfuse-web</td><td><span class="mono num">480 MB</span></td><td>Node --max-old-space-size=384</td><td>observe</td></tr>
-          <tr><td>clickhouse</td><td><span class="mono num">700 MB</span></td><td>low-memory.xml 收紧 caches</td><td>observe</td></tr>
-          <tr><td>langfuse-worker</td><td><span class="mono num">320 MB</span></td><td>Node --max-old-space-size=256</td><td>observe</td></tr>
-        </tbody>
-      </table>
+      <h3 style="font-size:14px;font-family:var(--mono);color:var(--fg-3);letter-spacing:.06em;text-transform:uppercase;margin:0 0 12px">内存限制</h3>
       <p style="color:var(--fg-2);font-size:13px;margin-top:14px;line-height:1.6">
-        总量：业务最小 ≈ <b style="color:#fff">1.1 GB</b> · +metrics ≈ <b style="color:#fff">1.6 GB</b> · +observe ≈ <b style="color:#fff">3.3 GB</b> · 全开 ≈ <b style="color:#fff">3.7 GB</b>。生产删 mem_limit 让 ClickHouse 自适应宿主机。
+        Docker Compose 不再设置 <code>mem_limit</code> / <code>mem_reservation</code>，Redis、Node 与 ClickHouse 也不再设置本地开发内存上限；各组件按宿主机 / Docker Desktop 配额自适应。
       </p>
     </div>
   </div>

@@ -149,24 +149,9 @@ docker compose -f docker-compose.yml -f docker-compose.observe.yml \
 > tracing 仍被自动开为 `true`，会持续 OTLP warn。此时在 `.env` 里显式
 > `MANAGEMENT_TRACING_ENABLED=false` 静默即可。
 
-### 内存预算
+### 内存限制
 
-| 容器 | mem_limit | 备注 |
-|---|---:|---|
-| **app** | 768 MB | JVM `MaxRAMPercentage=70` + SerialGC |
-| postgres | 256 MB | `shared_buffers=64MB max_connections=50` |
-| redis | 96 MB | `maxmemory 48mb allkeys-lru` |
-| prometheus | 192 MB | metrics profile |
-| grafana | 256 MB | metrics profile |
-| langfuse-web | 480 MB | Node `--max-old-space-size=384` |
-| clickhouse | 700 MB | `clickhouse/config.d/low-memory.xml` 收紧 caches |
-| langfuse-worker | 320 MB | Node `--max-old-space-size=256` |
-| langfuse-postgres | 320 MB | observe profile |
-| minio | 256 MB | observe profile |
-| langfuse-redis | 64 MB | `maxmemory 32mb` |
-
-业务 ≈ 1.1 GB；+metrics ≈ 1.6 GB；+observe ≈ 3.3 GB；全开 ≈ 3.7 GB。
-生产环境删 `mem_limit` 让 ClickHouse 等组件自适应宿主机。
+Docker Compose 不再为容器设置 `mem_limit` / `mem_reservation`，也不再为 Redis、Node 或 ClickHouse 额外设置本地开发内存上限。各组件按宿主机 / Docker Desktop 配额自适应。
 
 ### Langfuse 登录
 
@@ -190,4 +175,3 @@ re-run `scripts/langfuse-auth-header.sh`, paste the new value into
 docker compose -f docker-compose.yml -f docker-compose.observe.yml \
   --profile observe up -d --force-recreate langfuse-web app
 ```
-

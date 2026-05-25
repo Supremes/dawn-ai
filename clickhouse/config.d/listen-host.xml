@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<clickhouse>
+    <!-- Force IPv4 listen. Docker default network often has IPv6 disabled,
+         which makes the default `[::]:9000` listen silently fail and
+         langfuse-web's clickhouse migration step hits "connection refused". -->
+    <listen_host>0.0.0.0</listen_host>
+</clickhouse>
