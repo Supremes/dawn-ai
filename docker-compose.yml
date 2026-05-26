@@ -48,6 +48,11 @@ services:
       # 业务单独跑时默认 false，避免 OTLP exporter 找不到 langfuse-web 持续 warn。
       # 叠加 docker-compose.observe.yml 时会被覆盖为 true（见 overlay 文件）。
       - MANAGEMENT_TRACING_ENABLED=${MANAGEMENT_TRACING_ENABLED:-false}
+      - APP_SKILLS_PATH=/app/skills
+    volumes:
+      # 外挂 skill 目录：宿主机 ./skills 下任何 SKILL.md 会覆盖 classpath skills-builtin/
+      # 只读挂载，容器无法回写；reload 由 POST /actuator/skills 触发
+      - ./skills:/app/skills:ro
     depends_on:
       postgres:
         condition: service_healthy
