@@ -1,0 +1,1321 @@
+╭─── Claude Code v2.1.150 ─────────────────────────────────────────────────────╮
+│                                 │ Tips for getting started                   │
+│          Welcome back!          │ Run /init to create a CLAUDE.md file with… │
+│                                 │ ────────────────────────────────────────── │
+│             ▐▛███▜▌             │ What's new                                 │
+│            ▝▜█████▛▘            │ Internal infrastructure improvements (no … │
+│              ▘▘ ▝▝              │ `/usage` now shows a per-category breakdo… │
+│                                 │ `/diff` detail view can now be scrolled w… │
+│   Opus 4.7 · Google Vertex AI   │ /release-notes for more                    │
+│        ~/github/dawn-ai         │                                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+❯ /grill-me 创建分支，完成对项目自实现agent针对MCP和SKILL的支持                 
+
+● 老大，开始 grill 之前我需要先把项目的现状摸清楚——尤其是「自实现
+  agent」是什么形态、目前对工具/能力是怎么接入的。让我先并发探查几件事。
+
+  Searched for 2 patterns, listed 2 directories (ctrl+o to expand)
+
+● Bash(find /home/developer/github/dawn-ai/src/main/java -type f -name "*.java"
+      | xargs grep -l -i "agent\|orchestrat" 2>/dev/null | head -20)
+  ⎿  /home/developer/github/dawn-ai/src/main/java/com/dawn/ai/sse/ChatStrea
+     mEvent.java
+     /home/developer/github/dawn-ai/src/main/java/com/dawn/ai/config/AiInte
+     … +23 lines (ctrl+o to expand)
+
+  Searched for 1 pattern, read 4 files, listed 1 directory (ctrl+o to expand)
+
+● 任务追踪暂时不适用于这次对话式 grill。让我再看一下既有的 TODO 说明，避免空想。
+
+● Bash(cat /home/developer/github/dawn-ai/docs/TODO.md 2>/dev/null | head -80 &&
+       echo "---" && gh issue view 25 2>/dev/null | head -50)
+  ⎿  ---
+     updated: 2026-05-23 20:34
+     ---
+     … +27 lines (ctrl+o to expand)
+
+  Read 1 file (ctrl+o to expand)
+
+● Bash(gh issue view 25 2>&1 | head -80)
+  ⎿  /bin/bash: line 1: gh: command not found
+
+● 老大，背景已经摸到位了。当前状态我先回放一下：
+
+  - Agent 主干：AgentOrchestrator 走的是 Spring AI 的 ChatClient +
+  toolNames()，工具循环交给 Spring AI 自己处理（不是手写 ReAct）；ToolRegistry
+  通过 @Description 注解 + 包路径 com.dawn.ai.agent.tools 在启动时自动发现
+  Function Bean。
+  - 当前工具：本地三个（Weather/Calculator/KnowledgeSearch），所有工具都是
+  in-process Spring Bean。
+  - TODO 第 5 条明确写着 "支持 Skill 和 MCP 协议 #issue25"——这就是这次要做的事。
+  - 项目里完全没有 MCP/Skill 的痕迹（除 TODO 那一行外），是从 0 开始接入。
+
+  现在我开始一个一个问。所有问题我会先给推荐答案。
+
+  ---
+  问题 1 / 「Skill」语义对齐
+
+  「MCP」在 Java/Spring AI 圈是有公认定义的（Anthropic 的 Model Context
+  Protocol），但「Skill」这个词在不同语境里差别很大：
+
+  - (a) Anthropic Claude Skills ——一个 SKILL.md 文件 + 目录约定，前置加载
+  name/description，让模型按需自取（progressive disclosure），等同 system prompt
+   的可热插拔片段，不是协议、不是 RPC。
+  - (b) 微软 Semantic Kernel Skill / Plugin
+  ——本质是把一组函数打包成"插件"，更接近 tool 分组。
+  - (c) 自定义的"技能" ——你心里有一个具体的形态，比如 prompt 模板 + 一组 tools
+  的组合。
+
+  我推荐 (a)，理由有三：① 它和 MCP 同属 Anthropic 体系，放在一个 issue
+  里被一起提到很自然；② 项目里已经有 docs/superpowers/ 这种"agent
+  可用资源目录"的雏形；③ Spring AI 1.1 已经原生支持 MCP，但 Skill 这层是
+  Anthropic 的 agent 端 约定，恰好是"自实现 agent"该补的部分。
+
+  但这是一个会决定后续所有问题的关键岔路，我必须先和老大对齐。
+
+  老大，你说的 "Skill" 指的是哪一种？
+
+✻ Worked for 43s
+
+※ recap: 老大，目标是给项目自实现 agent 加上 MCP 和 Skill 支持。当前停在 grill 的第一个岔路：需要你确认「Skill」指的是哪种语义（推荐 Anthropic Claude Skills 的 SKILL.md 约定），确认后再继续往下问。 (disable recaps in /config)
+
+❯ a                                                                             
+
+● 老大确认 (a) Anthropic Claude Skills，那 progressive disclosure
+  这套机制就定下了——启动只暴露 name+description，模型按需展开。
+
+  ---
+  问题 2 / MCP 的角色定位
+
+  Spring AI 1.1 同时支持 MCP Client 和 MCP Server。这次要做的是哪一头？
+
+  - Client：dawn-ai 作为消费方，能把外部 MCP
+  server（filesystem、github、内部业务系统等）暴露的工具接入到自己的 agent
+  循环里。
+  - Server：dawn-ai 把现有的 Weather/Calculator/KnowledgeSearch 工具按 MCP
+  协议暴露出去，让 Claude Desktop、Cursor 等外部客户端调用。
+  - 两者都做：既能拉别人的工具进来，也能把自己的工具吐出去。
+
+  我推荐先做 Client，理由：
+
+  1. TODO 原文写的是「支持 MCP 协议」，最直白的诉求是"让 agent 用上 MCP
+  生态的能力"——这是消费方视角。
+  2. Client 和 Skill 形成天然互补：MCP 拉来"外部工具能力"，Skill
+  拉来"外部指令/知识片段"，agent 主干（AgentOrchestrator + ToolRegistry）不动。
+  3. Server 化是一次独立的接口设计工作（要定义 resources/prompts/tools
+  三层暴露），把它和 Skill 塞进同一个 PR 会让 review 难度爆炸；且当前的工具都是
+  in-process Function，没有跨进程鉴权/隔离设计，仓促 Server 化容易留坑。
+  4. 实际验证 Client 比 Server 容易——直接接一个公开的 MCP server（如
+  mcp-server-filesystem）就能跑通。
+
+  如果将来要做 Server，可以另起 issue。
+
+  老大同意「这一轮只做 MCP Client + Skill」吗，还是另有打算？
+
+✻ Worked for 26s
+
+❯ agree                                                                         
+
+❯ /plugin 
+  ⎿  ✓ Installed code-review. Run /reload-plugins to apply.
+
+❯ /plugin 
+  ⎿  ✓ Installed code-simplifier. Run /reload-plugins to apply.
+
+● 老大确认：MCP Client + Skill，两件事一个分支推进。
+
+  ---
+  问题 3 / 与现有 ToolRegistry 的关系（这是最关键的架构岔路）
+
+  AgentOrchestrator 现在的调用是：
+
+  .toolNames(toolRegistry.getNames())
+
+  ToolRegistry 的发现逻辑硬编码在 Function 接口 + @Description + 包路径
+  com.dawn.ai.agent.tools。但：
+
+  - MCP 暴露的是 ToolCallback（带 input schema），不是 Function
+  bean，也不在那个包下。
+  - Skill 既不是 Function 也不是 Tool——它是一段"按需展开的指令文本"，但需要在
+  system prompt 里告诉模型"有什么 skill 可用"以及怎么取。
+
+  两种集成模式：
+
+  Column 1: ToolRegistry 改造
+  Pattern A：统一抽象: 抽出 ToolDescriptor（name/description/callback），本地
+    Function 与 MCP 都映射进来
+  Pattern B：双轨制: 不动，新增 McpToolProvider、SkillRegistry 并列
+  ────────────────────────────────────────
+  Column 1: AgentOrchestrator 改动
+  Pattern A：统一抽象: 几乎不动，仍调 toolRegistry.getNames()
+  Pattern B：双轨制: 需改成
+    .toolNames(...).toolCallbacks(mcpProvider.getCallbacks())
+  ────────────────────────────────────────
+  Column 1: TaskPlanner 看到的工具
+  Pattern A：统一抽象: 一次性拿到全部（本地+MCP），规划准确
+  Pattern B：双轨制: 默认只看本地；要让规划用上 MCP 得手动合并
+  ────────────────────────────────────────
+  Column 1: ToolExecutionAspect 拦截
+  Pattern A：统一抽象: 自动覆盖（统一抽象）
+  Pattern B：双轨制: MCP 走 Spring AI 自己的链路，AOP 不会拦到——指标/trace
+    会缺一截
+  ────────────────────────────────────────
+  Column 1: 命名冲突处理
+  Pattern A：统一抽象: 在 Registry 里集中决策
+  Pattern B：双轨制: 散在两处
+
+  我强烈推荐 Pattern A。三点理由：
+
+  1. ToolExecutionAspect 是项目现在的 trace/metrics 中枢（StepCollector
+  收集步骤、ai.rag.dedup.skipped 之类的计数器都靠它）。如果 MCP 工具绕开
+  Aspect，SSE stream 里 step 事件就会少调用，前端时间线会出现 MCP
+  调用的"鬼步骤"——这是 Iron Law Article 2「No AI slop pattern」的踩坑前兆。
+  2. TaskPlanner 现在拿 toolRegistry.getDescriptions() 喂给规划 LLM；若 MCP
+  工具不进来，"plan 出来的步骤"和"实际可用的工具集"就不一致，会反复触发
+  fallback。
+  3. Skill 虽然不是 tool，但完全可以用同一抽象：每个 skill
+  注册为一个特殊的"虚拟工具" skill:{name}，模型调用它就等价于"展开这个 skill
+  的完整内容并注入到下一轮上下文"——这正是 Anthropic 原版 progressive disclosure
+  的 Java 落地方式。三件事（本地 Function / MCP Tool / Skill）共用一个出口。
+
+  Pattern A 的代价是：ToolRegistry 要重构（不再强绑
+  Function），但本身就是这次工作的应有之义。
+
+  老大同意走 Pattern A 吗？还是希望保守一些（B）？
+
+✻ Cogitated for 42s
+
+❯ /copy                                                                         
+  ⎿  Copied to clipboard (2291 characters, 36 lines)
+     Also written to /tmp/claude-1000/response.md
+
+❯ /copy                                                                         
+  ⎿  Copied to clipboard (2291 characters, 36 lines)
+     Also written to /tmp/claude-1000/response.md
+
+※ recap: 老大，我们在规划「让 dawn-ai 自实现 agent 接入 MCP Client + Anthropic Skills」的设计，已确认范围与形态。当前卡在问题 3：是否走 Pattern A（统一抽象 ToolRegistry，让 MCP 工具和 Skill 都走同一出口）。等你回复 A 或 B 即可继续。 (disable recaps in /config)
+
+❯ A                                                                             
+● 老大确认 Pattern A——ToolRegistry 抽出统一描述符，本地 Function / MCP / Skill
+  三类共用一个出口。下一层。
+
+  ---
+  问题 4 / MCP 传输协议：STDIO 还是 SSE
+
+  Spring AI 1.1 的 MCP Client 是两个 starter：
+
+  - spring-ai-starter-mcp-client —— STDIO，把 MCP server 作为子进程拉起，通过
+  stdin/stdout 通信。
+  - spring-ai-starter-mcp-client-webflux —— SSE / Streamable HTTP，纯 HTTP
+  调用，需要远端有运行中的 MCP server。
+
+  两者可共存，但每多一个 starter 都有代价（依赖、配置、心智）。
+
+  ┌────────┬─────────────────────────────────────────────────┬─────────────┐
+  │        │                      STDIO                      │  SSE/HTTP   │
+  ├────────┼─────────────────────────────────────────────────┼─────────────┤
+  │        │ 主流。@modelcontextprotocol/server-filesystem、 │ 少数。多用  │
+  │ 生态适 │ -github、-postgres、-slack 等几十个开源 server  │ 于 SaaS 化  │
+  │ 配     │ 默认就是 STDIO                                  │ MCP         │
+  │        │                                                 │ 或自建服务  │
+  ├────────┼─────────────────────────────────────────────────┼─────────────┤
+  │ 启动依 │ 容器内需装好 MCP server                         │ 远端 URL    │
+  │ 赖     │ 命令（npx、uvx、二进制等）——要改 Dockerfile     │ 即可，零本  │
+  │        │                                                 │ 地依赖      │
+  ├────────┼─────────────────────────────────────────────────┼─────────────┤
+  │ 鉴权   │ 不需要（子进程信任边界）                        │ 要做 Bearer │
+  │        │                                                 │ /OAuth      │
+  ├────────┼─────────────────────────────────────────────────┼─────────────┤
+  │ 故障模 │ 子进程崩溃需 supervisor 重启；stdout/stderr     │ 网络抖动、  │
+  │ 式     │ 隔离要小心                                      │ 超时重试    │
+  ├────────┼─────────────────────────────────────────────────┼─────────────┤
+  │        │ dawn-ai 是 Spring MVC，加 WebFlux starter       │             │
+  │ 项目契 │ 会引入 reactor 第二条链路，和现有               │ 同样要加    │
+  │ 合度   │ Hooks.enableAutomaticContextPropagation()       │ WebFlux     │
+  │        │ 共存可以但要测                                  │             │
+  └────────┴─────────────────────────────────────────────────┴─────────────┘
+
+  我推荐 STDIO-only 起步，理由：
+
+  1. 学习/演示项目的最大价值是"能跑通主流生态"——接 mcp-server-filesystem 让
+  agent 能读本地文件，比接一个空架子的远程 SSE server 演示效果好得多。
+  2. 零额外鉴权设计，能聚焦在"接入"本身，不被 OAuth 这层杂事拖住。
+  3. 未来加 SSE 是单纯加 starter 的事（Spring AI 的抽象层一致），不会推倒重来。
+  4. 现有 docker-compose.yml 已经有完整的服务网格，再叠 SSE
+  端点会让本地启动变重。
+
+  代价：Dockerfile 要装 node（最常见的 MCP server
+  runtime），镜像会胖一些。Dockerfile.dev 已经在的话改动很小。
+
+  反对意见：如果老大压根不打算在 Docker 里跑 MCP（开发期 host 直跑），那
+  Dockerfile 改动这条就不存在。
+
+  老大选 STDIO-only，还是希望一上来就 STDIO + SSE 都支持？
+
+✻ Churned for 34s
+
+❯ 仅支持SSE                                                                     
+
+● 老大选 SSE-only——那 Dockerfile 不用动，但鉴权和远端可用性就成了必须正视的事。
+
+  先做一次轻量校验：Spring MVC 项目引入 spring-ai-starter-mcp-client-webflux
+  是否会破坏现有 servlet 栈。
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+● 任务追踪此阶段不适用。技术校验结果：当前是
+  spring-boot-starter-web（Servlet），加 spring-ai-starter-mcp-client-webflux
+  只会拉来 WebClient 做 HTTP 客户端，不会启动 Netty 服务器，与现有 SseEmitter
+  流式实现不冲突。
+
+  ---
+  问题 5 / MCP server 列表的配置形态 + secret 管理
+
+  SSE 模式下每个 MCP server 至少需要：name、url、auth（Bearer token /
+  OAuth）、timeout。这一坨配置往哪儿放、secret 怎么注入？
+
+  三种选项：
+
+  (A) application.yml + 环境变量占位（Spring AI 官方默认 schema）
+  spring.ai.mcp.client.sse.connections:
+    github:
+      url: https://mcp.github.com/v1
+    internal-jira:
+      url: https://mcp.internal.com/jira
+
+  # headers 在 yml 里用 ${...} 引环境变量
+  spring.ai.mcp.client.request-timeout: 30s
+  secret 通过 env 注入，和现有 OPENAI_API_KEY 是同一个模式（README 第 30 行）。
+
+  (B) 独立 mcp-servers.json（Claude Desktop / Cursor 风格）
+  { "mcpServers": { "github": { "url": "...", "headers": { "Authorization":
+  "Bearer ${GH_TOKEN}" } } } }
+  独立文件，未来想接入 Claude Desktop 生态时可以直接复用。
+
+  (C) DB 表 + Admin API
+  运行时动态增删，无需重启。
+
+  我推荐 (A)，理由：
+
+  1. 和项目现有配置风格统一——application.yml 已经管着
+  LLM、embedding、RAG、Redis、Postgres，再加 MCP 是自然延伸；独立 JSON
+  文件会让"我去哪儿改配置"这件事变碎。
+  2. Spring AI 1.1 的 MCP starter 原生认这套 schema——直接生效，无需自写
+  ConfigurationProperties 解析器。
+  3. secret 走环境变量和现有 BASE_URL/OPENAI_API_KEY 一致，docker-compose
+  那一层不用做特殊处理。
+  4. (B) 的"复用 Claude Desktop JSON"价值在 dawn-ai
+  这种服务端场景几乎用不到——这是桌面客户端的格式。
+  5. (C) 是真正生产化的形态，但当前阶段引入 Admin API + 鉴权 + 审计
+  是过度设计，等真有"运维不能改配置"这种压力时再做。
+
+  反对意见：如果老大计划让多租户用户各自配 MCP server（每个用户接自己的 GitHub
+  MCP token），(A) 就不够用了，得是 (C) 加 per-user 配置。这是一个产品方向问题。
+
+  老大选哪个？另外明确一下：这次接入的 MCP server 是公开生态的（如 GitHub 
+  MCP）、内部业务的、还是先留个空配置只做框架？
+
+✻ Sautéed for 42s
+
+※ recap: 老大，我们在 grill 一个新分支的实现计划：给 dawn-ai 的自实现 agent 接入 MCP Client（SSE-only）+ Anthropic Skill，统一收编进 `ToolRegistry`。下一步：你回答 MCP server 配置形态（推荐 application.yml + env）以及首批接哪种 MCP server。 (disable recaps in /config)
+
+❯ B                                                                             
+
+● 老大选 B——独立 mcp-servers.json。那 schema 我们自己解析，secret 用 ${ENV_VAR}
+  占位。
+
+  但在继续下钻配置细节（文件位置、热
+  reload、启动容错）之前，有一个更靠前的问题必须先定，否则后续 grill
+  都是空架子。
+
+  ---
+  问题 6 / 这次到底接入哪个 / 哪些 MCP server？
+
+  这件事直接关系到能不能"端到端跑通"——Iron Law Article 3
+  要求最终交付时要有截图证明真的能用，不能只交付一个空框架。
+
+  但公开生态里成熟的 SSE 远程 MCP server 数量很少（绝大多数是
+  STDIO）。能选的范围大概是：
+
+  ┌──────────────────────────┬─────────────┬──────────┬────────────────────┐
+  │           选项           │ 真实可用性  │ 接入成本 │      演示价值      │
+  ├──────────────────────────┼─────────────┼──────────┼────────────────────┤
+  │ GitHub Remote MCP (api.g │ ✅ 官方，20 │ OAuth    │ 高，能演示"agent   │
+  │ ithubcopilot.com/mcp/)   │ 25-04 GA    │ 2.1 + PK │ 帮我查/改 issue"   │
+  │                          │             │ CE，复杂 │                    │
+  ├──────────────────────────┼─────────────┼──────────┼────────────────────┤
+  │ Cloudflare MCP           │ ✅ 公开     │ API      │ 中                 │
+  │ (workers-mcp SSE)        │             │ token    │                    │
+  ├──────────────────────────┼─────────────┼──────────┼────────────────────┤
+  │ Linear MCP               │ ✅ 公开     │ OAuth    │ 中                 │
+  ├──────────────────────────┼─────────────┼──────────┼────────────────────┤
+  │ 自建一个最小 SSE MCP     │             │          │                    │
+  │ server（比如用 Python 的 │ ✅ 完全可控 │ 半小时   │ 低，但能保证端到端 │
+  │  mcp SDK 暴露            │             │          │ 可测               │
+  │ echo/datetime 工具）     │             │          │                    │
+  ├──────────────────────────┼─────────────┼──────────┼────────────────────┤
+  │ 只做框架，留空配置       │ N/A         │ 0        │ 违反 Iron Law      │
+  │                          │             │          │ Art.3              │
+  └──────────────────────────┴─────────────┴──────────┴────────────────────┘
+
+  我推荐组合方案：
+
+  1. 冒烟用：在 docker-compose.yml 里加一个最小自建 SSE MCP server（用 Python
+  mcp SDK，暴露 echo + current_time 两个工具，~30 行代码），保证 CI
+  和本地都能端到端跑通——这是用来证明接入对的、能拿到截图的。
+  2. 演示用：mcp-servers.json 里额外预留一份注释掉的 GitHub Remote MCP 配置（带
+  OAuth 字段示例），让用户读 README 就知道"想接真实生态就开这条"，但不强制 OAuth
+   实现（OAuth 2.1 + PKCE 又是一坨独立工作）。
+
+  理由：
+  - 能跑通 ≠ 接入了真实生态。直接做 GitHub OAuth，这一个分支的工作量就能压过 MCP
+   框架本身——会拖死 PR 的可 review 性。
+  - 自建 mini server 让 integration test 可控——MCP
+  接入逻辑（连接、超时、callback 注册、AOP 拦截）的回归测试有真实对端可打。
+  - 预留 GitHub 注释配置 = 用户能扩展，不留遗憾——未来 issue 单开做 OAuth。
+
+  反对意见：如果老大此次就要"必须把 GitHub 真实接通"，那 OAuth 2.1 + PKCE +
+  token refresh + 回调端点全套就得做，这次 PR 体量会翻倍——必须取舍。
+
+  老大决定：
+
+  (a) 推荐方案（自建 mini SSE + GitHub 注释预留），
+  (b) 只做自建 mini SSE，连示例都不留，
+  (c) 必须把 GitHub 真接通，OAuth 这一坨也在本次范围里，
+  (d) 别的想法？
+
+✻ Baked for 36s
+
+❯  由于 CLI 可以完全替代 MCP,因此不打算接入MCP 了，请继续 SKILL                 
+  的适配方案，并把之前讨论的这套思路保存到本地                                  
+
+● 老大确认放弃 MCP（CLI 可替代是合理判断——MCP 的工具消费场景在 LLM
+  服务端这一侧的边际价值确实弱，CLI/Function 已经覆盖大部分）。
+
+  先看一眼 docs 里既有的归档风格，再决定保存位置。
+
+  Read 1 file, listed 1 directory (ctrl+o to expand)
+
+● 按 docs/superpowers/specs/ 既有命名约定保存为
+  2026-05-26-skill-support-design.md。结构沿用 Langfuse 那份的"已锁定决策 /
+  开放问题"双段式。
+
+● Write(docs/superpowers/specs/2026-05-26-skill-support-design.md)
+  ⎿  Wrote 78 lines to
+     docs/superpowers/specs/2026-05-26-skill-support-design.md
+      1 # Skill 支持 — 设计规格文档
+      2 
+      3 - **日期**：2026-05-26
+      4 - **分支**：（尚未创建，待规格定稿后建分支）
+      5 - **状态**：草稿（grill 进行中，开放问题待澄清）
+      6 - **负责人**：Supremes
+      7 - **来源 issue**：`docs/TODO.md` 第 5 条「支持 Skill 和 MCP 协议 
+        #issue25」
+      8 
+      9 ## 1. 目标
+     … +102 lines (ctrl+o to expand)
+
+● 已存档至 docs/superpowers/specs/2026-05-26-skill-support-design.md。结构和
+  Langfuse 那份对齐：已锁定决策 /
+  开放问题分段，每锁定一项就从「开放」移入「已锁定」。MCP 那一段作为「§6
+  历史」备查，避免日后重新讨论。
+
+  ---
+  继续 Skill 的 grill。CLAUDE.md
+  写了「动机不清晰时停下来讨论」，这是一切设计的源头，我先问。
+
+  ---
+  问题 7 / Skill 在 dawn-ai 里的真实动机是什么？
+
+  不同动机会得出完全不同的设计：
+
+  动机: (i) 领域专家手册 —— 想给 agent 注入"如何分析 K8s pod 状态"、"如何写 SQL
+    注释"这类长指令片段，按 topic 自动激活
+  核心约束: Skill 内容是指令文本，按 topic/intent 选择
+  推导出的设计: 不必做严格的 progressive disclosure，TaskPlanner 选 skill → 注入
+
+    system prompt → 一发命中
+  ────────────────────────────────────────
+  动机: (ii) 运维热插拔扩展 —— 想让 PM/运维写一个 markdown
+    文件丢进目录，重启即生效（甚至不重启），无需改 Java 代码
+  核心约束: 文件系统外挂 + 热加载 + 不依赖部署
+  推导出的设计: 重点在 watch 机制、配置目录、错误隔离；progressive disclosure
+    是手段不是目的
+  ────────────────────────────────────────
+  动机: (iii) 探索性复用 Anthropic 模式 —— 学习项目，目的是验证"Anthropic
+    这套机制在 Java/Spring AI agent 上是否成立"，能跑通 + 写文章即胜利
+  核心约束: 忠于原版机制
+  推导出的设计: 严格按 Anthropic 的 progressive disclosure（先曝光
+    name/description，模型主动 load），可以接受 classpath、不强求热加载
+  ────────────────────────────────────────
+  动机: (iv) 别的
+  核心约束: ——
+  推导出的设计: ——
+
+  我推荐 (iii)，理由：
+
+  1. 项目调性：dawn-ai 的 README 标题写的是 "Complete Java AI Agent
+  Application"，docs/ 目录里全是探索性笔记（interview-ai-agent-2026-03-09.md、sp
+  ring-ai-react.excalidraw、RAG/ReAct
+  各阶段笔记），这是个面向工程师学习的样板项目，不是面向 PM/运维的产品。
+  2. 没有用户压力：当前没有 PM/运维等"非工程师角色"在用这个系统（没有 Admin
+  UI、没有租户体系），(ii) 想解决的问题在 dawn-ai 上不存在。
+  3. (i) 太轻：领域专家手册其实就是"按 topic 注入 system
+  prompt"，AgentOrchestrator.buildSystemPrompt() 已经有 topicSection
+  这种插槽——再叠一层"skill"概念是过度设计，不如直接给 topic 表加 extra_prompt
+  字段。
+  4. (iii) 价值最大：把 Anthropic 这套机制完整跑通在 Java/Spring AI
+  上，本身就有可分享的工程价值（可以写一篇笔记进
+  docs/notes/），且能为后续真正需要 (i)/(ii) 时打好底层。
+
+  反对意见：如果老大其实有具体场景（比如"想给 KnowledgeSearch 配一个 SKILL
+  教模型怎么解读检索结果"），那就是 (i)，设计应该简化。
+
+  老大的真实动机是 (i)/(ii)/(iii)/(iv) 哪一个？
+
+✻ Crunched for 1m 42s
+
+❯ iii                                                                           
+
+● 老大确认 (iii)——忠于 Anthropic 原版，能跑通即胜利。那 progressive disclosure
+  必须严格按原版语义复现：启动时只曝光 name + description，模型主动 load。
+
+  我把动机锁到 spec 文档里，然后继续下一个核心问题。
+
+● Update(docs/superpowers/specs/2026-05-26-skill-support-design.md)
+  ⎿  Added 1 line
+      25  | 1 | Skill 形态 | **Anthropic Claude Skills**（`SKILL.md` + fr
+          ontmatter，progressive disclosure） | 区别于 Semantic Kernel "S
+          kill"（≈ 工具分组）与自定义"技能"语义 |
+      26  | 2 | 集成模式 | **Pattern A：统一抽象到 `ToolRegistry`** | 抽
+          出 `ToolDescriptor`（name/description/callback），本地 Function
+           与 Skill 共用同一出口，保证 `TaskPlanner` 与 `ToolExecutionAsp
+          ect` 自动覆盖；避免双轨制导致 trace/metrics 缺失 |
+      27  | 3 | 集成范围 | **仅 Skill，放弃 MCP** | 见 §2 非目标说明 |
+      28 +| 4 | 动机 | **(iii) 探索性复用 Anthropic 模式** | 忠于原版 pro
+         +gressive disclosure 语义；学习/示范价值优先；可写入 `docs/notes
+         +/` 分享 |                                                      
+      29  
+      30  ## 4. 开放问题（待 grill 澄清）
+      31  
+
+● task tracking 在 grill 阶段不适用。
+
+  ---
+  问题 8 / Progressive disclosure 的 Java 落地方式（Skill 设计的核心）
+
+  这一题决定一切——它直接决定 Skill 在 ChatClient 调用链里的角色、是否需要改
+  AgentOrchestrator、模型 prompt 长什么样。
+
+  三种候选：
+
+  (b1) 一个元工具 load_skill(name) + system prompt 列举 skill 清单
+  - 启动扫描 → SkillRegistry
+  - system prompt 追加：「可用 skills（按需调用 load_skill 加载完整内容）：- 
+  pdf-analysis: 解析 PDF...; - sql-style: SQL 风格指南...」
+  - 注册一个元工具 load_skill(name) 到 ToolRegistry
+  - 模型决定需要时 → toolcall load_skill("pdf-analysis") → 返回 SKILL.md 全文 →
+  Spring AI 自动把全文作为 tool result 回灌到下一轮 → 模型在新上下文里使用
+  - 这正是 Anthropic 原版语义的字面翻译
+
+  (b2) 每个 skill 注册为独立虚拟工具
+  - 每个 skill = 一个 ToolDescriptor，name = skill 名，description = frontmatter
+   的 description
+  - 模型直接 toolcall 该 skill，返回 SKILL.md 全文
+  - 工程上最自然（完全复用 Spring AI tool calling），Pattern A 落地最干净
+  - 但语义降维——把 skill 等同于 tool，丢失 Anthropic 设计里"skill
+  是独立概念，不是 tool"这层抽象
+
+  (b3) Advisor 拦截特殊 token（如 <load-skill>pdf-analysis</load-skill>）
+  - 用 Spring AI Advisor 在生成阶段解析模型输出
+  - 需要可靠的格式约定、模型遵循度难保证
+  - 与原版机制差异最大
+
+  对比表：
+
+  ┌──────────────────┬──────────────────┬─────────────────┬────────────────┐
+  │                  │    b1 元工具     │  b2 每 skill    │  b3 Advisor    │
+  │                  │                  │    一个工具     │     token      │
+  ├──────────────────┼──────────────────┼─────────────────┼────────────────┤
+  │ 忠于原版语义     │ ✅ 完全          │ ⚠️ 降维         │ ❌ 偏离        │
+  ├──────────────────┼──────────────────┼─────────────────┼────────────────┤
+  │                  │ 中（要写 prompt  │ 低（纯          │ 高（要写解析器 │
+  │ 实现复杂度       │ 拼接 + 1         │ ToolRegistry    │  + Advisor）   │
+  │                  │ 个工具）         │ 集成）          │                │
+  ├──────────────────┼──────────────────┼─────────────────┼────────────────┤
+  │ ToolRegistry     │ 简单（只多 1 个  │ 完美（N 个      │                │
+  │ 集成             │ entry）          │ skill = N 个    │ 不集成（绕开） │
+  │                  │                  │ entry）         │                │
+  ├──────────────────┼──────────────────┼─────────────────┼────────────────┤
+  │                  │ plan             │ plan 阶段把     │                │
+  │ TaskPlanner 规划 │ 阶段能看到所有   │ skill           │ plan 不参与    │
+  │                  │ skill 名（system │ 当工具一起规划  │                │
+  │                  │  prompt 文本）   │                 │                │
+  ├──────────────────┼──────────────────┼─────────────────┼────────────────┤
+  │ 工具列表膨胀     │ ❌ 不膨胀        │ ⚠️ 每加 1 skill │ ❌ 不膨胀      │
+  │                  │                  │  多 1 工具      │                │
+  ├──────────────────┼──────────────────┼─────────────────┼────────────────┤
+  │ 模型输出格式风险 │ 低（标准         │ 低（标准        │ 高（要自定义   │
+  │                  │ toolcall）       │ toolcall）      │ token）        │
+  └──────────────────┴──────────────────┴─────────────────┴────────────────┘
+
+  我推荐 (b1)，理由：
+
+  1. 动机决定路径：刚才确认动机是 (iii)「忠于原版」，b1 是 Anthropic 原版的字面
+  1:1 翻译——name+description 在 system prompt 列举、模型 explicit
+  load、内容作为返回值进上下文。b2 虽然工程上更顺，但抹掉了"skill ≠ tool"这层 
+  Anthropic 故意保留的抽象，与 (iii) 的精神矛盾。
+  2. 可写文章的价值：(iii) 隐含目标是写笔记进 docs/notes/，b1
+  路径有一个清晰的故事——"我们用一个元工具在 Java 里复现了 Anthropic 的
+  progressive disclosure"。b2 写出来就是"我们把 skill
+  当工具用了"，没有传播价值。
+  3. 工具列表卫生：b2 会让 chatClient.toolNames() 数组膨胀，且每个 skill 的
+  description 都进每次请求的 tool schema。b1 只多一个 load_skill 工具，skill
+  清单走 system prompt 文本（更便宜，且只在需要时才被模型实际"读"）。
+  4. 未来可演进：b1 → b2 是单向门可走的（如果将来发现某些 skill
+  高频使用想"晋升"成 tool，可以手动注册）；b2 → b1 需要回退抽象，更难。
+
+  反对意见：如果老大觉得「Spring AI 既然有 tool calling
+  这一现成机制就该用满」，b2 工程效率更高。
+
+  但请注意，Pattern A 在 b1 下依然成立——ToolRegistry 里就有 load_skill
+  这一项，所有 trace/metrics 自动覆盖，没有任何牺牲。
+
+  老大选 b1 / b2 / b3 / 别的？
+
+✻ Churned for 1m 6s
+
+❯ b1                                                                            
+
+● 锁定 b1。
+● Update(docs/superpowers/specs/2026-05-26-skill-support-design.md)
+  ⎿  Added 1 line
+      26  | 2 | 集成模式 | **Pattern A：统一抽象到 `ToolRegistry`** | 抽
+          出 `ToolDescriptor`（name/description/callback），本地 Function
+           与 Skill 共用同一出口，保证 `TaskPlanner` 与 `ToolExecutionAsp
+          ect` 自动覆盖；避免双轨制导致 trace/metrics 缺失 |
+      27  | 3 | 集成范围 | **仅 Skill，放弃 MCP** | 见 §2 非目标说明 |
+      28  | 4 | 动机 | **(iii) 探索性复用 Anthropic 模式** | 忠于原版 pro
+          gressive disclosure 语义；学习/示范价值优先；可写入 `docs/notes
+          /` 分享 |
+      29 +| 5 | Progressive disclosure 实现 | **b1：元工具 `load_skill(na
+         +me)` + system prompt 列举 skill 清单** | Anthropic 原版的字面 1
+         +:1 翻译；保持 skill 与 tool 的语义分离；`ToolRegistry` 中仅多 `
+         +load_skill` 一项，工具列表无膨胀 |                             
+      30  
+      31  ## 4. 开放问题（待 grill 澄清）
+      32  
+
+● ---
+  问题 9 / Skill 的存放位置 + 目录结构
+
+  Anthropic 原版是「文件系统目录 + {skill-name}/SKILL.md + 可选附件」。dawn-ai
+  落地有几种选择：
+
+  ┌──────────────┬────────────────────┬─────────────────┬──────────────────┐
+  │              │      单文件        │ 单文件文件系统  │ 目录文件系统外挂 │
+  │              │ classpath（src/mai │ 外挂（./skills/ │ （./skills/{name │
+  │              │ n/resources/skills │   {name}.md）   │  }/SKILL.md +    │
+  │              │    /{name}.md）    │                 │      附件）      │
+  ├──────────────┼────────────────────┼─────────────────┼──────────────────┤
+  │ 忠于原版     │ ❌ 偏离            │ ⚠️ 部分         │ ✅ 完全          │
+  ├──────────────┼────────────────────┼─────────────────┼──────────────────┤
+  │ 加 skill     │                    │                 │                  │
+  │ 是否要 mvn   │ ❌ 要              │ ✅ 不要         │ ✅ 不要          │
+  │ package      │                    │                 │                  │
+  ├──────────────┼────────────────────┼─────────────────┼──────────────────┤
+  │              │                    │ volume mount    │                  │
+  │ Docker 部署  │ 打进 jar           │ ./skills:/app/s │ 同左             │
+  │              │                    │ kills           │                  │
+  ├──────────────┼────────────────────┼─────────────────┼──────────────────┤
+  │ 支持 referen │                    │                 │                  │
+  │ ces/foo.md   │ ❌ 不支持          │ ❌ 不支持       │ ✅ 支持          │
+  │ 引用         │                    │                 │                  │
+  ├──────────────┼────────────────────┼─────────────────┼──────────────────┤
+  │ 支持 bundled │                    │                 │ ✅ 支持（但问题  │
+  │  scripts     │ ❌ 不支持          │ ❌ 不支持       │ 10 会再决策是否  │
+  │              │                    │                 │ 启用）           │
+  ├──────────────┼────────────────────┼─────────────────┼──────────────────┤
+  │ 演示直观度（ │                    │                 │                  │
+  │ "丢个文件夹  │ 差                 │ 中              │ 好               │
+  │ 就生效"）    │                    │                 │                  │
+  └──────────────┴────────────────────┴─────────────────┴──────────────────┘
+
+  我推荐「目录文件系统外挂」，路径默认 ./skills/，可通过 app.skills.path 
+  覆盖。理由：
+
+  1. 动机 (iii) 要求忠于原版——Anthropic 的 Skill
+  设计中"目录形态"不是装饰，而是它支持的两个核心特性的载体：① references/
+  子文件按需引用、② scripts/ 可执行附件。哪怕初版我们暂不启用 scripts（问题 10
+  再决），目录形态先到位才不会日后回退抽象。
+  2. 演示叙事——dawn-ai 是学习项目，"在 repo 根目录新建一个
+  ./skills/sql-style/SKILL.md，重启就能看到 agent
+  用上它"是这次工作能讲给读者的最直接故事。classpath 形态会变成"改完代码 mvn
+  package 才能演示"，叙事弱。
+  3. docker-compose 容器化无痛——加一行 volumes: - ./skills:/app/skills:ro
+  即可，与现有 compose 风格一致。
+  4. classpath fallback 可同时支持（低成本）——可以加一个内置示例 skill 打进 jar
+  作为最小可运行示例（在 src/main/resources/skills-builtin/
+  下），保证"开箱即用看到效果"。生产用户用外挂目录覆盖即可。这样演示 + 
+  可定制两头都顾到。
+
+  具体目录约定：
+
+  ./skills/                          # 可由 app.skills.path 配置
+  ├── sql-style/
+  │   ├── SKILL.md                   # 必需，frontmatter: name/description
+  │   └── references/                # 可选，SKILL.md 内可引用
+  │       └── sql-format-spec.md
+  └── pdf-analysis/
+      └── SKILL.md
+
+  反对意见：如果老大觉得"加一个 classpath
+  内置示例"是过度设计，可以只做纯外挂——但这样首次启动 ./skills/
+  是空的，没东西演示，README 截图都拍不出。
+
+  老大确认：
+  (a) 推荐方案（目录形态外挂 + 一个 classpath 内置示例兜底演示），
+  (b) 纯外挂，不带内置示例，
+  (c) 别的想法？
+
+✻ Baked for 47s
+
+❯ a                                                                             
+
+● 锁定。
+
+● Update(docs/superpowers/specs/2026-05-26-skill-support-design.md)
+  ⎿  Added 1 line
+      27  | 3 | 集成范围 | **仅 Skill，放弃 MCP** | 见 §2 非目标说明 |
+      28  | 4 | 动机 | **(iii) 探索性复用 Anthropic 模式** | 忠于原版 pro
+          gressive disclosure 语义；学习/示范价值优先；可写入 `docs/notes
+          /` 分享 |
+      29  | 5 | Progressive disclosure 实现 | **b1：元工具 `load_skill(na
+          me)` + system prompt 列举 skill 清单** | Anthropic 原版的字面 1
+          :1 翻译；保持 skill 与 tool 的语义分离；`ToolRegistry` 中仅多 `
+          load_skill` 一项，工具列表无膨胀 |
+      30 +| 6 | 存放位置 + 目录结构 | **目录形态外挂 `./skills/{name}/SKI
+         +LL.md`（路径由 `app.skills.path` 配置）+ classpath 内置示例兜底
+         +** | 忠于原版目录形态；运维加 skill 无需 mvn package；内置 1 个
+         +示例 skill 打进 jar（`src/main/resources/skills-builtin/`）保证
+         +首次启动可演示 |                                               
+      31  
+      32  ## 4. 开放问题（待 grill 澄清）
+      33  
+
+● ---
+  问题 10 / Skill 是否支持可执行内容（scripts/ 子目录）
+
+  Anthropic 原版的 Skill bundle 经常带 scripts/ 子目录，里面是 Python/shell
+  脚本。Claude Code 这类 agent 读完 SKILL.md 后，会用自己的 Bash tool
+  主动执行这些脚本（比如 PDF 解析 skill 里的 parse.py）。
+
+  dawn-ai 落地有三种选择：
+
+  Column 1: 安全风险
+  (A) 完全不支持 scripts/: 0
+  (B) 允许 scripts/ 存在，仅作"文件清单"暴露给模型，不执行: 0
+  (C) 支持沙箱执行: ⚠️ 高（任意代码执行）
+  ────────────────────────────────────────
+  Column 1: 工程复杂度
+  (A) 完全不支持 scripts/: 0
+  (B) 允许 scripts/ 存在，仅作"文件清单"暴露给模型，不执行: 低
+  (C) 支持沙箱执行: 极高
+  ────────────────────────────────────────
+  Column 1: 忠于原版
+  (A) 完全不支持 scripts/: ❌ 偏离
+  (B) 允许 scripts/ 存在，仅作"文件清单"暴露给模型，不执行: ⚠️
+    部分（结构在，执行权不在）
+  (C) 支持沙箱执行: ✅ 完全
+  ────────────────────────────────────────
+  Column 1: 用户体验
+  (A) 完全不支持 scripts/: 干净
+  (B) 允许 scripts/ 存在，仅作"文件清单"暴露给模型，不执行: ⚠️
+  困惑：「模型说要跑
+    parse.py，但跑不了」
+  (C) 支持沙箱执行: 强大
+  ────────────────────────────────────────
+  Column 1: dawn-ai 现状契合
+  (A) 完全不支持 scripts/: ✅ 没有 shell tool，scripts/ 本来也跑不起来
+  (B) 允许 scripts/ 存在，仅作"文件清单"暴露给模型，不执行: 同左但暴露困惑
+  (C) 支持沙箱执行: 需要先做 shell tool + 沙箱
+
+  我推荐 (A) 完全不支持 scripts/，理由：
+
+  1. dawn-ai 没有 shell/bash tool——scripts/ 子目录就算放着也无能力执行，(B)
+  会让模型在 plan 里写出"我要跑 parse.py"然后空转，体验差。
+  2. (C) 的安全工程量是 issue 级别的——Java
+  沙箱执行任意脚本是巨大工程（SecurityManager 在 JDK 17 已 deprecated/removed in
+   JDK 24，要做就得走子进程隔离 + 资源限额 + 文件系统沙箱），完全压过 Skill
+  本身的工作量。当前 (iii) 学习项目动机不应承诺这个。
+  3. (iii) 忠于原版的核心是 progressive disclosure 
+  机制本身——不是脚本执行能力。Anthropic 原版的"scripts/"是它的 agent 恰好有 bash
+   tool 的副产物，不是 progressive disclosure 的必要部分。
+  4. 明确的边界 > 模糊的能力——文档化「dawn-ai 的 Skill 是纯指令性的，scripts/
+  暂不支持，请在 SKILL.md
+  里以文字描述任何流程」，比"看似支持其实跑不了"清晰得多。
+  5. 未来可演进——如果将来真做了 shell tool（dawn-ai 加 ShellExecutionTool +
+  沙箱），(A) → (C) 是加法，没有回退成本。
+
+  具体实现：扫描时若发现 scripts/ 子目录，日志 WARN「scripts/ 已忽略，dawn-ai
+  当前不支持脚本执行」，不影响 skill 注册。
+
+  反对意见：如果老大将来打算给 dawn-ai 加 shell tool（其实这是个挺常见的 agent
+  能力），那 (B) 是为未来留口子的过渡方案。但 (B) 现在落地就是空中楼阁。
+
+  老大选 (A) / (B) / (C) / 别的？
+
+✻ Worked for 50s
+
+❯ A                                                                             
+
+● 锁定。
+
+● Update(docs/superpowers/specs/2026-05-26-skill-support-design.md)
+  ⎿  Added 1 line
+      28  | 4 | 动机 | **(iii) 探索性复用 Anthropic 模式** | 忠于原版 pro
+          gressive disclosure 语义；学习/示范价值优先；可写入 `docs/notes
+          /` 分享 |
+      29  | 5 | Progressive disclosure 实现 | **b1：元工具 `load_skill(na
+          me)` + system prompt 列举 skill 清单** | Anthropic 原版的字面 1
+          :1 翻译；保持 skill 与 tool 的语义分离；`ToolRegistry` 中仅多 `
+          load_skill` 一项，工具列表无膨胀 |
+      30  | 6 | 存放位置 + 目录结构 | **目录形态外挂 `./skills/{name}/SKI
+          LL.md`（路径由 `app.skills.path` 配置）+ classpath 内置示例兜底
+          ** | 忠于原版目录形态；运维加 skill 无需 mvn package；内置 1 个
+          示例 skill 打进 jar（`src/main/resources/skills-builtin/`）保证
+          首次启动可演示 |
+      31 +| 7 | 可执行内容（`scripts/`） | **完全不支持**；扫描时发现 `sc
+         +ripts/` 日志 WARN 并忽略 | dawn-ai 无 shell tool，沙箱执行是 is
+         +sue 级独立工程；明确边界优于模糊能力；未来加 shell tool 后可演 
+         +进到支持 |                                                     
+      32  
+      33  ## 4. 开放问题（待 grill 澄清）
+      34  
+
+● ---
+  问题 11 / 内嵌资源（references/foo.md）的访问机制
+
+  Anthropic 原版 Skill 经常这样组织：
+
+  skills/pdf-analysis/
+  ├── SKILL.md           # 概述 + 用法，约 50 行
+  └── references/
+      ├── pdf-spec.md    # PDF 1.7 规范节选，2000 行（不常用）
+      └── examples.md    # 案例集，500 行
+
+  SKILL.md 里会写：「详细规范见
+  references/pdf-spec.md，需要时再读」。这就是"嵌套 progressive 
+  disclosure"——load_skill 只返回简明 SKILL.md（省
+  token），模型判断需要细节时再深入读子文件。
+
+  Anthropic 自己的实现里，子文件靠 Claude Code 通用的 Read tool 读取，不是 Skill
+   体系的一部分。dawn-ai 没有通用 Read tool，必须自己决策：
+
+  Column 1: 忠于原版（嵌套 progressive disclosure）
+  (a) load_skill 一次返回 SKILL.md + 所有 references/ 全文: ❌
+    反原版（一次性吐全）
+  (b) 加第二个元工具 read_skill_resource(skill, path): ✅ 完全
+  (c) load_skill(name, optional path) 一个工具支持两层: ✅ 完全（语义等价）
+  (d) 不支持 references/，只支持单文件 SKILL.md: ⚠️ 偏离
+  ────────────────────────────────────────
+  Column 1: token 经济性
+  (a) load_skill 一次返回 SKILL.md + 所有 references/ 全文: ❌ 浪费
+  (b) 加第二个元工具 read_skill_resource(skill, path): ✅ 按需
+  (c) load_skill(name, optional path) 一个工具支持两层: ✅ 按需
+  (d) 不支持 references/，只支持单文件 SKILL.md: ✅ 不存在问题
+  ────────────────────────────────────────
+  Column 1: 工具数
+  (a) load_skill 一次返回 SKILL.md + 所有 references/ 全文: 1
+  (b) 加第二个元工具 read_skill_resource(skill, path): 2
+  (c) load_skill(name, optional path) 一个工具支持两层: 1
+  (d) 不支持 references/，只支持单文件 SKILL.md: 1
+  ────────────────────────────────────────
+  Column 1: 工具签名清晰度
+  (a) load_skill 一次返回 SKILL.md + 所有 references/ 全文: 简单
+  (b) 加第二个元工具 read_skill_resource(skill, path): 职责单一
+  (c) load_skill(name, optional path) 一个工具支持两层: 参数 overloaded
+  (d) 不支持 references/，只支持单文件 SKILL.md: 最简
+  ────────────────────────────────────────
+  Column 1: 加新 skill 复杂度
+  (a) load_skill 一次返回 SKILL.md + 所有 references/ 全文: skill
+    作者要克制单文件大小
+  (b) 加第二个元工具 read_skill_resource(skill, path): 自由
+  (c) load_skill(name, optional path) 一个工具支持两层: 自由
+  (d) 不支持 references/，只支持单文件 SKILL.md: 必须把所有内容塞 SKILL.md
+  ────────────────────────────────────────
+  Column 1: 安全（防路径穿越）
+  (a) load_skill 一次返回 SKILL.md + 所有 references/ 全文: 不需要
+  (b) 加第二个元工具 read_skill_resource(skill, path): 需要校验 path 不逃出
+  skill
+    目录
+  (c) load_skill(name, optional path) 一个工具支持两层: 同左
+  (d) 不支持 references/，只支持单文件 SKILL.md: 不需要
+
+  我推荐 (b) 加第二个元工具 read_skill_resource(skill, path)，理由：
+
+  1. (iii) 动机要求"忠于原版"——原版的核心卖点就是"嵌套 progressive
+  disclosure"（外层 SKILL.md 是目录，内层 references 是详情）；(d) 把
+  references/ 砍了，等于砍掉了这套机制最有"故事性"的一半，写笔记时会很尴尬。
+  2. (b) 工具签名职责单一——load_skill(name) 永远返回 SKILL.md
+  全文（清晰），read_skill_resource(skill, path) 永远读子文件（清晰）。(c)
+  把两件事塞一个工具，path 是可选参数，schema 描述会写得拧巴——LLM 选参容易出错。
+  3. 多 1 个元工具的代价可忽略——ToolRegistry 多一项，但和 Calculator/Weather
+  这种业务工具相比，2 个 skill 元工具是合理的基础设施开销。
+  4. 安全边界天然存在——read_skill_resource 实现里强制 Path.resolve() 后校验仍在
+  ./skills/{name}/ 子树内，杜绝 ../../../etc/passwd 这种路径穿越；这一层校验在
+  (b)/(c) 都要做。
+
+  反对意见：如果老大觉得"两个元工具污染工具列表"，(c)
+  把它们合一也合理；如果觉得"v1 简单为王"，(d) 直接砍掉 references/ 也行——但 (d)
+   与 (iii) 动机有矛盾。
+
+  老大选 (a) / (b) / (c) / (d) / 别的？
+
+✻ Churned for 44s
+
+※ recap: 老大，目标是给 dawn-ai 自实现 agent 加 Anthropic 形态的 Skill 支持（MCP 已放弃），grill 已锁定 7 项决策。下一步等你回答问题 11：references/ 子文件的访问机制选 a/b/c/d。 (disable recaps in /config)
+
+❯ b                                                                             
+
+● 任务追踪在 grill 阶段不适用，已锁定 (b)。
+
+● Update(docs/superpowers/specs/2026-05-26-skill-support-design.md)
+  ⎿  Added 1 line
+      29  | 5 | Progressive disclosure 实现 | **b1：元工具 `load_skill(na
+          me)` + system prompt 列举 skill 清单** | Anthropic 原版的字面 1
+          :1 翻译；保持 skill 与 tool 的语义分离；`ToolRegistry` 中仅多 `
+          load_skill` 一项，工具列表无膨胀 |
+      30  | 6 | 存放位置 + 目录结构 | **目录形态外挂 `./skills/{name}/SKI
+          LL.md`（路径由 `app.skills.path` 配置）+ classpath 内置示例兜底
+          ** | 忠于原版目录形态；运维加 skill 无需 mvn package；内置 1 个
+          示例 skill 打进 jar（`src/main/resources/skills-builtin/`）保证
+          首次启动可演示 |
+      31  | 7 | 可执行内容（`scripts/`） | **完全不支持**；扫描时发现 `sc
+          ripts/` 日志 WARN 并忽略 | dawn-ai 无 shell tool，沙箱执行是 is
+          sue 级独立工程；明确边界优于模糊能力；未来加 shell tool 后可演
+          进到支持 |
+      32 +| 8 | 内嵌资源（`references/`） | **(b) 加第二个元工具 `read_sk
+         +ill_resource(skill, path)`**，路径强制限定在 `./skills/{name}/`
+         + 子树内 | 忠于原版"嵌套 progressive disclosure"；工具签名职责单
+         +一；防路径穿越在实现层用 `Path.resolve()` + 子树校验 |         
+      33  
+      34  ## 4. 开放问题（待 grill 澄清）
+      35  
+
+● ---
+  问题 12 / SKILL.md frontmatter 字段范围
+
+  Anthropic 原版 SKILL.md frontmatter 大致长这样：
+
+  ---
+  name: pdf-analysis
+  description: 解析 PDF 文档结构、提取文本、识别表格。当用户提到
+  PDF/PDF文件/扫描件时优先调用。
+  version: 1.2.0
+  allowed-tools: [Read, Bash]
+  license: MIT
+  ---
+
+  description 是 progressive disclosure 的灵魂——它单挑要不要让模型 load 该 skill
+   的决策权（这段文本永远在 system prompt 里）。
+
+  dawn-ai 落地有三种选择：
+
+  Column 1: 忠于原版
+  (A) 完全照搬 Anthropic 全部字段（含 allowed-tools）: ✅ 完全
+  (B) 只消费 name + description（必需），其他字段解析但忽略: ✅ 机制层完全
+  (C) 简化+自定义扩展（如加 topic 字段绑 RAG topicId）: ❌ 偏离
+  ────────────────────────────────────────
+  Column 1: allowed-tools 落地难度
+  (A) 完全照搬 Anthropic 全部字段（含 allowed-tools）: ⚠️ 高 —— load
+  后要中途变更
+    ChatClient 工具集，Spring AI 当前 API 不直接支持
+  (B) 只消费 name + description（必需），其他字段解析但忽略: 不实现
+  (C) 简化+自定义扩展（如加 topic 字段绑 RAG topicId）: 不实现
+  ────────────────────────────────────────
+  Column 1: 实现复杂度
+  (A) 完全照搬 Anthropic 全部字段（含 allowed-tools）: 高
+  (B) 只消费 name + description（必需），其他字段解析但忽略: 低
+  (C) 简化+自定义扩展（如加 topic 字段绑 RAG topicId）: 中
+  ────────────────────────────────────────
+  Column 1: 未来扩展成本
+  (A) 完全照搬 Anthropic 全部字段（含 allowed-tools）: 已实现
+  (B) 只消费 name + description（必需），其他字段解析但忽略: 低（已解析进
+    manifest，加业务逻辑即可启用）
+  (C) 简化+自定义扩展（如加 topic 字段绑 RAG topicId）: 与原版分叉，难合并
+  ────────────────────────────────────────
+  Column 1: MVP 可演示性
+  (A) 完全照搬 Anthropic 全部字段（含 allowed-tools）: 拖慢
+  (B) 只消费 name + description（必需），其他字段解析但忽略: 快
+  (C) 简化+自定义扩展（如加 topic 字段绑 RAG topicId）: 快
+
+  我推荐 (B)，理由：
+
+  1. allowed-tools 在 b1 元工具模式下落地非常拧巴——它要求"模型 load skill
+  后，下一轮 ChatClient 请求的工具集临时变更"。Spring AI 的
+  chatClient.prompt().toolNames(...) 是 per-prompt 不可中途改的；要做就得在
+  ToolExecutionAspect 那层做"运行时过滤"——这是一个独立的、值得单开 issue
+  的特性，绑在 Skill 初版会拖垮 PR。
+  2. (iii) 忠于原版 ≠ 忠于每个字段——progressive disclosure 的机制核心是 name + 
+  description 的双层暴露和按需加载，其他字段是治理/元数据的便利，不是机制本身。
+  3. 未来无障碍演进——SnakeYAML 把全部 frontmatter 解析进 SkillManifest
+  对象（保留所有未知字段），但 v1 只消费 name + description，其他字段 silent
+  忽略。日后加 allowed-tools 时只需加业务逻辑，不动解析层。
+  4. schema 校验严格但宽容——name 缺失 / 非法字符 → 拒绝注册（FAIL）；description
+   缺失 → 拒绝注册（FAIL）；未知字段 → 解析进 manifest
+  但忽略（PASS）。这是个常见的稳健配置模式。
+  5. 错误处理：单个 skill 解析失败（缺字段、YAML 语法错）→ 日志 ERROR 跳过该
+  skill，不影响其他 skill 注册，更不能阻塞 app 启动（错误隔离）。
+
+  反对意见：如果老大想一步到位把 allowed-tools 也做了——可以做但工作量翻倍且要改
+  ToolExecutionAspect，不建议。
+
+  老大选 (A) / (B) / (C) / 别的？
+
+✻ Cooked for 40s
+
+※ recap: 老大目标是给 dawn-ai 自研 agent 加 Skill 支持（已放弃 MCP）。grill 进行到问题 12：SKILL.md frontmatter 字段范围，推荐 (B) 只消费 name+description。下一步等老大对问题 12 的回答。 (disable recaps in /config)
+
+❯ b                                                                             
+
+● 锁定 (B)。
+
+● Update(docs/superpowers/specs/2026-05-26-skill-support-design.md)
+  ⎿  Added 1 line
+      30  | 6 | 存放位置 + 目录结构 | **目录形态外挂 `./skills/{name}/SKI
+          LL.md`（路径由 `app.skills.path` 配置）+ classpath 内置示例兜底
+          ** | 忠于原版目录形态；运维加 skill 无需 mvn package；内置 1 个
+          示例 skill 打进 jar（`src/main/resources/skills-builtin/`）保证
+          首次启动可演示 |
+      31  | 7 | 可执行内容（`scripts/`） | **完全不支持**；扫描时发现 `sc
+          ripts/` 日志 WARN 并忽略 | dawn-ai 无 shell tool，沙箱执行是 is
+          sue 级独立工程；明确边界优于模糊能力；未来加 shell tool 后可演
+          进到支持 |
+      32  | 8 | 内嵌资源（`references/`） | **(b) 加第二个元工具 `read_sk
+          ill_resource(skill, path)`**，路径强制限定在 `./skills/{name}/`
+           子树内 | 忠于原版"嵌套 progressive disclosure"；工具签名职责单
+          一；防路径穿越在实现层用 `Path.resolve()` + 子树校验 |
+      33 +| 9 | Frontmatter 字段 | **(B) 仅消费 `name` + `description`（ 
+         +必需，缺失则拒绝注册）；其他字段解析进 `SkillManifest` 但忽略；
+         +未知字段不报错** | `allowed-tools` 落地需中途变更 ChatClient 工
+         +具集，Spring AI 当前 API 不支持，单独立项；解析层保留完整字段便
+         +于未来扩展；单个 skill 解析失败仅跳过该 skill，不阻塞 app 启动 
+         +|                                                              
+      34  
+      35  ## 4. 开放问题（待 grill 澄清）
+      36  
+
+● ---
+  问题 13 / 热加载策略
+
+  用户在 ./skills/ 下新增/修改了一个 SKILL.md，dawn-ai 何时能感知到？
+
+  ┌──────────┬─────────────────┬───────────────────────┬────────────────────┐
+  │          │ (A) 不支持热加  │  (B) 提供 Actuator    │ (C) 文件系统 watch │
+  │          │  载，重启 JVM   │ endpoint POST /actuat │  自动 reload（Watc │
+  │          │      生效       │   or/skills/reload    │     hService）     │
+  │          │                 │       手动触发        │                    │
+  ├──────────┼─────────────────┼───────────────────────┼────────────────────┤
+  │ 实现复杂 │                 │ 低（一个 @RestControl │ 中（NIO WatchServi │
+  │ 度       │ 0               │ lerEndpoint）         │ ce，macOS 上是 pol │
+  │          │                 │                       │ ling，行为有惊喜） │
+  ├──────────┼─────────────────┼───────────────────────┼────────────────────┤
+  │          │ ❌ 改完         │                       │ ✅ 改完 →          │
+  │ 演示体验 │ SKILL.md 要等   │ ✅ 改完 → curl 一下 → │ 自动生效（macOS    │
+  │          │ docker compose  │  立即生效             │ 上有 ~10s polling  │
+  │          │ restart ~30 秒  │                       │ 延迟）             │
+  ├──────────┼─────────────────┼───────────────────────┼────────────────────┤
+  │ 老       │                 │ ❌ 已建立的 chat      │                    │
+  │ session  │ N/A             │ session 仍持有旧      │ 同左               │
+  │ 的感知   │                 │ system prompt，无感知 │                    │
+  ├──────────┼─────────────────┼───────────────────────┼────────────────────┤
+  │ 失败模式 │ 无              │ endpoint 返回错误清晰 │ watch 线程崩溃需   │
+  │          │                 │                       │ supervisor         │
+  └──────────┴─────────────────┴───────────────────────┴────────────────────┘
+
+  (老 session 不感知的问题)：无论 (B) 还是 (C)，热加载后，只有新 session 在调 
+  AgentOrchestrator.chat() 时才会拿到刷新后的 skill 清单（因为 system prompt
+  是每次 chat 重建的）。这其实不是 bug——dawn-ai 的 sessionId
+  是按对话隔离的，新对话自然能用上新 skill。文档化即可。
+
+  我推荐 (B)，理由：
+
+  1. 演示叙事完整性——这次工作的核心交付物之一是"丢一个 SKILL.md
+  进去就生效"的故事（README 截图 / 笔记演示）。(A) 把这个故事打折成"丢进去 +
+  重启 + 等 30 秒"，违和。
+  2. (C) 的 ROI 不划算——WatchService 在 macOS 上是
+  polling（PollingWatchService），延迟和 CPU 都不稳；且要写一个 daemon 线程 +
+  错误重启 + debounce（编辑器保存常常触发多次事件）。对 (iii) "能跑通即胜利"
+  的目标，这是过度工程。
+  3. (B) 几乎零成本——一个 Spring Boot Actuator endpoint，复用现有 actuator
+  的安全/监控配置（/actuator/health、/actuator/prometheus 已经在跑），加 POST 
+  /actuator/skills/reload 完全同构。实现就是 skillRegistry.refresh() 一行。
+  4. 可观测：reload 触发时打 INFO 日志列出新旧 skill 名差异，方便排查。
+  5. 未来无障碍演进到 (C)——(B) 已经把 SkillRegistry.refresh()
+  这个原子操作抽出来了，将来加 watch 只是加触发器，不动核心。
+
+  反对意见：如果老大觉得 (A) "重启生效" 才是 Spring Boot
+  项目最干净的语义（不引入新 endpoint），也合理——但牺牲演示体验。
+
+  老大选 (A) / (B) / (C) / 别的？
+
+✻ Cooked for 41s
+
+❯ B                                                                             
+● 锁定 (B)。
+
+● Update(docs/superpowers/specs/2026-05-26-skill-support-design.md)
+  ⎿  Added 1 line
+      31  | 7 | 可执行内容（`scripts/`） | **完全不支持**；扫描时发现 `sc
+          ripts/` 日志 WARN 并忽略 | dawn-ai 无 shell tool，沙箱执行是 is
+          sue 级独立工程；明确边界优于模糊能力；未来加 shell tool 后可演
+          进到支持 |
+      32  | 8 | 内嵌资源（`references/`） | **(b) 加第二个元工具 `read_sk
+          ill_resource(skill, path)`**，路径强制限定在 `./skills/{name}/`
+           子树内 | 忠于原版"嵌套 progressive disclosure"；工具签名职责单
+          一；防路径穿越在实现层用 `Path.resolve()` + 子树校验 |
+      33  | 9 | Frontmatter 字段 | **(B) 仅消费 `name` + `description`（
+          必需，缺失则拒绝注册）；其他字段解析进 `SkillManifest` 但忽略；
+          未知字段不报错** | `allowed-tools` 落地需中途变更 ChatClient 工
+          具集，Spring AI 当前 API 不支持，单独立项；解析层保留完整字段便
+          于未来扩展；单个 skill 解析失败仅跳过该 skill，不阻塞 app 启动 
+          |
+      34 +| 10 | 热加载 | **(B) Actuator endpoint `POST /actuator/skills/
+         +reload` 手动触发**；老 session 持有旧 system prompt 不刷新（新 
+         +session 自然生效，文档化即可） | 演示叙事完整性；`WatchService`
+         + 在 macOS 上是 polling 不划算；endpoint 即 `skillRegistry.refre
+         +sh()` 一行，未来可演进到自动 watch |                           
+      35  
+      36  ## 4. 开放问题（待 grill 澄清）
+      37  
+
+● ---
+  主决策树已经走完。剩下是若干小决策——它们的答案我都比较确定，且互相独立。打包一
+  次问完，老大同意就锁定，不同意单独 grill。
+
+  ---
+  问题 14 / 最后一组小决策（打包确认）
+
+  (1) 选择性激活
+  推荐：全局可见（所有 skill 列入 system prompt，模型自主决策）。理由：(iii)
+  忠于原版语义；dawn-ai 没有租户/角色体系，做激活范围过早抽象。
+
+  (2) 内置示例 skill 是什么
+  推荐：code-review-zh —— 一个"中文代码 review 风格指南" skill。SKILL.md
+  写"如何用中文 review Java 代码、风格、命名、错误处理"；references/checklist.md
+   列详细 checklist。理由：① 与项目本身的工程感契合（dawn-ai 是 Java 项目）；②
+  演示截图自然（"帮我 review 这段代码"→ 模型 load skill → 按风格给反馈）；③
+  中文，符合用户偏好。
+
+  (3) system prompt 里 skill 清单的格式
+  推荐：Markdown 列表，例如：
+  ## 可用 Skills
+  按需调用 `load_skill(name)` 加载完整指令。需要 skill 的内嵌资源时调用
+  `read_skill_resource(skill, path)`。
+
+  - **code-review-zh**: 中文代码 review 风格指南，处理"帮我 review
+  这段代码"类需求时使用
+  - **pdf-analysis**: ...
+  理由：人类可读 + LLM 友好，比 JSON 短，比自然语言段落结构化。
+
+  (4) skill 名字符约束
+  推荐：kebab-case，正则 ^[a-z][a-z0-9-]{0,63}$。理由：与 Anthropic
+  原版一致；URL/路径友好（reload endpoint 可能要带 name）；防各种 escape
+  坑。违反规则 → 拒绝注册 + ERROR 日志。
+
+  (5) description 长度上限
+  推荐：1024 字符硬上限（超过截断 + WARN 日志）。理由：description 永久驻留
+  system prompt，每次 chat 都要付 token；1024 字符（≈ 中文 500 字 / 英文 200
+  词）足够写清"何时触发该 skill"，再长就该写进 SKILL.md 正文了。
+
+  (6) 命名空间 / 命名冲突
+  确认：不存在冲突。ToolRegistry 里只多 2
+  个工具（load_skill、read_skill_resource），与现有
+  KnowledgeSearchTool/WeatherTool/CalculatorTool 不重名。skill 名是 load_skill
+  的参数，不进工具命名空间。
+
+  (7) 可观测性
+  确认：自动复用。load_skill / read_skill_resource 都是 Spring Bean + Function +
+   @Description，会被 ToolRegistry 自动发现，被 ToolExecutionAspect 自动拦截 →
+  StepCollector 记录 → SSE step 事件推送 → Langfuse span 自动产生。零额外工作。
+
+  (8) 分支命名
+  推荐：feat/skill-support。理由：仓库现有约定从 git log 看是 feat/... /
+  docs/...（如 feat/langfuse-integration）。
+
+  老大对这 8 个小决策是 全部 OK、还是某几个想 grill？请告诉我编号。
+
+✻ Brewed for 36s
+
+※ recap: 老大目标是为 dawn-ai 自实现 agent 接入 Anthropic Claude Skills（MCP 已放弃），grill 已锁 10 项主决策，现在卡在最后一组 8 个小决策的打包确认上。下一步等老大回复哪些小决策 OK、哪些要继续 grill。 (disable recaps in /config)
+
+❯ all ok                                                                        
+
+● 全部锁定。把 8 项小决策追加进 spec，并把「开放问题」段清空。
+
+● Update(docs/superpowers/specs/2026-05-26-skill-support-design.md)
+  ⎿  Added 8 lines
+      32  | 8 | 内嵌资源（`references/`） | **(b) 加第二个元工具 `read_sk
+          ill_resource(skill, path)`**，路径强制限定在 `./skills/{name}/`
+           子树内 | 忠于原版"嵌套 progressive disclosure"；工具签名职责单
+          一；防路径穿越在实现层用 `Path.resolve()` + 子树校验 |
+      33  | 9 | Frontmatter 字段 | **(B) 仅消费 `name` + `description`（
+          必需，缺失则拒绝注册）；其他字段解析进 `SkillManifest` 但忽略；
+          未知字段不报错** | `allowed-tools` 落地需中途变更 ChatClient 工
+          具集，Spring AI 当前 API 不支持，单独立项；解析层保留完整字段便
+          于未来扩展；单个 skill 解析失败仅跳过该 skill，不阻塞 app 启动 
+          |
+      34  | 10 | 热加载 | **(B) Actuator endpoint `POST /actuator/skills/
+          reload` 手动触发**；老 session 持有旧 system prompt 不刷新（新 
+          session 自然生效，文档化即可） | 演示叙事完整性；`WatchService`
+           在 macOS 上是 polling 不划算；endpoint 即 `skillRegistry.refre
+          sh()` 一行，未来可演进到自动 watch |
+      35 +| 11 | 激活范围 | **全局可见**，所有 skill 列入 system prompt，
+         +由模型自主决策 load | (iii) 忠于原版；dawn-ai 无租户/角色体系 |
+      36 +| 12 | 内置示例 skill | **`code-review-zh`** —— 中文 Java 代码 
+         +review 风格指南；`SKILL.md` 描述用法，`references/checklist.md`
+         + 列详细 checklist | 与项目工程感契合；演示截图自然；中文 |     
+      37 +| 13 | system prompt 中 skill 清单格式 | **Markdown 列表**：`##
+         + 可用 Skills\n按需调用 load_skill(name) ...\n- **{name}**: {des
+         +cription}` | 人类可读 + LLM 友好；比 JSON 短，比自然语言段落结 
+         +构化 |                                                         
+      38 +| 14 | skill 名字符约束 | **kebab-case，正则 `^[a-z][a-z0-9-]{0
+         +,63}$`** | 与原版一致；URL/路径友好；防 escape；违反即拒绝注册 
+         ++ ERROR 日志 |                                                 
+      39 +| 15 | `description` 长度上限 | **1024 字符硬上限**（超过截断 +
+         + WARN 日志） | description 永驻 system prompt，每 chat 都付 tok
+         +en；1024 足够说明触发场景 |                                    
+      40 +| 16 | 命名空间 | **`load_skill` / `read_skill_resource` 为 too
+         +l 名；skill 名是其参数，不进工具命名空间** | 不存在与现有 Knowl
+         +edgeSearch/Weather/Calculator 工具冲突 |                       
+      41 +| 17 | 可观测性 | **自动复用现有 `ToolExecutionAspect` + `StepC
+         +ollector` + Langfuse**，零额外工作 | 两个元工具是标准 Spring Be
+         +an + `Function` + `@Description`，被 `ToolRegistry` 自动发现并 
+         +被 AOP 拦截 |                                                  
+      42 +| 18 | 分支命名 | **`feat/skill-support`** | 仓库现有约定 `feat
+         +/...`（如 `feat/langfuse-integration`） |                      
+      43  
+      44  ## 4. 开放问题（待 grill 澄清）
+      45  
+
+● 任务追踪仍不适用（仍在 spec 阶段，不是实施阶段）。把 §4 开放问题段清空。
+
+● Update(docs/superpowers/specs/2026-05-26-skill-support-design.md)
+  ⎿  Added 1 line, removed 1 line
+      2  
+      3  - **日期**：2026-05-26
+      4  - **分支**：（尚未创建，待规格定稿后建分支）
+      5 -- **状态**：草稿（grill 进行中，开放问题待澄清）                
+      5 +- **状态**：grill 完成，全部决策已锁定，待进入实施阶段          
+      6  - **负责人**：Supremes
+      7  - **来源 issue**：`docs/TODO.md` 第 5 条「支持 Skill 和 MCP 协议
+          #issue25」
+      8  
+
+● Update(docs/superpowers/specs/2026-05-26-skill-support-design.md)
+  ⎿  Added 2 lines, removed 24 lines
+      41  | 17 | 可观测性 | **自动复用现有 `ToolExecutionAspect` + `StepC
+          ollector` + Langfuse**，零额外工作 | 两个元工具是标准 Spring Be
+          an + `Function` + `@Description`，被 `ToolRegistry` 自动发现并
+          被 AOP 拦截 |
+      42  | 18 | 分支命名 | **`feat/skill-support`** | 仓库现有约定 `feat
+          /...`（如 `feat/langfuse-integration`） |
+      43  
+      44 -## 4. 开放问题（待 grill 澄清）                                
+      44 +## 4. 开放问题                                                 
+      45  
+      46 -待确认顺序按依赖关系排列：                                     
+      46 +无 —— 全部 18 项决策已在 §3 锁定，下一步进入实施 plan。        
+      47  
+      48 -1. **动机与场景**：Skill 在 dawn-ai 中解决的具体问题是什么？   
+      49 -   - (i) 领域专家手册（按 topic 加载的 system prompt 片段）    
+      50 -   - (ii) 热插拔的 prompt 扩展机制（运维不改代码即可上线新能力 
+         -）                                                             
+      51 -   - (iii) 探索性复用 Anthropic 模式，验证 Java agent 可行性   
+      52 -   - (iv) 其他                                                 
+      53 -2. **存放位置**：classpath（jar 内）/ 文件系统外挂目录 / DB    
+      54 -3. **Schema 兼容性**：是否完全照搬 Anthropic frontmatter（`name
+         -` / `description` / `allowed-tools` 等），还是简化或扩展       
+      55 -4. **Progressive disclosure 的 Java 落地**：                   
+      56 -   - (a) 启动时把所有 skill 的 `name` + `description` 注入 syst
+         -em prompt（共识）                                              
+      57 -   - (b) 模型如何「展开」某个 skill —— 三种候选：              
+      58 -     - b1：内置工具 `load_skill(name)` 返回 SKILL.md 全文，注入
+         -下一轮上下文                                                   
+      59 -     - b2：每个 skill 注册为独立虚拟工具，模型「调用」它 = 展开
+         -内容                                                           
+      60 -     - b3：用 Spring AI Advisor 在生成阶段拦截特殊 token（如 `<
+         -load-skill>...</load-skill>`）                                 
+      61 -5. **可执行内容**：Anthropic 原版 Skill bundle 支持携带可执行脚
+         -本，dawn-ai 是否支持                                           
+      62 -   - 不支持（仅注入文本）                                      
+      63 -   - 支持沙箱内执行（Python/shell）—— 安全与工作量代价高       
+      64 -6. **选择性激活**：所有 skill 全局可见，还是按 session/topic/us
+         -er-role 过滤                                                   
+      65 -7. **内嵌资源访问**：SKILL.md 引用的 `references/foo.md` 等子文
+         -件如何读取                                                     
+      66 -8. **命名冲突**：skill 名与 tool 名重复时的优先级 / 拒绝策略   
+      67 -9. **热加载**：修改 SKILL.md 后是否需要重启 JVM                
+      68 -10. **可观测性**：skill 加载/展开是否进 `StepCollector`、是否产
+         -生 Langfuse span                                               
+      69 -                                                               
+      48  ## 5. 既有架构上下文（决策依据）
+      49  
+      50  - `AgentOrchestrator` 走 Spring AI `ChatClient` + `toolNames()`
+          ，工具循环由 Spring AI 接管（非手写 ReAct）。
+
+● ---
+  老大，grill 完成。Spec 文档已收口在
+  docs/superpowers/specs/2026-05-26-skill-support-design.md，18
+  项决策全部锁定，开放问题清零。
+
+  回放完整决策链：
+
+  ┌───────┬───────────────────┬─────────────────────────────────────────────┐
+  │   #   │       决策        │                    选择                     │
+  ├───────┼───────────────────┼─────────────────────────────────────────────┤
+  │ 1     │ Skill 形态        │ Anthropic Claude Skills                     │
+  ├───────┼───────────────────┼─────────────────────────────────────────────┤
+  │ 2     │ 集成模式          │ Pattern A：统一抽象到 ToolRegistry          │
+  ├───────┼───────────────────┼─────────────────────────────────────────────┤
+  │ 3     │ 集成范围          │ 仅 Skill，放弃 MCP（CLI 可替代）            │
+  ├───────┼───────────────────┼─────────────────────────────────────────────┤
+  │ 4     │ 动机              │ (iii) 忠于原版机制，探索性                  │
+  ├───────┼───────────────────┼─────────────────────────────────────────────┤
+  │ 5     │ Progressive       │ b1：元工具 load_skill(name) + system prompt │
+  │       │ disclosure        │  列举                                       │
+  ├───────┼───────────────────┼─────────────────────────────────────────────┤
+  │ 6     │ 存放位置          │ ./skills/{name}/SKILL.md 外挂 + classpath   │
+  │       │                   │ 内置示例兜底                                │
+  ├───────┼───────────────────┼─────────────────────────────────────────────┤
+  │ 7     │ scripts/          │ 完全不支持                                  │
+  ├───────┼───────────────────┼─────────────────────────────────────────────┤
+  │ 8     │ references/       │ b：加第二个元工具                           │
+  │       │                   │ read_skill_resource(skill, path)            │
+  ├───────┼───────────────────┼─────────────────────────────────────────────┤
+  │ 9     │ Frontmatter       │ 仅消费 name + description，其余解析但忽略   │
+  ├───────┼───────────────────┼─────────────────────────────────────────────┤
+  │ 10    │ 热加载            │ Actuator POST /actuator/skills/reload       │
+  ├───────┼───────────────────┼─────────────────────────────────────────────┤
+  │ 11-18 │ 小决策            │ 全部按推荐方案锁定                          │
+  └───────┴───────────────────┴─────────────────────────────────────────────┘
+
+  下一步老大想怎么走？
+
+  - (a) 进入 PlanMode，我把 spec 推导成文件级实施计划（哪些类要新增/改造、改动顺
+  序、可测试节点），等批准后再动手；
+  - (b) 我直接创建 feat/skill-support 分支并开始实施，按 spec
+  推进，过程中遇到需要决策的点再叫你；
+  - (c) 先把 spec 文档放着不动，老大想再读一遍 / 改动某项决策；
+  - (d) 别的。
+
+  ---
+  提问语法校对：「完成对项目自实现agent针对MCP和SKILL的支持」这句里——「自实现
+  agent」前最好加「的」（→「项目自实现的 agent」）；「针对 MCP 和 SKILL
+  的支持」中「支持」与「针对」搭配偏弱，更顺的写法是「为项目自实现的 agent 
+  增加对 MCP 和 SKILL 的支持」。另外 SKILL 在原版中是
+  Skill（首字母大写、非全大写），后续 issue/commit/PR 文案建议统一用 Skill。
+
+✻ Cooked for 57s
