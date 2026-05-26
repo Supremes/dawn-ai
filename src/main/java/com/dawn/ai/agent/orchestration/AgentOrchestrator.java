@@ -364,6 +364,10 @@ public class AgentOrchestrator {
         }
         StringBuilder sb = new StringBuilder("\n\n【执行计划】\n");
         for (PlanStep step : plan) {
+            // 过滤掉 "finish" 步骤 - 这只是规划器的内部标记，不应暴露给执行阶段的LLM
+            if ("finish".equals(step.action())) {
+                continue;
+            }
             sb.append(step.step())
                     .append(". [").append(step.action()).append("] ")
                     .append(step.reason()).append("\n");
@@ -419,6 +423,6 @@ public class AgentOrchestrator {
             return "";
         }
         return "\n\n【强制约束】你必须严格按照上方【执行计划】依次调用对应工具，" +
-               "不得依赖自身训练知识直接回答，每个非 finish 步骤均需触发对应工具调用。";
+               "不得依赖自身训练知识直接回答。完成所有工具调用后，再基于结果生成最终答案。";
     }
 }
