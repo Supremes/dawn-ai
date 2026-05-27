@@ -2,6 +2,7 @@ package com.dawn.ai.agent.orchestration;
 
 import com.dawn.ai.agent.planning.TaskPlanner;
 import com.dawn.ai.agent.registry.ToolRegistry;
+import com.dawn.ai.agent.skill.SkillRegistry;
 import com.dawn.ai.exception.PlanGenerationException;
 import com.dawn.ai.service.MemoryService;
 import com.dawn.ai.memory.UserProfileService;
@@ -41,6 +42,7 @@ class AgentOrchestratorTest {
     @Mock private TaskPlanner taskPlanner;
     @Mock private ToolRegistry toolRegistry;
     @Mock private UserProfileService userProfileService;
+    @Mock private SkillRegistry skillRegistry;
 
     @BeforeEach
     void setUp() {
@@ -59,7 +61,8 @@ class AgentOrchestratorTest {
                 taskPlanner,
                 toolRegistry,
                 new SimpleMeterRegistry(),
-                userProfileService
+                userProfileService,
+                skillRegistry
         );
         agentOrchestrator.initMetrics();
     }

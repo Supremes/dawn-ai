@@ -3,6 +3,8 @@ package com.dawn.ai.agent.orchestration;
 import com.dawn.ai.agent.planning.PlanStep;
 import com.dawn.ai.agent.planning.TaskPlanner;
 import com.dawn.ai.agent.registry.ToolRegistry;
+import com.dawn.ai.agent.skill.Skill;
+import com.dawn.ai.agent.skill.SkillRegistry;
 import com.dawn.ai.agent.trace.AgentStep;
 import com.dawn.ai.agent.trace.StepCollector;
 import com.dawn.ai.agent.tools.KnowledgeSearchTool;
@@ -28,6 +30,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
@@ -57,19 +60,22 @@ public class AgentOrchestrator {
     private final ToolRegistry toolRegistry;
     private final MeterRegistry meterRegistry;
     private final UserProfileService userProfileService;
+    private final SkillRegistry skillRegistry;
 
     public AgentOrchestrator(ChatClient chatClient,
                               MemoryService memoryService,
                               TaskPlanner taskPlanner,
                               ToolRegistry toolRegistry,
                               MeterRegistry meterRegistry,
-                              UserProfileService userProfileService) {
+                              UserProfileService userProfileService,
+                              SkillRegistry skillRegistry) {
         this.chatClient = chatClient;
         this.memoryService = memoryService;
         this.taskPlanner = taskPlanner;
         this.toolRegistry = toolRegistry;
         this.meterRegistry = meterRegistry;
         this.userProfileService = userProfileService;
+        this.skillRegistry = skillRegistry;
     }
 
     @Value("${app.ai.system-prompt:You are a helpful AI assistant.}")
@@ -358,6 +364,10 @@ public class AgentOrchestrator {
         }
         StringBuilder sb = new StringBuilder("\n\n【执行计划】\n");
         for (PlanStep step : plan) {
+            // 过滤掉 "finish" 步骤 - 这只是规划器的内部标记，不应暴露给执行阶段的LLM
+            if ("finish".equals(step.action())) {
+                continue;
+            }
             sb.append(step.step())
                     .append(". [").append(step.action()).append("] ")
                     .append(step.reason()).append("\n");
@@ -382,9 +392,30 @@ public class AgentOrchestrator {
         return baseSystemPrompt
                 + profileSection
                 + topicSection
+                + formatSkills()
                 + formatPlan(plan)
                 + formatPlanEnforcement(plan)
                 + String.format("%n请在回复中简短说明每次工具调用的原因。最多调用工具 %d 次。", maxSteps);
+    }
+
+    /**
+     * 列出所有可用 Skill 的 name + description（progressive disclosure 第一层）。
+     * 模型据此判断是否调用 {@code load_skill} 加载某个 skill 的完整指令。
+     * 若无可用 skill 则返回空串，不污染 prompt。
+     */
+    private String formatSkills() {
+        Collection<Skill> all = skillRegistry.list();
+        if (all.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder("\n\n## 可用 Skills\n")
+                .append("按需调用 `load_skill(name)` 加载完整指令；")
+                .append("需要 skill 的内嵌资源时调用 `read_skill_resource(skill, path)`。\n\n");
+        for (Skill s : all) {
+            sb.append("- **").append(s.manifest().name()).append("**: ")
+              .append(s.manifest().description()).append("\n");
+        }
+        return sb.toString();
     }
 
     private String formatPlanEnforcement(List<PlanStep> plan) {
@@ -392,6 +423,6 @@ public class AgentOrchestrator {
             return "";
         }
         return "\n\n【强制约束】你必须严格按照上方【执行计划】依次调用对应工具，" +
-               "不得依赖自身训练知识直接回答，每个非 finish 步骤均需触发对应工具调用。";
+               "不得依赖自身训练知识直接回答。完成所有工具调用后，再基于结果生成最终答案。";
     }
 }

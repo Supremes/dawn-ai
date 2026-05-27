@@ -10,9 +10,12 @@ updated: 2026-05-11 00:10
   - 用户画像注入：User profile 自动注入 system prompt，实现个性化
   - 完整可观测：Prometheus + Grafana，token 成本追踪
 
-## ReAct
+## Agent 范式
 
 项目要点：
+
+- ReAct：边思考边执行，项目利用了SpringAI实现的ReAct方案，非自实现的
+- Plan and solve：自实现，依据用户输入+LLM call，编排后续的流程，避免长任务跑偏
 
 学习要点：
 - ReAct 适合用在局部决策场景，而不是整个系统。**大多数场景，整体流程是确定的**，适合用 workflow 来保证稳定性。针对某些局部节点（如果需要根据当前上下文动态决定是否调用工具、调用哪个工具、是否进行多轮推理，这时候可以引入 ReAct 来增强灵活性），使用 ReAct 来处理不确定性，保证稳定性和灵活性之间取得平衡。

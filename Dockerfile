@@ -25,6 +25,9 @@ WORKDIR /app
 
 COPY --from=builder /build/target/dawn-ai-1.0.0-SNAPSHOT.jar app.jar
 
+# Skills 外挂目录：docker-compose 会把宿主机 ./skills 只读挂载到这里
+RUN mkdir -p /app/skills
+
 EXPOSE 8080 5005
 
 # Container-aware heap：跟随容器可用内存自动伸缩。

@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dawn-AI Skill 系统架构</title>
+<style>
+:root {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface-alt: #334155;
+  --border: #475569;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent-blue: #3b82f6;
+  --accent-blue-dim: #1d4ed8;
+  --accent-purple: #8b5cf6;
+  --accent-purple-dim: #6d28d9;
+  --accent-green: #10b981;
+  --accent-green-dim: #047857;
+  --accent-orange: #f59e0b;
+  --accent-orange-dim: #b45309;
+  --accent-red: #ef4444;
+  --accent-cyan: #06b6d4;
+  --glow-blue: rgba(59, 130, 246, 0.15);
+  --glow-purple: rgba(139, 92, 246, 0.15);
+  --glow-green: rgba(16, 185, 129, 0.12);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  min-height: 100vh;
+  padding: 48px 32px;
+  line-height: 1.5;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  margin-bottom: 64px;
+}
+.header h1 {
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.header .subtitle {
+  font-size: 16px;
+  color: var(--text-secondary);
+}
+
+/* Section titles */
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Architectural layers */
+.arch-section {
+  margin-bottom: 56px;
+}
+
+/* Source cards */
+.sources-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+.source-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.source-card:hover {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 24px var(--glow-blue);
+}
+.source-card.external:hover {
+  border-color: var(--accent-orange);
+  box-shadow: 0 0 24px rgba(245, 158, 11, 0.12);
+}
+.source-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+}
+.source-card.builtin::before {
+  background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
+}
+.source-card.external::before {
+  background: linear-gradient(90deg, var(--accent-orange), var(--accent-red));
+}
+.source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+.source-badge.builtin {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--accent-blue);
+}
+.source-badge.external {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--accent-orange);
+}
+.source-card h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.source-card .path {
+  font-family: "SF Mono", "Fira Code", "JetBrains Mono", monospace;
+  font-size: 13px;
+  color: var(--accent-green);
+  background: rgba(16, 185, 129, 0.08);
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin: 12px 0;
+  border: 1px solid rgba(16, 185, 129, 0.15);
+}
+.source-card .desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.override-note {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: -8px;
+  margin-bottom: 32px;
+}
+.override-note span {
+  background: var(--surface);
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px dashed var(--border);
+}
+
+/* Flow arrows */
+.flow-connector {
+  display: flex;
+  justify-content: center;
+  margin: 24px 0;
+}
+.flow-arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--text-muted);
+  gap: 4px;
+}
+.flow-arrow .line {
+  width: 2px;
+  height: 32px;
+  background: linear-gradient(to bottom, var(--border), var(--accent-purple));
+}
+.flow-arrow .arrow-head {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid var(--accent-purple);
+}
+.flow-arrow .label {
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+/* Core components */
+.core-card {
+  background: var(--surface);
+  border: 1px solid var(--accent-purple-dim);
+  border-radius: 12px;
+  padding: 32px;
+  position: relative;
+  box-shadow: 0 0 32px var(--glow-purple);
+}
+.core-card .core-badge {
+  position: absolute;
+  top: -10px;
+  left: 32px;
+  background: var(--accent-purple);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+.core-card h3 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+.core-features {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.core-feature {
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid var(--border);
+}
+.core-feature .feat-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-cyan);
+  margin-bottom: 6px;
+}
+.core-feature .feat-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.core-apis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.api-chip {
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  color: var(--accent-purple);
+}
+
+/* Side panel */
+.core-layout {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 24px;
+  align-items: start;
+}
+.side-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.side-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  transition: border-color 0.2s;
+}
+.side-card:hover {
+  border-color: var(--accent-green);
+}
+.side-card h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+.side-card .side-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.side-card .endpoint {
+  font-family: "SF Mono", monospace;
+  font-size: 11px;
+  color: var(--accent-green);
+  margin-top: 8px;
+  padding: 4px 8px;
+  background: rgba(16, 185, 129, 0.08);
+  border-radius: 4px;
+  display: inline-block;
+}
+
+/* Progressive Disclosure */
+.progressive-timeline {
+  position: relative;
+  padding-left: 48px;
+}
+.progressive-timeline::before {
+  content: '';
+  position: absolute;
+  left: 18px;
+  top: 20px;
+  bottom: 20px;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--accent-blue), var(--accent-purple), var(--accent-green));
+  border-radius: 1px;
+}
+.timeline-step {
+  position: relative;
+  margin-bottom: 36px;
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.timeline-step:hover {
+  border-color: var(--accent-blue);
+  transform: translateX(4px);
+}
+.timeline-step:last-child {
+  margin-bottom: 0;
+}
+.timeline-dot {
+  position: absolute;
+  left: -39px;
+  top: 28px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 3px solid var(--bg);
+}
+.timeline-step:nth-child(1) .timeline-dot { background: var(--accent-blue); }
+.timeline-step:nth-child(2) .timeline-dot { background: var(--accent-purple); }
+.timeline-step:nth-child(3) .timeline-dot { background: var(--accent-green); }
+
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.step-number {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+}
+.timeline-step:nth-child(1) .step-number {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--accent-blue);
+}
+.timeline-step:nth-child(2) .step-number {
+  background: rgba(139, 92, 246, 0.15);
+  color: var(--accent-purple);
+}
+.timeline-step:nth-child(3) .step-number {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--accent-green);
+}
+.step-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+.step-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+.step-detail {
+  font-family: "SF Mono", monospace;
+  font-size: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 16px;
+  color: var(--accent-green);
+  line-height: 1.6;
+}
+.step-detail .comment {
+  color: var(--text-muted);
+}
+.step-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 10px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  color: var(--accent-orange);
+}
+
+/* Data model */
+.data-model {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.model-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.model-header {
+  padding: 14px 20px;
+  background: var(--surface-alt);
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.model-header .tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(6, 182, 212, 0.12);
+  color: var(--accent-cyan);
+  letter-spacing: 0.5px;
+}
+.model-body {
+  padding: 16px 20px;
+}
+.model-field {
+  display: flex;
+  align-items: baseline;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(71, 85, 105, 0.3);
+  font-size: 13px;
+}
+.model-field:last-child { border-bottom: none; }
+.field-name {
+  font-family: "SF Mono", monospace;
+  color: var(--accent-cyan);
+  min-width: 120px;
+}
+.field-type {
+  font-family: "SF Mono", monospace;
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-left: auto;
+}
+.field-desc {
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin-left: 12px;
+}
+
+/* Directory structure */
+.dir-example {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px;
+  margin-top: 32px;
+}
+.dir-example h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--text-secondary);
+}
+.dir-tree {
+  font-family: "SF Mono", monospace;
+  font-size: 13px;
+  line-height: 2;
+  color: var(--text-secondary);
+}
+.dir-tree .folder {
+  color: var(--accent-blue);
+}
+.dir-tree .file {
+  color: var(--accent-green);
+}
+.dir-tree .key-file {
+  color: var(--accent-orange);
+  font-weight: 600;
+}
+.dir-tree .annotation {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 11px;
+}
+
+/* Validation rules */
+.rules-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 24px;
+}
+.rule-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+.rule-item .rule-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent-orange);
+  margin-bottom: 6px;
+}
+.rule-item .rule-content {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.rule-item code {
+  font-family: "SF Mono", monospace;
+  font-size: 12px;
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+}
+
+@media (max-width: 768px) {
+  body { padding: 24px 16px; }
+  .sources-grid { grid-template-columns: 1fr; }
+  .core-layout { grid-template-columns: 1fr; }
+  .core-features { grid-template-columns: 1fr; }
+  .data-model { grid-template-columns: 1fr; }
+  .rules-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <header class="header">
+    <h1>Dawn-AI Skill 系统架构</h1>
+    <p class="subtitle">基于 Progressive Disclosure 的 Agent Skill 加载与管理体系</p>
+  </header>
+
+  <!-- Section 1: Sources -->
+  <section class="arch-section">
+    <div class="section-title">01 · Skill 来源</div>
+    <div class="sources-grid">
+      <div class="source-card builtin">
+        <div class="source-badge builtin">● Builtin</div>
+        <h3>内置 Skill（Classpath）</h3>
+        <div class="path">classpath:skills-builtin/{name}/SKILL.md</div>
+        <p class="desc">打包进 JAR 的兜底示例，随应用发布。如 <code>code-review-zh</code>。Builtin 先扫描，作为默认填充。</p>
+      </div>
+      <div class="source-card external">
+        <div class="source-badge external">● External</div>
+        <h3>外挂 Skill（Filesystem）</h3>
+        <div class="path">${app.skills.path}/{name}/SKILL.md</div>
+        <p class="desc">运维外挂目录，默认 <code>./skills</code>。External 后扫描，<strong>同名覆盖 Builtin</strong>，实现无需重新发布的定制。</p>
+      </div>
+    </div>
+    <div class="override-note">
+      <span>扫描顺序：BUILTIN 先扫 → EXTERNAL 后扫 → 同名覆盖</span>
+    </div>
+  </section>
+
+  <!-- Flow connector -->
+  <div class="flow-connector">
+    <div class="flow-arrow">
+      <div class="label">SkillLoader 解析</div>
+      <div class="line"></div>
+      <div class="arrow-head"></div>
+    </div>
+  </div>
+
+  <!-- Section 2: Core Registry -->
+  <section class="arch-section">
+    <div class="section-title">02 · 注册中心（核心）</div>
+    <div class="core-layout">
+      <div class="core-card">
+        <div class="core-badge">CORE</div>
+        <h3>SkillRegistry</h3>
+        <div class="core-features">
+          <div class="core-feature">
+            <div class="feat-title">发现与注册</div>
+            <div class="feat-desc">@PostConstruct 初始化扫描 Builtin + External 两条路径</div>
+          </div>
+          <div class="core-feature">
+            <div class="feat-title">线程安全</div>
+            <div class="feat-desc">内部 Map 为不可变引用，refresh() 整体替换，无锁读取</div>
+          </div>
+          <div class="core-feature">
+            <div class="feat-title">错误隔离</div>
+            <div class="feat-desc">单个 SKILL.md 解析失败仅 ERROR 跳过，不阻塞启动</div>
+          </div>
+        </div>
+        <div class="core-apis">
+          <span class="api-chip">list()</span>
+          <span class="api-chip">get(name)</span>
+          <span class="api-chip">readResource(name, path)</span>
+          <span class="api-chip">listResources(name)</span>
+          <span class="api-chip">refresh()</span>
+        </div>
+      </div>
+      <div class="side-cards">
+        <div class="side-card">
+          <h4>SkillProperties</h4>
+          <div class="side-desc">Spring Boot 配置属性<br><code>app.skills.path</code> — 外挂目录<br><code>app.skills.enabled</code> — 总开关</div>
+        </div>
+        <div class="side-card">
+          <h4>SkillsActuatorEndpoint</h4>
+          <div class="side-desc">热加载入口。仅新 Session 见到最新清单，老 Session 的 System Prompt 已固化。</div>
+          <div class="endpoint">POST /actuator/skills</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Flow connector -->
+  <div class="flow-connector">
+    <div class="flow-arrow">
+      <div class="label">AgentOrchestrator.formatSkills()</div>
+      <div class="line"></div>
+      <div class="arrow-head"></div>
+    </div>
+  </div>
+
+  <!-- Section 3: Progressive Disclosure -->
+  <section class="arch-section">
+    <div class="section-title">03 · Progressive Disclosure（渐进式加载）</div>
+    <div class="progressive-timeline">
+      <div class="timeline-step">
+        <div class="timeline-dot"></div>
+        <div class="step-header">
+          <span class="step-number">LAYER 0</span>
+          <span class="step-title">System Prompt 注入清单</span>
+        </div>
+        <p class="step-desc">AgentOrchestrator 构建 System Prompt 时，仅将所有 Skill 的 <strong>name + description</strong> 注入。模型看到清单后自主判断是否需要深入。</p>
+        <div class="step-detail">
+          <span class="comment">## 可用 Skills</span><br>
+          - <strong>code-review-zh</strong>: 中文 Java 代码 review...<br>
+          - <strong>grill-me</strong>: Interview the user relentlessly...
+        </div>
+      </div>
+
+      <div class="timeline-step">
+        <div class="timeline-dot"></div>
+        <div class="step-header">
+          <span class="step-number">LAYER 1</span>
+          <span class="step-title">按需加载完整指令</span>
+        </div>
+        <p class="step-desc">模型判断某 Skill 匹配当前任务时，调用工具获取 SKILL.md 正文（body）+ 可用子文件列表（availableResources）。</p>
+        <div class="step-detail">
+          load_skill(name="code-review-zh")<br>
+          <span class="comment">→ { content: "# Code Review...", availableResources: ["references/checklist.md"] }</span>
+        </div>
+        <div class="step-tool">🔧 LoadSkillTool</div>
+      </div>
+
+      <div class="timeline-step">
+        <div class="timeline-dot"></div>
+        <div class="step-header">
+          <span class="step-number">LAYER 2</span>
+          <span class="step-title">深入读取子资源</span>
+        </div>
+        <p class="step-desc">模型需要更细节的参考资料时，调用工具读取 Skill 目录下的子文件。含路径穿越防御 + source-aware 读取策略。</p>
+        <div class="step-detail">
+          read_skill_resource(skill="code-review-zh", path="references/checklist.md")<br>
+          <span class="comment">→ { content: "# Review Checklist\n1. 空指针检查..." }</span>
+        </div>
+        <div class="step-tool">🔧 ReadSkillResourceTool</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 4: Data Model -->
+  <section class="arch-section">
+    <div class="section-title">04 · 数据模型</div>
+    <div class="data-model">
+      <div class="model-card">
+        <div class="model-header">
+          Skill
+          <span class="tag">RECORD</span>
+        </div>
+        <div class="model-body">
+          <div class="model-field">
+            <span class="field-name">manifest</span>
+            <span class="field-desc">frontmatter 元信息</span>
+            <span class="field-type">SkillManifest</span>
+          </div>
+          <div class="model-field">
+            <span class="field-name">body</span>
+            <span class="field-desc">SKILL.md 正文（去 frontmatter）</span>
+            <span class="field-type">String</span>
+          </div>
+          <div class="model-field">
+            <span class="field-name">resourceDir</span>
+            <span class="field-desc">资源根目录（EXTERNAL 有值）</span>
+            <span class="field-type">Path?</span>
+          </div>
+          <div class="model-field">
+            <span class="field-name">source</span>
+            <span class="field-desc">BUILTIN | EXTERNAL</span>
+            <span class="field-type">Source</span>
+          </div>
+        </div>
+      </div>
+      <div class="model-card">
+        <div class="model-header">
+          SkillManifest
+          <span class="tag">RECORD</span>
+        </div>
+        <div class="model-body">
+          <div class="model-field">
+            <span class="field-name">name</span>
+            <span class="field-desc">kebab-case, 1-64 字符</span>
+            <span class="field-type">String</span>
+          </div>
+          <div class="model-field">
+            <span class="field-name">description</span>
+            <span class="field-desc">用途描述, ≤1024 字符</span>
+            <span class="field-type">String</span>
+          </div>
+          <div class="model-field">
+            <span class="field-name">extras</span>
+            <span class="field-desc">保留字段（未消费）</span>
+            <span class="field-type">Map&lt;K,V&gt;</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Directory structure example -->
+    <div class="dir-example">
+      <h4>目录结构</h4>
+      <div class="dir-tree">
+        <span class="folder">skills/</span> <span class="annotation">← app.skills.path</span><br>
+        &nbsp;&nbsp;<span class="folder">code-review-zh/</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="key-file">SKILL.md</span> <span class="annotation">← frontmatter(name/desc) + 正文指令</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="folder">references/</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">checklist.md</span> <span class="annotation">← Layer 2 按需加载</span><br>
+        &nbsp;&nbsp;<span class="folder">grill-me/</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="key-file">SKILL.md</span><br>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 5: Validation Rules -->
+  <section class="arch-section">
+    <div class="section-title">05 · 校验规则（SkillLoader）</div>
+    <div class="rules-grid">
+      <div class="rule-item">
+        <div class="rule-label">Frontmatter</div>
+        <div class="rule-content">必须含完整 <code>---</code> ... <code>---</code> 包裹的 YAML 块</div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-label">Name</div>
+        <div class="rule-content">必填，正则 <code>^[a-z][a-z0-9-]{0,63}$</code>（kebab-case）</div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-label">Description</div>
+        <div class="rule-content">必填，超 1024 字符截断 + WARN，不视为致命错误</div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-label">安全</div>
+        <div class="rule-content">readResource 含路径穿越防御：<code>toRealPath()</code> + <code>startsWith</code> 校验</div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-label">隔离</div>
+        <div class="rule-content">单个 Skill 解析失败仅 ERROR 日志 + 跳过，不阻塞应用启动</div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-label">热加载</div>
+        <div class="rule-content"><code>POST /actuator/skills</code> 触发全量 refresh，仅新 Session 生效</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

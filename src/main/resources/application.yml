@@ -63,7 +63,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, info, prometheus, metrics
+        include: health, info, prometheus, metrics, skills
   endpoint:
     health:
       show-details: always
@@ -118,6 +118,10 @@ app:
       You can help with calculations, weather queries, and answer questions based on your knowledge base.
       Always be concise, accurate, and helpful.
       Before calling a tool, briefly explain your reasoning in one sentence.
+  skills:
+    enabled: true
+    path: ${APP_SKILLS_PATH:./skills}   # 外挂 skill 目录；classpath skills-builtin/ 永远作为兜底
+
   memory:
     summary:
       batch-size: 3
