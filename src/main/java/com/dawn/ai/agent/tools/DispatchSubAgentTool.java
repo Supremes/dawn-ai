@@ -6,6 +6,9 @@ import com.dawn.ai.agent.subagent.SubAgentRegistry;
 import com.dawn.ai.agent.subagent.SubAgentResult;
 import com.dawn.ai.agent.trace.AgentStep;
 import com.dawn.ai.agent.trace.StepCollector;
+import com.dawn.ai.agent.trace.SubStepProvider;
+import com.dawn.ai.sse.ChatStreamEvent;
+import com.dawn.ai.sse.StreamSinkHolder;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +18,7 @@ import org.springframework.context.annotation.Description;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -65,7 +69,13 @@ public class DispatchSubAgentTool implements Function<DispatchSubAgentTool.Reque
             long durationMs,
             String failureReason,
             List<AgentStep> subSteps
-    ) {
+    ) implements SubStepProvider {
+
+        @Override
+        public List<AgentStep> getSubSteps() {
+            return subSteps == null ? List.of() : subSteps;
+        }
+
         static Response from(SubAgentResult result) {
             return new Response(
                     result.status().name(),
@@ -107,15 +117,35 @@ public class DispatchSubAgentTool implements Function<DispatchSubAgentTool.Reque
         log.info("[DispatchSubAgentTool] dispatching: type={}, dispatchedSoFar={}, taskChars={}",
                 request.subagentType(), alreadyDispatched, request.taskDescription().length());
 
+        Consumer<AgentStep> progressListener = buildProgressListener(request.subagentType());
+
         SubAgentResult result = subAgentExecutor.execute(
                 request.subagentType(),
                 request.taskDescription(),
-                "main");
+                "main",
+                progressListener);
 
         if (result.status() == SubAgentExecutionStatus.FAILED) {
             log.warn("[DispatchSubAgentTool] sub-agent FAILED: type={}, reason={}",
                     request.subagentType(), result.failureReason());
         }
         return Response.from(result);
+    }
+
+    /**
+     * 仅在流式请求中构造 sub-step 心跳监听器；非流式时 sink 为空，返回 {@code null}
+     * 表示 sub-agent 静默执行（最终 AgentStep.subSteps 仍会通过 SubStepProvider 上报）。
+     *
+     * <p>sessionId 在心跳事件里用 "main"，前端按 toolName + 时间序对齐到主流派发步骤即可——
+     * 与主请求 sessionId 严格一致不是必须的（sub_progress 是辅助进度信号，主请求
+     * 通过同一 SSE emitter 收到，sessionId 字段仅是回显）。
+     */
+    private Consumer<AgentStep> buildProgressListener(String subAgentType) {
+        Consumer<ChatStreamEvent> sink = StreamSinkHolder.get();
+        if (sink == null) {
+            return null;
+        }
+        return subStep -> sink.accept(ChatStreamEvent.subProgress(
+                "main", TOOL_NAME, subAgentType, subStep.stepNumber(), subStep.toolName()));
     }
 }

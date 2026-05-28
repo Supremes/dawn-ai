@@ -20,6 +20,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 
 /**
  * 通用 ReAct sub-agent 执行器：所有 {@link SubAgentDefinition} 共用同一执行内核，
@@ -52,7 +53,8 @@ public class GenericReActSubAgentExecutor implements SubAgentExecutor {
     }
 
     @Override
-    public SubAgentResult execute(String type, String taskDescription, String parentSessionId) {
+    public SubAgentResult execute(String type, String taskDescription, String parentSessionId,
+                                   Consumer<AgentStep> progressListener) {
         long start = System.currentTimeMillis();
 
         Optional<SubAgentDefinition> defOpt = registry.get(type);
@@ -62,7 +64,7 @@ public class GenericReActSubAgentExecutor implements SubAgentExecutor {
         }
         SubAgentDefinition def = defOpt.get();
 
-        StepCollectorContext subCtx = StepCollector.newDetachedContext(def.maxSteps(), null);
+        StepCollectorContext subCtx = StepCollector.newDetachedContext(def.maxSteps(), progressListener);
 
         CompletableFuture<String> future;
         try {

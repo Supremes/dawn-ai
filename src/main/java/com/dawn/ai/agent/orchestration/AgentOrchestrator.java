@@ -17,6 +17,7 @@ import com.dawn.ai.exception.PlanGenerationException;
 import com.dawn.ai.memory.UserProfileService;
 import com.dawn.ai.service.MemoryService;
 import com.dawn.ai.sse.ChatStreamEvent;
+import com.dawn.ai.sse.StreamSinkHolder;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -204,6 +205,7 @@ public class AgentOrchestrator {
 
         Consumer<AgentStep> stepEventPublisher = step -> sink.accept(ChatStreamEvent.step(sessionId, step));
         StepCollector.init(maxSteps, stepEventPublisher);
+        StreamSinkHolder.set(sink);
         try {
             TaskPlanner.PlannerResult plannerResult = resolvePlan(userMessage);
             List<PlanStep> plan = plannerResult.steps();
@@ -289,6 +291,7 @@ public class AgentOrchestrator {
             sink.accept(ChatStreamEvent.error(sessionId, code, cause.getMessage()));
         } finally {
             StepCollector.clear();
+            StreamSinkHolder.clear();
         }
     }
 
