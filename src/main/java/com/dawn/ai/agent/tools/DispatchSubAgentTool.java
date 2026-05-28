@@ -121,7 +121,7 @@ public class DispatchSubAgentTool implements Function<DispatchSubAgentTool.Reque
 
         Consumer<AgentStep> progressListener = buildProgressListener(request.subagentType(), parentSessionId);
 
-        Consumer<AgentStep> progressListener = buildProgressListener(request.subagentType());
+        Consumer<AgentStep> progressListener = buildProgressListener(request.subagentType(), parentSessionId);
 
         SubAgentResult result = subAgentExecutor.execute(
                 request.subagentType(),
