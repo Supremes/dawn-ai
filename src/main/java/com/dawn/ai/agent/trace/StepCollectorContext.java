@@ -37,4 +37,14 @@ public final class StepCollectorContext {
         this.maxSteps = maxSteps;
         this.stepListener = stepListener;
     }
+
+    /**
+     * 公开的步骤快照。供 sub-agent 执行器在 worker 线程结束后跨线程读取自己持有的
+     * detached context 中累积的步骤（worker ThreadLocal 此时已清空）。
+     */
+    public List<AgentStep> snapshotSteps() {
+        synchronized (steps) {
+            return List.copyOf(steps);
+        }
+    }
 }
