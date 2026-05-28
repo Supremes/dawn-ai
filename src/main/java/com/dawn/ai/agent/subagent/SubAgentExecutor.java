@@ -1,9 +1,5 @@
 package com.dawn.ai.agent.subagent;
 
-import com.dawn.ai.agent.trace.AgentStep;
-
-import java.util.function.Consumer;
-
 /**
  * Sub-agent 执行入口（纯函数语义）。
  *
@@ -22,14 +18,5 @@ public interface SubAgentExecutor {
      * @param type             已在 {@link SubAgentRegistry} 注册的 sub-agent 类型名
      * @param taskDescription  主 Agent 给出的自包含任务描述（sub-agent 看不到对话历史）
      * @param parentSessionId  主请求 sessionId，仅用于派生 trace ID 与日志关联
-     * @param progressListener 可选；非 {@code null} 时，sub-agent 每完成一个内部步骤即调用，
-     *                         供 SSE 流式场景把 sub_progress 事件冒泡到主 sink
      */
-    SubAgentResult execute(String type, String taskDescription, String parentSessionId,
-                            Consumer<AgentStep> progressListener);
-
-    /** 便利重载：不需要进度回调（非流式调用）。 */
-    default SubAgentResult execute(String type, String taskDescription, String parentSessionId) {
-        return execute(type, taskDescription, parentSessionId, null);
-    }
 }
