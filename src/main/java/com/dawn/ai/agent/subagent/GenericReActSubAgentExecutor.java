@@ -3,8 +3,13 @@ package com.dawn.ai.agent.subagent;
 import com.dawn.ai.agent.trace.AgentStep;
 import com.dawn.ai.agent.trace.StepCollector;
 import com.dawn.ai.agent.trace.StepCollectorContext;
+import com.dawn.ai.config.AiInteractionContext;
 import com.dawn.ai.exception.AiConfigurationException;
 import com.dawn.ai.exception.MaxStepsExceededException;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.openai.OpenAiChatOptions;
@@ -43,13 +48,44 @@ public class GenericReActSubAgentExecutor implements SubAgentExecutor {
     private final ChatClient chatClient;
     private final SubAgentRegistry registry;
     private final ExecutorService subAgentExecutor;
+    private final MeterRegistry meterRegistry;
 
     public GenericReActSubAgentExecutor(ChatClient chatClient,
                                          SubAgentRegistry registry,
-                                         @Qualifier("subAgentExecutor") ExecutorService subAgentExecutor) {
+                                         @Qualifier("subAgentExecutor") ExecutorService subAgentExecutor,
+                                         MeterRegistry meterRegistry) {
         this.chatClient = chatClient;
         this.registry = registry;
         this.subAgentExecutor = subAgentExecutor;
+        this.meterRegistry = meterRegistry;
+    }
+
+    /**
+     * Metrics 命名与现有体系对齐（{@code ai.tool.*} / {@code ai.rag.*} / {@code ai.planner.*}）:
+     * <ul>
+     *   <li>{@code ai.subagent.dispatches{type, status}} — 累计派发次数，按结果分桶</li>
+     *   <li>{@code ai.subagent.duration{type, status}} — 派发耗时分布</li>
+     *   <li>{@code ai.subagent.steps{type}} — 单次派发的内部步数分布（含失败时已完成步数）</li>
+     * </ul>
+     */
+    private void recordMetrics(String type, SubAgentExecutionStatus status, long durationMs, int subStepCount) {
+        Counter.builder("ai.subagent.dispatches")
+                .description("Sub-agent dispatch count by type and outcome status")
+                .tag("type", type)
+                .tag("status", status.name())
+                .register(meterRegistry)
+                .increment();
+        Timer.builder("ai.subagent.duration")
+                .description("Sub-agent end-to-end execution duration")
+                .tag("type", type)
+                .tag("status", status.name())
+                .register(meterRegistry)
+                .record(durationMs, TimeUnit.MILLISECONDS);
+        DistributionSummary.builder("ai.subagent.steps")
+                .description("Number of internal ReAct steps per sub-agent dispatch")
+                .tag("type", type)
+                .register(meterRegistry)
+                .record(subStepCount);
     }
 
     @Override
@@ -59,22 +95,37 @@ public class GenericReActSubAgentExecutor implements SubAgentExecutor {
 
         Optional<SubAgentDefinition> defOpt = registry.get(type);
         if (defOpt.isEmpty()) {
-            return SubAgentResult.failed("未知 sub-agent type: " + type, List.of(),
+            SubAgentResult failed = SubAgentResult.failed("未知 sub-agent type: " + type, List.of(),
                     System.currentTimeMillis() - start);
+            recordMetrics(type, failed.status(), failed.durationMs(), 0);
+            return failed;
         }
         SubAgentDefinition def = defOpt.get();
 
         StepCollectorContext subCtx = StepCollector.newDetachedContext(def.maxSteps(), progressListener);
 
+        // 把主线程的 AiInteractionContext（含 sessionId）传播到 worker，
+        // 使 sub-agent 的 LLM 调用在 Langfuse Session 视图中归到同一会话。
+        java.util.concurrent.Callable<String> task = AiInteractionContext.wrap(
+                () -> runReActOnWorker(def, taskDescription, subCtx));
+
         CompletableFuture<String> future;
         try {
-            future = CompletableFuture.supplyAsync(
-                    () -> runReActOnWorker(def, taskDescription, subCtx),
-                    subAgentExecutor);
+            future = CompletableFuture.supplyAsync(() -> {
+                try {
+                    return task.call();
+                } catch (RuntimeException re) {
+                    throw re;
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }, subAgentExecutor);
         } catch (RejectedExecutionException ree) {
             log.warn("[SubAgent:{}] sub-agent pool saturated, parentSession={}", type, parentSessionId);
-            return SubAgentResult.failed("sub-agent 线程池已满，请稍后再试", List.of(),
+            SubAgentResult failed = SubAgentResult.failed("sub-agent 线程池已满，请稍后再试", List.of(),
                     System.currentTimeMillis() - start);
+            recordMetrics(type, failed.status(), failed.durationMs(), 0);
+            return failed;
         }
 
         try {
@@ -83,7 +134,9 @@ public class GenericReActSubAgentExecutor implements SubAgentExecutor {
             long duration = System.currentTimeMillis() - start;
             log.info("[SubAgent:{}] parentSession={}, status=SUCCESS, steps={}, durationMs={}",
                     type, parentSessionId, subSteps.size(), duration);
-            return SubAgentResult.success(summary, subSteps, duration);
+            SubAgentResult result = SubAgentResult.success(summary, subSteps, duration);
+            recordMetrics(type, result.status(), duration, subSteps.size());
+            return result;
 
         } catch (TimeoutException te) {
             // 放弃 future 但不强行中断（Spring AI HTTP 调用不一定响应 interrupt）
@@ -93,14 +146,19 @@ public class GenericReActSubAgentExecutor implements SubAgentExecutor {
             long duration = System.currentTimeMillis() - start;
             log.warn("[SubAgent:{}] parentSession={}, status=PARTIAL_SUCCESS, reason=timeout, steps={}, durationMs={}",
                     type, parentSessionId, partial.size(), duration);
-            return SubAgentResult.partial(composePartialSummary(partial, reason), partial, reason, duration);
+            SubAgentResult result = SubAgentResult.partial(composePartialSummary(partial, reason),
+                    partial, reason, duration);
+            recordMetrics(type, result.status(), duration, partial.size());
+            return result;
 
         } catch (ExecutionException ee) {
             Throwable cause = ee.getCause() != null ? ee.getCause() : ee;
             if (cause instanceof AiConfigurationException ace) {
                 throw ace;
             }
-            return handleExecutionFailure(type, def, parentSessionId, cause, subCtx, start);
+            SubAgentResult result = handleExecutionFailure(type, def, parentSessionId, cause, subCtx, start);
+            recordMetrics(type, result.status(), result.durationMs(), result.subSteps().size());
+            return result;
 
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
@@ -110,9 +168,11 @@ public class GenericReActSubAgentExecutor implements SubAgentExecutor {
             long duration = System.currentTimeMillis() - start;
             log.warn("[SubAgent:{}] parentSession={}, status=FAILED, reason=interrupted, steps={}, durationMs={}",
                     type, parentSessionId, partial.size(), duration);
-            return partial.isEmpty()
+            SubAgentResult result = partial.isEmpty()
                     ? SubAgentResult.failed(reason, List.of(), duration)
                     : SubAgentResult.partial(composePartialSummary(partial, reason), partial, reason, duration);
+            recordMetrics(type, result.status(), duration, partial.size());
+            return result;
         }
     }
 

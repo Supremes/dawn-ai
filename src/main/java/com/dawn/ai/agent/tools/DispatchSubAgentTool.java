@@ -7,6 +7,7 @@ import com.dawn.ai.agent.subagent.SubAgentResult;
 import com.dawn.ai.agent.trace.AgentStep;
 import com.dawn.ai.agent.trace.StepCollector;
 import com.dawn.ai.agent.trace.SubStepProvider;
+import com.dawn.ai.config.AiInteractionContext;
 import com.dawn.ai.sse.ChatStreamEvent;
 import com.dawn.ai.sse.StreamSinkHolder;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -114,15 +115,16 @@ public class DispatchSubAgentTool implements Function<DispatchSubAgentTool.Reque
                     + maxDispatchesPerSession + " 次/对话)，请基于已收集的信息直接生成回答。");
         }
 
-        log.info("[DispatchSubAgentTool] dispatching: type={}, dispatchedSoFar={}, taskChars={}",
-                request.subagentType(), alreadyDispatched, request.taskDescription().length());
+        String parentSessionId = resolveParentSessionId();
+        log.info("[DispatchSubAgentTool] dispatching: type={}, parentSession={}, dispatchedSoFar={}, taskChars={}",
+                request.subagentType(), parentSessionId, alreadyDispatched, request.taskDescription().length());
 
-        Consumer<AgentStep> progressListener = buildProgressListener(request.subagentType());
+        Consumer<AgentStep> progressListener = buildProgressListener(request.subagentType(), parentSessionId);
 
         SubAgentResult result = subAgentExecutor.execute(
                 request.subagentType(),
                 request.taskDescription(),
-                "main",
+                parentSessionId,
                 progressListener);
 
         if (result.status() == SubAgentExecutionStatus.FAILED) {
@@ -135,17 +137,18 @@ public class DispatchSubAgentTool implements Function<DispatchSubAgentTool.Reque
     /**
      * 仅在流式请求中构造 sub-step 心跳监听器；非流式时 sink 为空，返回 {@code null}
      * 表示 sub-agent 静默执行（最终 AgentStep.subSteps 仍会通过 SubStepProvider 上报）。
-     *
-     * <p>sessionId 在心跳事件里用 "main"，前端按 toolName + 时间序对齐到主流派发步骤即可——
-     * 与主请求 sessionId 严格一致不是必须的（sub_progress 是辅助进度信号，主请求
-     * 通过同一 SSE emitter 收到，sessionId 字段仅是回显）。
      */
-    private Consumer<AgentStep> buildProgressListener(String subAgentType) {
+    private Consumer<AgentStep> buildProgressListener(String subAgentType, String sessionId) {
         Consumer<ChatStreamEvent> sink = StreamSinkHolder.get();
         if (sink == null) {
             return null;
         }
         return subStep -> sink.accept(ChatStreamEvent.subProgress(
-                "main", TOOL_NAME, subAgentType, subStep.stepNumber(), subStep.toolName()));
+                sessionId, TOOL_NAME, subAgentType, subStep.stepNumber(), subStep.toolName()));
+    }
+
+    private String resolveParentSessionId() {
+        String fromContext = AiInteractionContext.getSessionId();
+        return (fromContext != null && !fromContext.isBlank()) ? fromContext : "unknown";
     }
 }
