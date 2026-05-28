@@ -104,14 +104,19 @@ curl "http://localhost:8080/api/v1/rag/search?query=refund+policy&topK=3"
 - `ai.rag.ingestion.total` — Documents ingested
 - `ai.rag.retrieval.total` — RAG queries executed
 - `ai.chat.request.duration` — Raw LLM call duration
+- `ai.subagent.dispatches{type,status}` — Sub-agent dispatch count, see [docs/multi-agent/](docs/multi-agent/)
 
 ## 🧩 Core Components
 
 | Component | Role | Analogy |
 |-----------|------|---------|
 | `AgentOrchestrator` | ReAct loop, Tool dispatch | Thread Pool Manager |
+| `SubAgentRegistry` / `DispatchSubAgentTool` | Isolated-context sub-agent for heavy research | Worker pool with dedicated scratchpad |
 | `MemoryService` | Redis-backed conversation history | Circular Buffer + TTL |
 | `RagService` | Vector similarity retrieval | MySQL Index Lookup |
+
+See [docs/multi-agent/design.md](docs/multi-agent/design.md) for the sub-agent design and
+[docs/multi-agent/verification.md](docs/multi-agent/verification.md) for the manual verification scenarios.
 
 ## 📊 Observability
 
