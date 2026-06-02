@@ -4,314 +4,818 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dawn AI - Python版本项目总结</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --color-primary: #7c3aed;
+            --color-primary-light: #a78bfa;
+            --color-primary-dark: #5b21b6;
+            --color-text: #111827;
+            --color-text-secondary: #6b7280;
+            --color-bg: #ffffff;
+            --color-bg-secondary: #f9fafb;
+            --color-border: #e5e7eb;
+            --color-accent: #f59e0b;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
+        html {
+            scroll-behavior: smooth;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            font-family: var(--font-sans);
+            line-height: 1.7;
+            color: var(--color-text);
+            background: var(--color-bg);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 40px 20px;
+            padding: 0 24px;
         }
 
-        .header {
-            text-align: center;
-            color: white;
-            margin-bottom: 40px;
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--color-border);
+            z-index: 100;
+            padding: 16px 0;
         }
 
-        .header h1 {
-            font-size: 3rem;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .header p {
-            font-size: 1.2rem;
-            opacity: 0.9;
-        }
-
-        .card {
-            background: white;
-            border-radius: 16px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-            transition: transform 0.3s ease;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-        }
-
-        .card h2 {
-            color: #667eea;
-            font-size: 1.8rem;
-            margin-bottom: 20px;
-            border-bottom: 3px solid #667eea;
-            padding-bottom: 10px;
-        }
-
-        .card h3 {
-            color: #764ba2;
-            font-size: 1.3rem;
-            margin: 20px 0 10px;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-
-        .feature-item {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
-            border-left: 4px solid #667eea;
-        }
-
-        .feature-item h4 {
-            color: #667eea;
-            margin-bottom: 10px;
-        }
-
-        .tech-stack {
+        nav .container {
             display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 15px;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        .tech-tag {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.9rem;
+        .nav-logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--color-primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-logo svg {
+            width: 32px;
+            height: 32px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 32px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--color-text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
             font-weight: 500;
+            transition: color 0.2s;
         }
 
-        .architecture-diagram {
-            background: #1a1a2e;
-            color: #eee;
-            padding: 30px;
-            border-radius: 10px;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            overflow-x: auto;
-            margin: 20px 0;
+        .nav-links a:hover {
+            color: var(--color-primary);
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 160px 0 120px;
+            background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 50%, #ddd6fe 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(124, 58, 237, 0.1) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(124, 58, 237, 0.1);
+            color: var(--color-primary);
+            padding: 8px 16px;
+            border-radius: 100px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 24px;
+        }
+
+        .hero h1 {
+            font-size: 4rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--color-text-secondary);
+            max-width: 600px;
+            margin: 0 auto 40px;
+            line-height: 1.8;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--color-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--color-primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--color-primary);
+            color: var(--color-primary);
+        }
+
+        /* Stats Section */
+        .stats {
+            padding: 80px 0;
+            background: white;
         }
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 40px;
         }
 
-        .stat-card {
+        .stat-item {
             text-align: center;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 10px;
-            color: white;
+            padding: 32px;
+            background: var(--color-bg-secondary);
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+
+        .stat-item:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.05);
         }
 
         .stat-number {
-            font-size: 2.5rem;
-            font-weight: bold;
-            margin-bottom: 5px;
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--color-primary);
+            line-height: 1;
+            margin-bottom: 8px;
         }
 
         .stat-label {
-            font-size: 0.9rem;
-            opacity: 0.9;
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+            font-weight: 500;
         }
 
-        .roadmap {
+        /* Section Styles */
+        section {
+            padding: 100px 0;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 64px;
+        }
+
+        .section-header h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 16px;
+        }
+
+        .section-header p {
+            font-size: 1.125rem;
+            color: var(--color-text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Features Grid */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 32px;
+        }
+
+        .feature-card {
+            padding: 32px;
+            background: white;
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            border-color: var(--color-primary-light);
+            box-shadow: 0 12px 24px rgba(124, 58, 237, 0.08);
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+        }
+
+        .feature-card h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .feature-card p {
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+            line-height: 1.8;
+        }
+
+        /* Architecture Section */
+        .architecture {
+            background: var(--color-bg-secondary);
+        }
+
+        .architecture-diagram {
+            background: #1a1a2e;
+            color: #e2e8f0;
+            padding: 40px;
+            border-radius: 12px;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            overflow-x: auto;
+            line-height: 1.8;
             position: relative;
-            padding-left: 30px;
         }
 
-        .roadmap::before {
-            content: '';
+        .architecture-diagram::before {
+            content: 'Architecture';
             position: absolute;
-            left: 10px;
-            top: 0;
-            bottom: 0;
-            width: 3px;
-            background: #667eea;
+            top: 12px;
+            right: 16px;
+            font-size: 0.75rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
         }
 
-        .roadmap-item {
-            position: relative;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 10px;
+        /* Tech Stack */
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 40px;
+            justify-content: center;
         }
 
-        .roadmap-item::before {
-            content: '';
-            position: absolute;
-            left: -25px;
-            top: 25px;
-            width: 15px;
-            height: 15px;
-            background: #667eea;
-            border-radius: 50%;
-            border: 3px solid white;
+        .tech-tag {
+            padding: 8px 20px;
+            background: white;
+            border: 1px solid var(--color-border);
+            border-radius: 100px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--color-text);
+            transition: all 0.2s;
         }
 
-        .roadmap-item h4 {
-            color: #667eea;
-            margin-bottom: 10px;
+        .tech-tag:hover {
+            border-color: var(--color-primary);
+            color: var(--color-primary);
+            background: #f5f3ff;
         }
 
+        /* Code Blocks */
         .code-block {
             background: #1a1a2e;
-            color: #eee;
-            padding: 20px;
-            border-radius: 10px;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
+            color: #e2e8f0;
+            padding: 24px;
+            border-radius: 12px;
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
             overflow-x: auto;
-            margin: 15px 0;
+            line-height: 1.8;
+            position: relative;
+        }
+
+        .code-block::before {
+            content: 'Terminal';
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            font-size: 0.75rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .code-block .comment {
+            color: #64748b;
+        }
+
+        .code-block .command {
+            color: #a78bfa;
+        }
+
+        .code-block .string {
+            color: #34d399;
+        }
+
+        /* Comparison Table */
+        .comparison-section {
+            background: var(--color-bg-secondary);
         }
 
         .comparison-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
         .comparison-table th,
         .comparison-table td {
-            padding: 15px;
+            padding: 16px 24px;
             text-align: left;
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid var(--color-border);
         }
 
         .comparison-table th {
-            background: #667eea;
+            background: var(--color-primary);
+            color: white;
+            font-weight: 600;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .comparison-table td {
+            font-size: 0.875rem;
+        }
+
+        .comparison-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .comparison-table tr:hover td {
+            background: #f9fafb;
+        }
+
+        .comparison-table .highlight {
+            color: var(--color-primary);
+            font-weight: 500;
+        }
+
+        /* Roadmap */
+        .roadmap {
+            position: relative;
+            padding-left: 40px;
+        }
+
+        .roadmap::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, var(--color-primary), var(--color-primary-light));
+        }
+
+        .roadmap-item {
+            position: relative;
+            margin-bottom: 48px;
+            padding: 32px;
+            background: white;
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+
+        .roadmap-item:hover {
+            border-color: var(--color-primary-light);
+            box-shadow: 0 8px 24px rgba(124, 58, 237, 0.08);
+        }
+
+        .roadmap-item::before {
+            content: '';
+            position: absolute;
+            left: -33px;
+            top: 36px;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border: 3px solid var(--color-primary);
+            border-radius: 50%;
+        }
+
+        .roadmap-item h4 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--color-primary);
+            margin-bottom: 16px;
+        }
+
+        .roadmap-item ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .roadmap-item li {
+            position: relative;
+            padding-left: 24px;
+            margin-bottom: 12px;
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+        }
+
+        .roadmap-item li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 8px;
+            width: 6px;
+            height: 6px;
+            background: var(--color-primary-light);
+            border-radius: 50%;
+        }
+
+        /* Coverage Section */
+        .coverage-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 32px;
+        }
+
+        .coverage-card {
+            padding: 32px;
+            background: white;
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+        }
+
+        .coverage-card h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .coverage-bar {
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .coverage-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--color-primary), var(--color-primary-light));
+            border-radius: 4px;
+            transition: width 1s ease;
+        }
+
+        .coverage-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--color-text-secondary);
+        }
+
+        /* Footer */
+        footer {
+            background: #1a1a2e;
+            color: #94a3b8;
+            padding: 64px 0 32px;
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 32px;
+            border-bottom: 1px solid #334155;
+            margin-bottom: 32px;
+        }
+
+        .footer-logo {
+            font-size: 1.25rem;
+            font-weight: 700;
             color: white;
         }
 
-        .comparison-table tr:hover {
-            background: #f8f9fa;
+        .footer-links {
+            display: flex;
+            gap: 32px;
         }
 
-        .highlight {
-            background: #fff3cd;
-            padding: 15px;
-            border-radius: 10px;
-            border-left: 4px solid #ffc107;
-            margin: 15px 0;
+        .footer-links a {
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: color 0.2s;
         }
 
-        .footer {
+        .footer-links a:hover {
+            color: white;
+        }
+
+        .footer-bottom {
             text-align: center;
-            color: white;
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 1px solid rgba(255,255,255,0.3);
+            font-size: 0.75rem;
         }
 
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 2rem;
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
             }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
 
-            .grid {
-                grid-template-columns: 1fr;
+        .animate {
+            animation: fadeInUp 0.6s ease forwards;
+            opacity: 0;
+        }
+
+        .animate-delay-1 { animation-delay: 0.1s; }
+        .animate-delay-2 { animation-delay: 0.2s; }
+        .animate-delay-3 { animation-delay: 0.3s; }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .hero h1 {
+                font-size: 3rem;
             }
 
             .stats-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
+
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            .hero {
+                padding: 120px 0 80px;
+            }
+
+            .hero h1 {
+                font-size: 2.25rem;
+            }
+
+            .hero p {
+                font-size: 1rem;
+            }
+
+            .hero-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 16px;
+            }
+
+            .stat-number {
+                font-size: 2rem;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .coverage-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-content {
+                flex-direction: column;
+                gap: 24px;
+                text-align: center;
+            }
+
+            .footer-links {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1> Dawn AI - Python版本</h1>
-            <p>基于LangChain/LangGraph的智能Agent应用</p>
-            <p style="margin-top: 10px; font-size: 0.9rem;">版本 1.0.0 | 2026年6月</p>
+    <!-- Navigation -->
+    <nav>
+        <div class="container">
+            <a href="#" class="nav-logo">
+                <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="16" cy="16" r="14" fill="url(#gradient)"/>
+                    <path d="M12 16L16 12L20 16L16 20L12 16Z" fill="white"/>
+                    <defs>
+                        <linearGradient id="gradient" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#7c3aed"/>
+                            <stop offset="1" stop-color="#a78bfa"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                Dawn AI
+            </a>
+            <ul class="nav-links">
+                <li><a href="#features">功能</a></li>
+                <li><a href="#architecture">架构</a></li>
+                <li><a href="#quickstart">快速开始</a></li>
+                <li><a href="#roadmap">路线图</a></li>
+            </ul>
         </div>
+    </nav>
 
-        <!-- 项目概述 -->
-        <div class="card">
-            <h2> ️ 项目概述</h2>
-            <p>Dawn AI是一个完整的AI Agent应用，使用Python重写，采用LangChain和LangGraph框架实现。项目从Java/Spring Boot架构迁移到Python生态，提供更灵活的AI编排能力和更丰富的工具集成。</p>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container hero-content">
+            <div class="hero-badge animate">
+                <span>  Python版本发布</span>
+                v1.0.0
+            </div>
+            <h1 class="animate animate-delay-1">Dawn AI</h1>
+            <p class="animate animate-delay-2">
+                基于LangChain/LangGraph构建的智能Agent应用<br>
+                从Java/Spring Boot到Python生态的优雅迁移
+            </p>
+            <div class="hero-buttons animate animate-delay-3">
+                <a href="#quickstart" class="btn btn-primary">
+                    开始使用
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M6 12L10 8L6 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </a>
+                <a href="#architecture" class="btn btn-secondary">
+                    了解架构
+                </a>
+            </div>
+        </div>
+    </section>
 
+    <!-- Stats Section -->
+    <section class="stats">
+        <div class="container">
             <div class="stats-grid">
-                <div class="stat-card">
+                <div class="stat-item animate">
                     <div class="stat-number">16</div>
                     <div class="stat-label">测试用例</div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-item animate animate-delay-1">
                     <div class="stat-number">70%</div>
                     <div class="stat-label">代码覆盖率</div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-item animate animate-delay-2">
                     <div class="stat-number">6</div>
                     <div class="stat-label">核心模块</div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-item animate animate-delay-3">
                     <div class="stat-number">8</div>
                     <div class="stat-label">API端点</div>
                 </div>
             </div>
         </div>
+    </section>
 
-        <!-- 核心功能 -->
-        <div class="card">
-            <h2>✨ 核心功能</h2>
-            <div class="grid">
-                <div class="feature-item">
-                    <h4> ReAct Agent编排</h4>
+    <!-- Features Section -->
+    <section id="features">
+        <div class="container">
+            <div class="section-header">
+                <h2>核心功能</h2>
+                <p>强大的AI Agent能力，灵活的工具集成</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon"> </div>
+                    <h3>ReAct Agent编排</h3>
                     <p>使用LangGraph实现Reasoning + Acting循环，支持多步骤任务执行、工具调用和动态规划。</p>
                 </div>
-                <div class="feature-item">
-                    <h4> RAG知识检索</h4>
+                <div class="feature-card">
+                    <div class="feature-icon"> </div>
+                    <h3>RAG知识检索</h3>
                     <p>基于PGVector的向量检索，支持文档摄取、语义搜索和上下文增强生成。</p>
                 </div>
-                <div class="feature-item">
-                    <h4> 对话记忆管理</h4>
+                <div class="feature-card">
+                    <div class="feature-icon"> </div>
+                    <h3>对话记忆管理</h3>
                     <p>Redis-backed的对话历史管理，支持会话持久化和上下文窗口控制。</p>
                 </div>
-                <div class="feature-item">
-                    <h4>⚡ 流式响应</h4>
-                    <p>支持SSE（Server-Sent Events）流式输出，实时返回Agent思考过程和工具调用结果。</p>
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>流式响应</h3>
+                    <p>支持SSE流式输出，实时返回Agent思考过程和工具调用结果。</p>
                 </div>
-                <div class="feature-item">
-                    <h4> ️ 工具集成</h4>
+                <div class="feature-card">
+                    <div class="feature-icon"> ️</div>
+                    <h3>工具集成</h3>
                     <p>可扩展的工具系统，内置知识库搜索和计算器，支持自定义工具扩展。</p>
                 </div>
-                <div class="feature-item">
-                    <h4> ️ 微服务架构</h4>
+                <div class="feature-card">
+                    <div class="feature-icon"> ️</div>
+                    <h3>微服务架构</h3>
                     <p>FastAPI提供高性能REST API，支持异步处理和并发请求。</p>
                 </div>
             </div>
         </div>
+    </section>
 
-        <!-- 技术架构 -->
-        <div class="card">
-            <h2> ️ 技术架构</h2>
+    <!-- Architecture Section -->
+    <section id="architecture" class="architecture">
+        <div class="container">
+            <div class="section-header">
+                <h2>技术架构</h2>
+                <p>清晰的分层设计，灵活的组件扩展</p>
+            </div>
             <div class="architecture-diagram">
 ┌─────────────────────────────────────────────────────────────────────┐
 │                          FastAPI Layer                              │
@@ -333,8 +837,6 @@
 │     Chat Model │ Embedding Model │ Tool Calls                       │
 └─────────────────────────────────────────────────────────────────────┘
             </div>
-
-            <h3>技术栈</h3>
             <div class="tech-stack">
                 <span class="tech-tag">Python 3.12</span>
                 <span class="tech-tag">LangChain</span>
@@ -347,49 +849,54 @@
                 <span class="tech-tag">Docker</span>
             </div>
         </div>
+    </section>
 
-        <!-- 模块详解 -->
-        <div class="card">
-            <h2>  模块详解</h2>
+    <!-- Quick Start Section -->
+    <section id="quickstart">
+        <div class="container">
+            <div class="section-header">
+                <h2>快速开始</h2>
+                <p>几分钟内启动并运行</p>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 32px;">
+                <div>
+                    <h3 style="margin-bottom: 16px; font-size: 1.125rem;">环境准备</h3>
+                    <div class="code-block">
+<span class="comment"># 克隆项目</span>
+<span class="command">cd</span> /Users/junkangd/projects/dawn-ai-python
 
-            <h3>1. Agent编排器 (agent_orchestrator.py)</h3>
-            <p>核心模块，使用LangGraph实现ReAct（Reasoning + Acting）循环：</p>
-            <ul style="margin: 10px 0 10px 20px;">
-                <li>状态图（StateGraph）管理Agent执行流程</li>
-                <li>动态工具调用和结果处理</li>
-                <li>支持同步和异步流式执行</li>
-                <li>可配置的最大执行步骤限制</li>
-            </ul>
+<span class="comment"># 安装依赖</span>
+<span class="command">uv</span> sync
 
-            <h3>2. Memory服务 (memory_service.py)</h3>
-            <p>Redis-backed对话历史管理：</p>
-            <ul style="margin: 10px 0 10px 20px;">
-                <li>会话级别的消息存储</li>
-                <li>自动TTL过期（24小时）</li>
-                <li>支持历史消息检索和清除</li>
-            </ul>
+<span class="comment"># 配置环境变量</span>
+<span class="command">cp</span> .env.example .env
+<span class="comment"># 编辑 .env 文件配置API密钥</span>
+                    </div>
+                </div>
+                <div>
+                    <h3 style="margin-bottom: 16px; font-size: 1.125rem;">启动服务</h3>
+                    <div class="code-block">
+<span class="comment"># 启动依赖服务</span>
+<span class="command">docker</span> compose up -d
 
-            <h3>3. RAG服务 (rag_service.py)</h3>
-            <p>向量检索和文档管理：</p>
-            <ul style="margin: 10px 0 10px 20px;">
-                <li>文档摄取和向量化</li>
-                <li>语义相似度搜索</li>
-                <li>PGVector存储和索引</li>
-            </ul>
+<span class="comment"># 启动应用</span>
+<span class="command">uv</span> run dawn-ai
 
-            <h3>4. API层 (api/)</h3>
-            <p>FastAPI REST API：</p>
-            <ul style="margin: 10px 0 10px 20px;">
-                <li>同步Chat API</li>
-                <li>流式Chat API（SSE）</li>
-                <li>RAG摄取和搜索API</li>
-                <li>自动API文档生成</li>
-            </ul>
+<span class="comment"># 运行测试</span>
+<span class="command">uv</span> run pytest tests/ -v
+                    </div>
+                </div>
+            </div>
         </div>
+    </section>
 
-        <!-- Java vs Python对比 -->
-        <div class="card">
-            <h2>⚖️ Java vs Python 对比</h2>
+    <!-- Comparison Section -->
+    <section class="comparison-section">
+        <div class="container">
+            <div class="section-header">
+                <h2>Java vs Python 对比</h2>
+                <p>技术选型的思考与权衡</p>
+            </div>
             <table class="comparison-table">
                 <thead>
                     <tr>
@@ -402,188 +909,163 @@
                     <tr>
                         <td>框架</td>
                         <td>Spring Boot + Spring AI</td>
-                        <td>LangChain + LangGraph</td>
+                        <td class="highlight">LangChain + LangGraph</td>
                     </tr>
                     <tr>
                         <td>Agent编排</td>
                         <td>自定义ReAct循环</td>
-                        <td>LangGraph StateGraph</td>
+                        <td class="highlight">LangGraph StateGraph</td>
                     </tr>
                     <tr>
                         <td>依赖管理</td>
                         <td>Maven</td>
-                        <td>uv</td>
+                        <td class="highlight">uv</td>
                     </tr>
                     <tr>
                         <td>向量存储</td>
                         <td>PGVector (JDBC)</td>
-                        <td>PGVector (asyncpg)</td>
+                        <td class="highlight">PGVector (asyncpg)</td>
                     </tr>
                     <tr>
                         <td>缓存</td>
                         <td>Redis (Spring Data)</td>
-                        <td>Redis (redis-py)</td>
+                        <td class="highlight">Redis (redis-py)</td>
                     </tr>
                     <tr>
                         <td>API框架</td>
                         <td>Spring MVC</td>
-                        <td>FastAPI</td>
+                        <td class="highlight">FastAPI</td>
                     </tr>
                     <tr>
                         <td>流式响应</td>
                         <td>SSE (Spring WebFlux)</td>
-                        <td>SSE (FastAPI StreamingResponse)</td>
+                        <td class="highlight">SSE (FastAPI StreamingResponse)</td>
                     </tr>
                     <tr>
                         <td>可观测性</td>
                         <td>Micrometer + Langfuse</td>
-                        <td>LangSmith (可选)</td>
+                        <td class="highlight">LangSmith (可选)</td>
                     </tr>
                     <tr>
                         <td>类型系统</td>
                         <td>强类型 + Lombok</td>
-                        <td>Pydantic + Type Hints</td>
+                        <td class="highlight">Pydantic + Type Hints</td>
                     </tr>
                 </tbody>
             </table>
         </div>
+    </section>
 
-        <!-- 快速开始 -->
-        <div class="card">
-            <h2>  快速开始</h2>
-
-            <h3>1. 环境准备</h3>
-            <div class="code-block">
-# 克隆项目
-cd /Users/junkangd/projects/dawn-ai-python
-
-# 安装依赖
-uv sync
-
-# 配置环境变量
-cp .env.example .env
-# 编辑 .env 文件配置API密钥
+    <!-- Coverage Section -->
+    <section>
+        <div class="container">
+            <div class="section-header">
+                <h2>测试覆盖</h2>
+                <p>全面的质量保障</p>
             </div>
-
-            <h3>2. 启动服务</h3>
-            <div class="code-block">
-# 启动依赖服务
-docker compose up -d
-
-# 启动应用
-uv run dawn-ai
-            </div>
-
-            <h3>3. 运行测试</h3>
-            <div class="code-block">
-# 运行所有测试
-uv run pytest tests/ -v
-
-# 查看覆盖率
-uv run pytest tests/ --cov=dawn_ai --cov-report=html
-            </div>
-
-            <h3>4. API调用示例</h3>
-            <div class="code-block">
-# 同步Chat
-curl -X POST http://localhost:8000/api/v1/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message": "北京天气怎么样？", "session_id": "test-001"}'
-
-# 流式Chat
-curl -X POST http://localhost:8000/api/v1/chat/stream \
-  -H "Content-Type: application/json" \
-  -d '{"message": "介绍一下人工智能"}'
-
-# 文档摄取
-curl -X POST http://localhost:8000/api/v1/rag/ingest \
-  -H "Content-Type: application/json" \
-  -d '{"content": "退款政策：30天内可退", "source": "policy"}'
-
-# 知识搜索
-curl "http://localhost:8000/api/v1/rag/search?query=退款&top_k=3"
+            <div class="coverage-grid">
+                <div class="coverage-card">
+                    <h4>  配置模块</h4>
+                    <div class="coverage-bar">
+                        <div class="coverage-fill" style="width: 100%"></div>
+                    </div>
+                    <div class="coverage-label">
+                        <span>config</span>
+                        <span>100%</span>
+                    </div>
+                </div>
+                <div class="coverage-card">
+                    <h4>  记忆模块</h4>
+                    <div class="coverage-bar">
+                        <div class="coverage-fill" style="width: 100%"></div>
+                    </div>
+                    <div class="coverage-label">
+                        <span>memory</span>
+                        <span>100%</span>
+                    </div>
+                </div>
+                <div class="coverage-card">
+                    <h4>  RAG模块</h4>
+                    <div class="coverage-bar">
+                        <div class="coverage-fill" style="width: 96%"></div>
+                    </div>
+                    <div class="coverage-label">
+                        <span>rag</span>
+                        <span>96%</span>
+                    </div>
+                </div>
+                <div class="coverage-card">
+                    <h4>  SSE模块</h4>
+                    <div class="coverage-bar">
+                        <div class="coverage-fill" style="width: 100%"></div>
+                    </div>
+                    <div class="coverage-label">
+                        <span>sse</span>
+                        <span>100%</span>
+                    </div>
+                </div>
+                <div class="coverage-card">
+                    <h4>  API模块</h4>
+                    <div class="coverage-bar">
+                        <div class="coverage-fill" style="width: 88%"></div>
+                    </div>
+                    <div class="coverage-label">
+                        <span>api</span>
+                        <span>88%</span>
+                    </div>
+                </div>
+                <div class="coverage-card">
+                    <h4>  Agent模块</h4>
+                    <div class="coverage-bar">
+                        <div class="coverage-fill" style="width: 44%"></div>
+                    </div>
+                    <div class="coverage-label">
+                        <span>agents</span>
+                        <span>44%</span>
+                    </div>
+                </div>
             </div>
         </div>
+    </section>
 
-        <!-- 测试覆盖 -->
-        <div class="card">
-            <h2>  测试覆盖</h2>
-            <p>项目包含16个测试用例，覆盖率达到70%：</p>
-
-            <div class="grid">
-                <div class="feature-item">
-                    <h4>配置测试 (2个)</h4>
-                    <p>验证配置加载和单例模式</p>
-                </div>
-                <div class="feature-item">
-                    <h4>Memory测试 (3个)</h4>
-                    <p>消息添加、历史查询、清除功能</p>
-                </div>
-                <div class="feature-item">
-                    <h4>RAG测试 (2个)</h4>
-                    <p>文档摄取和向量检索</p>
-                </div>
-                <div class="feature-item">
-                    <h4>API测试 (4个)</h4>
-                    <p>Chat和RAG端点功能验证</p>
-                </div>
-                <div class="feature-item">
-                    <h4>SSE测试 (5个)</h4>
-                    <p>流式事件类型验证</p>
-                </div>
+    <!-- Roadmap Section -->
+    <section id="roadmap" class="architecture">
+        <div class="container">
+            <div class="section-header">
+                <h2>未来展望</h2>
+                <p>持续演进的技术路线</p>
             </div>
-
-            <div class="highlight">
-                <strong>覆盖率详情：</strong>
-                <ul style="margin-top: 10px; margin-left: 20px;">
-                    <li>config: 100%</li>
-                    <li>memory: 100%</li>
-                    <li>sse: 100%</li>
-                    <li>rag: 96%</li>
-                    <li>api: 60-88%</li>
-                    <li>agents: 44%</li>
-                </ul>
-            </div>
-        </div>
-
-        <!-- 未来展望 -->
-        <div class="card">
-            <h2>  未来展望</h2>
-
             <div class="roadmap">
                 <div class="roadmap-item">
                     <h4>第一阶段：功能完善 (Q3 2026)</h4>
-                    <ul style="margin: 10px 0 0 20px;">
+                    <ul>
                         <li>实现Sub-Agent系统，支持复杂任务分解</li>
                         <li>添加任务规划器（TaskPlanner）</li>
                         <li>集成Langfuse可观测性平台</li>
                         <li>实现用户画像和个性化推荐</li>
                     </ul>
                 </div>
-
                 <div class="roadmap-item">
                     <h4>第二阶段：性能优化 (Q4 2026)</h4>
-                    <ul style="margin: 10px 0 0 20px;">
+                    <ul>
                         <li>实现流式RAG检索优化</li>
                         <li>添加缓存层减少重复计算</li>
                         <li>优化向量检索性能</li>
                         <li>实现批量文档摄取</li>
                     </ul>
                 </div>
-
                 <div class="roadmap-item">
                     <h4>第三阶段：生态扩展 (2027)</h4>
-                    <ul style="margin: 10px 0 0 20px;">
+                    <ul>
                         <li>支持更多LLM提供商（Claude, Gemini）</li>
                         <li>实现多模态能力（图像、音频）</li>
                         <li>添加插件系统支持第三方扩展</li>
                         <li>构建Agent Marketplace</li>
                     </ul>
                 </div>
-
                 <div class="roadmap-item">
                     <h4>第四阶段：生产就绪 (2027+)</h4>
-                    <ul style="margin: 10px 0 0 20px;">
+                    <ul>
                         <li>实现完整的认证和授权系统</li>
                         <li>添加API限流和配额管理</li>
                         <li>实现分布式部署支持</li>
@@ -592,64 +1074,72 @@ curl "http://localhost:8000/api/v1/rag/search?query=退款&top_k=3"
                 </div>
             </div>
         </div>
+    </section>
 
-        <!-- 技术债务 -->
-        <div class="card">
-            <h2>  技术债务</h2>
-            <div class="grid">
-                <div class="feature-item">
-                    <h4>测试覆盖</h4>
-                    <p>AgentOrchestrator模块覆盖率仅44%，需要补充单元测试和集成测试。</p>
-                </div>
-                <div class="feature-item">
-                    <h4>错误处理</h4>
-                    <p>需要更完善的异常处理和重试机制，特别是LLM调用失败场景。</p>
-                </div>
-                <div class="feature-item">
-                    <h4>配置验证</h4>
-                    <p>需要添加配置验证和启动检查，确保必要的环境变量已设置。</p>
-                </div>
-                <div class="feature-item">
-                    <h4>文档完善</h4>
-                    <p>需要补充API文档、部署指南和开发者文档。</p>
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">Dawn AI</div>
+                <div class="footer-links">
+                    <a href="#features">功能</a>
+                    <a href="#architecture">架构</a>
+                    <a href="#quickstart">快速开始</a>
+                    <a href="#roadmap">路线图</a>
                 </div>
             </div>
-        </div>
-
-        <!-- 贡献指南 -->
-        <div class="card">
-            <h2>  贡献指南</h2>
-            <p>欢迎贡献代码！请遵循以下步骤：</p>
-            <ol style="margin: 15px 0 0 20px;">
-                <li>Fork项目仓库</li>
-                <li>创建功能分支：<code>git checkout -b feature/your-feature</code></li>
-                <li>编写测试并确保通过</li>
-                <li>提交代码：<code>git commit -m 'feat: add your feature'</code></li>
-                <li>推送分支：<code>git push origin feature/your-feature</code></li>
-                <li>创建Pull Request</li>
-            </ol>
-
-            <div class="highlight" style="margin-top: 20px;">
-                <strong>开发规范：</strong>
-                <ul style="margin-top: 10px; margin-left: 20px;">
-                    <li>使用<code>uv run ruff format</code>格式化代码</li>
-                    <li>使用<code>uv run mypy src</code>进行类型检查</li>
-                    <li>确保所有测试通过：<code>uv run pytest</code></li>
-                    <li>保持测试覆盖率不低于70%</li>
-                </ul>
+            <div class="footer-bottom">
+                <p>© 2026 Dawn AI Team. All rights reserved.</p>
+                <p style="margin-top: 8px; color: #64748b;">使用LangChain/LangGraph构建的智能Agent应用</p>
             </div>
         </div>
+    </footer>
 
-        <!-- 许可证 -->
-        <div class="card">
-            <h2>  许可证</h2>
-            <p>本项目采用 MIT 许可证。详情请参阅 <a href="#" style="color: #667eea;">LICENSE</a> 文件。</p>
-        </div>
+    <script>
+        // Intersection Observer for animations
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, {
+            threshold: 0.1
+        });
 
-        <div class="footer">
-            <p>Dawn AI - Python版本 | 使用LangChain/LangGraph构建</p>
-            <p style="margin-top: 10px; font-size: 0.9rem;">© 2026 Dawn AI Team. All rights reserved.</p>
-        </div>
-    </div>
+        document.querySelectorAll('.animate').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+            observer.observe(el);
+        });
+
+        // Smooth scroll for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Navbar background change on scroll
+        window.addEventListener('scroll', () => {
+            const nav = document.querySelector('nav');
+            if (window.scrollY > 50) {
+                nav.style.background = 'rgba(255, 255, 255, 0.98)';
+                nav.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
+            } else {
+                nav.style.background = 'rgba(255, 255, 255, 0.95)';
+                nav.style.boxShadow = 'none';
+            }
+        });
+    </script>
 </body>
 </html>
