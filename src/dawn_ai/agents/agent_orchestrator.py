@@ -1,6 +1,6 @@
 """Agent编排器 - LangGraph实现"""
 
-from typing import List, Dict, Any, Optional, Callable
+from typing import List, Dict, Any, Optional, Callable, TypedDict
 from dataclasses import dataclass
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage

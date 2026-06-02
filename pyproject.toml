@@ -27,6 +27,8 @@ packages = ["src/dawn_ai"]
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
+    "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.1.0",
 ]
 
 [project.scripts]
