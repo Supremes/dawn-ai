@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     # SSE配置
     show_steps: bool = False
 
+    # Langfuse配置
+    langfuse_public_key: str = ""
+    langfuse_secret_key: str = ""
+    langfuse_host: str = ""
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

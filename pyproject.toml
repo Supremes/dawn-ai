@@ -15,6 +15,9 @@ dependencies = [
     "pgvector>=0.4.2",
     "python-dotenv>=1.2.2",
     "pydantic-settings>=2.0.0",
+    "langfuse>=4.7.1",
+    "python-jose[cryptography]>=3.5.0",
+    "passlib[bcrypt]>=1.7.4",
 ]
 
 [build-system]
