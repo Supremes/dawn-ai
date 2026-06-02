@@ -56,7 +56,7 @@ public class MemoryService {
     }
 
     @SuppressWarnings("unchecked")
-    public void addMessage(String sessionId, String role, String content) {
+    public void addMessage(String sessionId, String userId, String role, String content) {
         String key = SESSION_PREFIX + sessionId;
         Map<String, String> message = Map.of("role", role, "content", content);
         try {
@@ -65,7 +65,7 @@ public class MemoryService {
             if (size != null && size > MAX_HISTORY) {
                 Object popped = redisTemplate.opsForList().leftPop(key);
                 if (popped instanceof Map<?, ?> poppedMsg) {
-                    enqueuePending(sessionId, (Map<String, String>) poppedMsg);
+                    enqueuePending(sessionId, userId, (Map<String, String>) poppedMsg);
                 }
             }
             redisTemplate.expire(key, SESSION_TTL);
@@ -124,7 +124,7 @@ public class MemoryService {
         }
     }
 
-    private void enqueuePending(String sessionId, Map<String, String> message) {
+    private void enqueuePending(String sessionId, String userId, Map<String, String> message) {
         String pendingKey = SESSION_PREFIX + sessionId + PENDING_SUFFIX;
         try {
             redisTemplate.opsForList().rightPush(pendingKey, message);
@@ -133,7 +133,7 @@ public class MemoryService {
             if (pendingSize != null && pendingSize >= summaryBatchSize) {
                 List<Map<String, String>> batch = drainPending(sessionId);
                 if (!batch.isEmpty()) {
-                    eventPublisher.publishEvent(new SummarizationRequestEvent(sessionId, batch));
+                    eventPublisher.publishEvent(new SummarizationRequestEvent(sessionId, userId, batch));
                 }
             }
         } catch (Exception e) {

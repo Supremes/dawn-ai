@@ -8,9 +8,6 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -32,18 +29,19 @@ public class MemorySummarizer {
                 .map(m -> m.getOrDefault("role", "") + ": " + m.getOrDefault("content", ""))
                 .collect(Collectors.joining("\n"));
 
-        SummaryResult result;
+        String summary;
+        double importance = 0.5;
         try {
-            String summary = chatClient.prompt()
+            summary = chatClient.prompt()
                     .user(PROMPT_TEMPLATE.formatted(historyText))
                     .call()
                     .content();
-            result = new SummaryResult(event.sessionId(), summary, 0.5, Instant.now());
             log.info("[MemorySummarizer] Summarized {} messages for session={}", event.messages().size(), event.sessionId());
         } catch (Exception e) {
             log.warn("[MemorySummarizer] LLM failed for session={}, using raw fallback: {}", event.sessionId(), e.getMessage());
-            result = new SummaryResult(event.sessionId(), historyText, 0.3, Instant.now());
+            summary = historyText;
+            importance = 0.3;
         }
-        eventPublisher.publishEvent(new ConsolidationRequestEvent(result));
+        eventPublisher.publishEvent(new EpisodicMemoryEvent(event.sessionId(), event.userId(), summary, importance));
     }
 }
