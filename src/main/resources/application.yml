@@ -101,7 +101,8 @@ app:
         min-score: 0.0            # cross-encoder rerank 分数下限，低于此分的文档被丢弃（0 = 关闭）
       hybrid-enabled: true        # 是否启用 BM25 + Dense 混合召回
       sparse:
-        text-search-config: english  # PostgreSQL FTS 配置名，例如 english | simple | custom config
+        text-search-config: english  # PostgreSQL FTS 配置名: chinese (需要zhparser) | english | simple
+        retriever-type: chinese-bm25  # postgres (纯 PostgreSQL ts_rank_cd) | chinese-bm25 (jieba分词 + BM25评分)
       cross-encoder:
         base-url: ""              # 可选：cross-encoder rerank 服务地址，例如 http://localhost:8081
         rerank-path: /rerank      # rerank 接口路径，默认请求体含 query/documents/top_n

@@ -1,5 +1,6 @@
  package com.dawn.ai.memory;
 
+import com.dawn.ai.config.PromptManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
@@ -17,6 +18,7 @@ class MemorySummarizerTest {
     private ChatClient.ChatClientRequestSpec requestSpec;
     private ChatClient.CallResponseSpec callSpec;
     private ApplicationEventPublisher eventPublisher;
+    private PromptManager promptManager;
     private MemorySummarizer summarizer;
 
     @BeforeEach
@@ -25,12 +27,14 @@ class MemorySummarizerTest {
         requestSpec = mock(ChatClient.ChatClientRequestSpec.class);
         callSpec = mock(ChatClient.CallResponseSpec.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
+        promptManager = mock(PromptManager.class);
 
         when(chatClient.prompt()).thenReturn(requestSpec);
         when(requestSpec.user(anyString())).thenReturn(requestSpec);
         when(requestSpec.call()).thenReturn(callSpec);
+        when(promptManager.render(anyString(), anyMap())).thenReturn("摘要提示");
 
-        summarizer = new MemorySummarizer(chatClient, eventPublisher);
+        summarizer = new MemorySummarizer(chatClient, eventPublisher, promptManager);
     }
 
     @Test

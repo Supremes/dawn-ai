@@ -26,7 +26,13 @@ public class OverlapTextSplitter implements DocumentTransformer {
     private static final int DEFAULT_MIN_CHUNK_SIZE_CHARS = 0;
     private static final int DEFAULT_MIN_CHUNK_LENGTH_TO_EMBED = 5;
     private static final int DEFAULT_MAX_NUM_CHUNKS = 10_000;
-    private static final List<Character> DEFAULT_PUNCTUATION_MARKS = List.of('.', '?', '!', '\n');
+    private static final List<Character> DEFAULT_PUNCTUATION_MARKS = List.of(
+            '.', '?', '!', '\n',
+            '。', // Chinese full-stop
+            '？', // Chinese question mark
+            '！', // Chinese exclamation mark
+            '，'  // Chinese comma
+    );
 
     private final Encoding encoding;
     private final int chunkSize;

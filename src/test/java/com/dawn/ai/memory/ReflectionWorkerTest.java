@@ -1,5 +1,6 @@
 package com.dawn.ai.memory;
 
+import com.dawn.ai.config.PromptManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
@@ -20,6 +21,7 @@ class ReflectionWorkerTest {
     private ChatClient.ChatClientRequestSpec requestSpec;
     private ChatClient.CallResponseSpec callSpec;
     private UserProfileService userProfileService;
+    private PromptManager promptManager;
     private ReflectionWorker reflectionWorker;
 
     @BeforeEach
@@ -29,13 +31,15 @@ class ReflectionWorkerTest {
         requestSpec = mock(ChatClient.ChatClientRequestSpec.class);
         callSpec = mock(ChatClient.CallResponseSpec.class);
         userProfileService = mock(UserProfileService.class);
+        promptManager = mock(PromptManager.class);
 
         when(chatClient.prompt()).thenReturn(requestSpec);
         when(requestSpec.user(anyString())).thenReturn(requestSpec);
         when(requestSpec.call()).thenReturn(callSpec);
+        when(promptManager.render(anyString(), anyMap())).thenReturn("反思提示");
 
         // episodeThreshold=4, so needs >= 2 episodes to proceed
-        reflectionWorker = new ReflectionWorker(vectorStore, chatClient, userProfileService, 4);
+        reflectionWorker = new ReflectionWorker(vectorStore, chatClient, userProfileService, promptManager, 4);
     }
 
     @Test

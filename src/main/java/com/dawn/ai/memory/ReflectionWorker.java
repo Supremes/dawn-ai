@@ -1,5 +1,6 @@
 package com.dawn.ai.memory;
 
+import com.dawn.ai.config.PromptManager;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.document.Document;
@@ -24,20 +25,19 @@ public class ReflectionWorker {
     private final VectorStore vectorStore;
     private final ChatClient chatClient;
     private final UserProfileService userProfileService;
+    private final PromptManager promptManager;
     private final int episodeThreshold;
-
-    private static final String REFLECT_PROMPT =
-            "以下是用户的多段对话摘要，请从中提炼出用户的长期偏好、习惯和重要特征（200字以内）。\n" +
-            "摘要集合:\n%s\n用户画像提炼:";
 
     public ReflectionWorker(
             VectorStore vectorStore,
             ChatClient chatClient,
             UserProfileService userProfileService,
+            PromptManager promptManager,
             @Value("${app.memory.reflection.episode-threshold:10}") int episodeThreshold) {
         this.vectorStore = vectorStore;
         this.chatClient = chatClient;
         this.userProfileService = userProfileService;
+        this.promptManager = promptManager;
         this.episodeThreshold = episodeThreshold;
     }
 
@@ -67,7 +67,7 @@ public class ReflectionWorker {
         String reflection;
         try {
             reflection = chatClient.prompt()
-                    .user(REFLECT_PROMPT.formatted(episodesText))
+                    .user(promptManager.render("reflection-worker", Map.of("summaries", episodesText)))
                     .call()
                     .content();
         } catch (Exception e) {

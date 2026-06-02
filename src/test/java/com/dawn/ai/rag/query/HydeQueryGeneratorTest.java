@@ -1,5 +1,6 @@
 package com.dawn.ai.rag.query;
 
+import com.dawn.ai.config.PromptManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -11,6 +12,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -21,12 +23,14 @@ class HydeQueryGeneratorTest {
     @Mock private ChatClient chatClient;
     @Mock private ChatClient.ChatClientRequestSpec requestSpec;
     @Mock private ChatClient.CallResponseSpec callResponseSpec;
+    @Mock private PromptManager promptManager;
 
     private HydeQueryGenerator generator;
 
     @BeforeEach
     void setUp() {
-        generator = new HydeQueryGenerator(chatClient);
+        lenient().when(promptManager.render(anyString())).thenReturn("你是一个领域专家。");
+        generator = new HydeQueryGenerator(chatClient, promptManager);
     }
 
     @Test
