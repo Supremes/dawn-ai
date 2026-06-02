@@ -132,6 +132,9 @@ app:
   memory:
     summary:
       batch-size: 3
+    extraction:
+      enabled: true                    # 是否启用 fact extraction（对齐 mem0）
+      dedup-enabled: true              # 是否启用 hash 去重
     consolidation:
       reflection-threshold: 3
     eviction:

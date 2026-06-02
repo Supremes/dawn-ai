@@ -79,7 +79,7 @@ public class MemoryDiagnosticsController {
 
         for (int i = 1; i <= count; i++) {
             String content = template.replace("{i}", String.valueOf(i));
-            memoryService.addMessage(sessionId, role, content);
+            memoryService.addMessage(sessionId, sessionId, role, content);
         }
         log.debug("[Diagnostics] Injected {} message(s) into session={}", count, sessionId);
         return ResponseEntity.ok(Map.of("injected", count, "sessionId", sessionId));

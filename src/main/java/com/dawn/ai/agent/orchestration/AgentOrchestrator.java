@@ -14,6 +14,7 @@ import com.dawn.ai.exception.AiConfigurationException;
 import com.dawn.ai.exception.LLMProviderException;
 import com.dawn.ai.exception.MaxStepsExceededException;
 import com.dawn.ai.exception.PlanGenerationException;
+import com.dawn.ai.memory.MemoryManager;
 import com.dawn.ai.memory.UserProfileService;
 import com.dawn.ai.service.MemoryService;
 import com.dawn.ai.sse.ChatStreamEvent;
@@ -59,6 +60,7 @@ public class AgentOrchestrator {
 
     private final ChatClient chatClient;
     private final MemoryService memoryService;
+    private final MemoryManager memoryManager;
     private final TaskPlanner taskPlanner;
     private final ToolRegistry toolRegistry;
     private final MeterRegistry meterRegistry;
@@ -68,6 +70,7 @@ public class AgentOrchestrator {
 
     public AgentOrchestrator(ChatClient chatClient,
                               MemoryService memoryService,
+                              MemoryManager memoryManager,
                               TaskPlanner taskPlanner,
                               ToolRegistry toolRegistry,
                               MeterRegistry meterRegistry,
@@ -76,6 +79,7 @@ public class AgentOrchestrator {
                               SubAgentRegistry subAgentRegistry) {
         this.chatClient = chatClient;
         this.memoryService = memoryService;
+        this.memoryManager = memoryManager;
         this.taskPlanner = taskPlanner;
         this.toolRegistry = toolRegistry;
         this.meterRegistry = meterRegistry;
@@ -148,8 +152,8 @@ public class AgentOrchestrator {
             List<AgentStep> steps = StepCollector.collect();
             recordRagMetrics(steps);
 
-            memoryService.addMessage(sessionId, "user", userMessage);
-            memoryService.addMessage(sessionId, "assistant", response);
+            memoryService.addMessage(sessionId, sessionId, "user", userMessage);
+            memoryService.addMessage(sessionId, sessionId, "assistant", response);
 
             log.info("[AgentOrchestrator] session={}, planSteps={}, toolCalls={}, userMsg={}",
                     sessionId, plan.size(), steps.size(),
@@ -287,8 +291,8 @@ public class AgentOrchestrator {
             List<AgentStep> steps = StepCollector.collect();
             recordRagMetrics(steps);
 
-            memoryService.addMessage(sessionId, "user", userMessage);
-            memoryService.addMessage(sessionId, "assistant", answer.toString());
+            memoryService.addMessage(sessionId, sessionId, "user", userMessage);
+            memoryService.addMessage(sessionId, sessionId, "assistant", answer.toString());
 
             log.info("[AgentOrchestrator] stream session={}, planSteps={}, toolCalls={}, tokens={}",
                     sessionId, plan.size(), steps.size(), answer.length());
@@ -416,12 +420,14 @@ public class AgentOrchestrator {
      */
     private String buildSystemPrompt(List<PlanStep> plan, String sessionId, String topicId) {
         String profileSection = userProfileService.formatForSystemPrompt(sessionId);
+        String memorySection = formatMemories(sessionId);
         String topicSection = (topicId != null && !topicId.isBlank())
                 ? String.format("%n%n【研究主题】你当前在帮助用户研究主题：%s。" +
                   "调用 KnowledgeSearchTool 时，topicId 参数必须使用 \"%s\"。", topicId, topicId)
                 : "";
         return baseSystemPrompt
                 + profileSection
+                + memorySection
                 + topicSection
                 + formatSkills()
                 + formatSubAgents()
@@ -473,6 +479,23 @@ public class AgentOrchestrator {
               .append(s.manifest().description()).append("\n");
         }
         return sb.toString();
+    }
+
+    private String formatMemories(String userId) {
+        try {
+            List<MemoryManager.MemorySearchResult> memories = memoryManager.search(userId, "用户偏好和习惯", 5);
+            if (memories.isEmpty()) {
+                return "";
+            }
+            StringBuilder sb = new StringBuilder("\n\n【相关记忆】\n");
+            for (MemoryManager.MemorySearchResult mem : memories) {
+                sb.append("- ").append(mem.content()).append("\n");
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            log.debug("[AgentOrchestrator] Failed to fetch memories for user={}: {}", userId, e.getMessage());
+            return "";
+        }
     }
 
     private String formatPlanEnforcement(List<PlanStep> plan) {
