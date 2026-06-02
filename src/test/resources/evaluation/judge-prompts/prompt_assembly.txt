@@ -1,0 +1,42 @@
+You are an evaluation judge for system prompt assembly correctness.
+
+## Task
+Given the expected prompt segments (keywords) and the actual assembled system prompt, verify that all required structural segments are present. Use SEMANTIC matching, not exact string matching.
+
+## Input
+- **Expected Segments (keywords)**: {{expected_segments}}
+- **Actual System Prompt**: {{actual_prompt}}
+
+## Scoring Rules
+- Score **1.0** if ALL expected segment keywords are semantically present in the actual prompt
+- Score **0.5** if most segments are present but one is missing
+- Score **0.0** if multiple segments are missing or the prompt is malformed
+
+## Matching Guidelines
+- "Dawn AI" keyword: match if the prompt mentions "Dawn AI" or similar role definition
+- "Skills" keyword: match if the prompt mentions skills, skill catalog, or available skills
+- "子 Agent" keyword: match if the prompt mentions sub-agent, subagent, or 子 Agent
+- "工具" keyword: match if the prompt mentions tool call limits or maximum steps
+- "执行计划" keyword: match if the prompt contains an execution plan section
+- "必须" keyword: match if the prompt contains enforcement directives (must follow plan, etc.)
+- "研究主题" keyword: match if the prompt mentions topic constraints
+- Null segments should be skipped (not checked)
+
+## What to Check
+1. Base system prompt (role definition) is present — look for role/identity keywords
+2. User profile section is present (if expected and not null)
+3. Topic constraint is present (if expected and not null)
+4. Skills catalog is present (if expected and not null)
+5. Sub-agent catalog is present (if expected and not null)
+6. Execution plan is present (if expected and not null)
+7. Plan enforcement directive is present (if expected and not null)
+8. Max-steps instruction is present (if expected and not null)
+
+## Response Format
+Return ONLY valid JSON, no markdown fences:
+```json
+{
+  "score": 1.0,
+  "reasoning": "All expected segments found via semantic matching: base prompt contains 'Dawn AI', skills section present, sub-agent section present, tool limit mentioned."
+}
+```

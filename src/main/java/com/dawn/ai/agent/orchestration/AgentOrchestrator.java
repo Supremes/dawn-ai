@@ -134,13 +134,13 @@ public class AgentOrchestrator {
             // 添加历史对话到上下文
             List<Message> history = buildHistory(sessionId);
 
-            ChatResponse chatResponse = chatClient.prompt()
+            ChatResponse chatResponse = callWithRetry(() -> chatClient.prompt()
                     .system(systemPrompt)
                     .messages(history)
                     .user(userMessage)
                     .toolNames(toolRegistry.getNames())
                     .call()
-                    .chatResponse();
+                    .chatResponse());
 
             String response = chatResponse.getResult().getOutput().getText();
             recordTokenUsage(chatResponse);
@@ -165,6 +165,26 @@ public class AgentOrchestrator {
         finally {
             StepCollector.clear();
         }
+    }
+
+    private <T> T callWithRetry(java.util.function.Supplier<T> call) {
+        int maxRetries = 3;
+        long baseDelay = 5000; // 5s
+        for (int attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                return call.get();
+            } catch (Exception e) {
+                boolean is429 = e.getMessage() != null && e.getMessage().contains("429");
+                if (is429 && attempt < maxRetries) {
+                    long delay = baseDelay * (1L << attempt); // exponential: 5s, 10s, 20s
+                    log.warn("[AgentOrchestrator] 429 rate limited, retrying in {}ms (attempt {}/{})", delay, attempt + 1, maxRetries);
+                    try { Thread.sleep(delay); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); throw e; }
+                } else {
+                    throw e;
+                }
+            }
+        }
+        throw new IllegalStateException("unreachable");
     }
 
     private TaskPlanner.PlannerResult resolvePlan(String userMessage) {
