@@ -53,7 +53,7 @@ public abstract class AbstractEvaluationTest {
 
     protected void sleepBetweenCases() {
         try {
-            Thread.sleep(3000); // 3s delay between cases to avoid LLM rate limiting
+            Thread.sleep(10000); // 10s delay between cases to avoid LLM 429 rate limiting
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

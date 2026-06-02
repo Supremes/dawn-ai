@@ -50,7 +50,7 @@ spring:
     # Vector Store - PGVector
     vectorstore:
       pgvector:
-        index-type: HNSW
+        index-type: NONE
         distance-type: COSINE_DISTANCE
         dimensions: ${EMBEDDING_DIMENSIONS:1024}
         initialize-schema: true

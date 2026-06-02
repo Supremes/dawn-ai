@@ -75,6 +75,240 @@
     }
   },
   {
+    "id": "tool_select_006",
+    "dimension": "tool_selection",
+    "query": "帮我查一下明天深圳会不会下雨",
+    "context": {
+      "availableTools": ["weatherTool", "calculatorTool", "knowledgeSearchTool"],
+      "memorySnapshot": null,
+      "ragDocuments": []
+    },
+    "expected": {
+      "tools": ["weatherTool"],
+      "answerCriteria": "应调用 weatherTool 查询天气预报",
+      "docIds": null
+    }
+  },
+  {
+    "id": "tool_select_007",
+    "dimension": "tool_selection",
+    "query": "计算一下月供，贷款100万，利率3.5%，30年等额本息",
+    "context": {
+      "availableTools": ["weatherTool", "calculatorTool", "knowledgeSearchTool"],
+      "memorySnapshot": null,
+      "ragDocuments": []
+    },
+    "expected": {
+      "tools": ["calculatorTool"],
+      "answerCriteria": "应调用 calculatorTool 进行贷款月供计算",
+      "docIds": null
+    }
+  },
+  {
+    "id": "tool_select_008",
+    "dimension": "tool_selection",
+    "query": "我们公司的请假流程是怎样的？",
+    "context": {
+      "availableTools": ["weatherTool", "calculatorTool", "knowledgeSearchTool"],
+      "memorySnapshot": null,
+      "ragDocuments": []
+    },
+    "expected": {
+      "tools": ["knowledgeSearchTool"],
+      "answerCriteria": "应调用 knowledgeSearchTool 检索公司制度文档",
+      "docIds": null
+    }
+  },
+  {
+    "id": "tool_select_009",
+    "dimension": "tool_selection",
+    "query": "北京今天多少度？顺便帮我算一下华氏度是多少",
+    "context": {
+      "availableTools": ["weatherTool", "calculatorTool", "knowledgeSearchTool"],
+      "memorySnapshot": null,
+      "ragDocuments": []
+    },
+    "expected": {
+      "tools": ["weatherTool", "calculatorTool"],
+      "answerCriteria": "应先调用 weatherTool 获取温度，再调用 calculatorTool 做温度单位换算",
+      "docIds": null
+    }
+  },
+  {
+    "id": "tool_select_010",
+    "dimension": "tool_selection",
+    "query": "什么是大语言模型的幻觉问题？",
+    "context": {
+      "availableTools": ["weatherTool", "calculatorTool", "knowledgeSearchTool"],
+      "memorySnapshot": null,
+      "ragDocuments": []
+    },
+    "expected": {
+      "tools": ["knowledgeSearchTool"],
+      "answerCriteria": "应调用 knowledgeSearchTool 检索AI相关知识",
+      "docIds": null
+    }
+  },
+  {
+    "id": "prompt_assembly_003",
+    "dimension": "prompt_assembly",
+    "query": "验证 system prompt 是否包含用户画像段落",
+    "context": {
+      "availableTools": [],
+      "memorySnapshot": null,
+      "ragDocuments": [],
+      "promptSegments": {
+        "basePrompt": "Dawn AI",
+        "userProfile": "用户",
+        "topicSection": null,
+        "skillsCatalog": "Skills",
+        "subAgentCatalog": "子 Agent",
+        "executionPlan": null,
+        "planEnforcement": null,
+        "maxSteps": "工具"
+      }
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "当有用户画像时，system prompt 应包含用户相关信息段落",
+      "docIds": null
+    }
+  },
+  {
+    "id": "prompt_assembly_004",
+    "dimension": "prompt_assembly",
+    "query": "验证无 topic 时 system prompt 不包含研究主题约束",
+    "context": {
+      "availableTools": [],
+      "memorySnapshot": null,
+      "ragDocuments": [],
+      "promptSegments": {
+        "basePrompt": "Dawn AI",
+        "userProfile": null,
+        "topicSection": null,
+        "skillsCatalog": "Skills",
+        "subAgentCatalog": "子 Agent",
+        "executionPlan": null,
+        "planEnforcement": null,
+        "maxSteps": "工具"
+      }
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "无 topicId 时不应注入研究主题约束段落",
+      "docIds": null
+    }
+  },
+  {
+    "id": "prompt_assembly_005",
+    "dimension": "prompt_assembly",
+    "query": "验证有用户画像时 prompt 包含画像信息",
+    "context": {
+      "availableTools": [],
+      "memorySnapshot": null,
+      "ragDocuments": [],
+      "promptSegments": {
+        "basePrompt": "Dawn AI",
+        "userProfile": "画像",
+        "topicSection": null,
+        "skillsCatalog": "Skills",
+        "subAgentCatalog": "子 Agent",
+        "executionPlan": null,
+        "planEnforcement": null,
+        "maxSteps": "工具"
+      }
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "system prompt 应包含用户画像相关段落，以提供个性化服务",
+      "docIds": null
+    }
+  },
+  {
+    "id": "subagent_004",
+    "dimension": "subagent_isolation",
+    "query": "验证子Agent的工具调用不影响主Agent的工具计数",
+    "context": {
+      "availableTools": ["dispatchSubAgentTool", "weatherTool"],
+      "memorySnapshot": null,
+      "ragDocuments": [],
+      "subAgentBehavior": {
+        "taskDescription": "Check weather in Shanghai",
+        "subAgentSteps": 3,
+        "mainAgentStepsBefore": 1,
+        "mainAgentStepsAfter": 1,
+        "subAgentToolsUsed": ["weatherTool"]
+      }
+    },
+    "expected": {
+      "tools": ["dispatchSubAgentTool"],
+      "answerCriteria": "子Agent内部的工具调用次数不应计入主Agent的 max-steps 限制",
+      "docIds": null
+    }
+  },
+  {
+    "id": "subagent_005",
+    "dimension": "subagent_isolation",
+    "query": "验证多个子Agent之间互不影响",
+    "context": {
+      "availableTools": ["dispatchSubAgentTool"],
+      "memorySnapshot": null,
+      "ragDocuments": [],
+      "subAgentBehavior": {
+        "taskDescription": "Parallel research tasks",
+        "subAgentCount": 2,
+        "eachSubAgentSteps": 3,
+        "mainAgentStepsBefore": 1,
+        "mainAgentStepsAfter": 1,
+        "expectedBehavior": "两个子Agent各自独立执行，步骤互不干扰"
+      }
+    },
+    "expected": {
+      "tools": ["dispatchSubAgentTool"],
+      "answerCriteria": "两个子Agent的步骤各自独立，互不影响。主Agent步骤数不变",
+      "docIds": null
+    }
+  },
+  {
+    "id": "multi_turn_004",
+    "dimension": "multi_turn_coherence",
+    "query": "继续刚才的话题，深入讲讲Spring AI的核心概念",
+    "context": {
+      "availableTools": ["knowledgeSearchTool"],
+      "memorySnapshot": [
+        {"role": "user", "content": "Spring AI是什么？"},
+        {"role": "assistant", "content": "Spring AI 是 Spring 生态的 AI 应用框架，提供统一的 API 接入各种 LLM。"},
+        {"role": "user", "content": "它和LangChain有什么区别？"},
+        {"role": "assistant", "content": "Spring AI 是 Java 生态原生，LangChain 是 Python 生态。Spring AI 更适合企业级 Java 应用。"}
+      ],
+      "ragDocuments": []
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "回答应承接之前的 Spring AI 讨论，深入展开核心概念，不能重复已说过的内容",
+      "docIds": null
+    }
+  },
+  {
+    "id": "multi_turn_005",
+    "dimension": "multi_turn_coherence",
+    "query": "刚才那个方案的第三步具体怎么操作？",
+    "context": {
+      "availableTools": [],
+      "memorySnapshot": [
+        {"role": "user", "content": "帮我制定一个学习计划"},
+        {"role": "assistant", "content": "三步走：1)第一周学Python基础 2)第二周学机器学习入门 3)第三周动手做项目。"},
+        {"role": "user", "content": "好的，第一步我已经完成了"}
+      ],
+      "ragDocuments": []
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "回答应准确理解'第三步'指的是'动手做项目'，并给出具体操作建议",
+      "docIds": null
+    }
+  },
+  {
     "id": "rag_recall_001",
     "dimension": "rag_recall",
     "query": "公司的退款政策是什么？",
@@ -130,6 +364,44 @@
       "tools": ["knowledgeSearchTool"],
       "answerCriteria": "回答应引用 Redis 故障降级机制，不应引用 PostgreSQL 配置",
       "docIds": ["doc-redis-001", "doc-redis-002"]
+    }
+  },
+  {
+    "id": "rag_recall_004",
+    "dimension": "rag_recall",
+    "query": "项目的日志规范是什么？",
+    "context": {
+      "availableTools": ["knowledgeSearchTool"],
+      "memorySnapshot": null,
+      "ragDocuments": [
+        {"id": "doc-log-001", "content": "日志规范：使用 SLF4J + Logback，日志格式含 traceId。INFO 级别记录业务流程，WARN 记录降级事件，ERROR 记录异常。Agent 日志前缀 [AgentOrchestrator]。"},
+        {"id": "doc-log-002", "content": "日志配置：logback-spring.xml 在 classpath 下，生产环境用 JSON 格式输出到 stdout，开发环境用 CONSOLE 彩色输出。"},
+        {"id": "doc-deploy-001", "content": "部署方式：Docker Compose 一键部署，包含 app/postgres/redis 三个核心服务。"}
+      ]
+    },
+    "expected": {
+      "tools": ["knowledgeSearchTool"],
+      "answerCriteria": "回答应引用日志相关文档，不应引用部署方式文档",
+      "docIds": ["doc-log-001", "doc-log-002"]
+    }
+  },
+  {
+    "id": "rag_recall_005",
+    "dimension": "rag_recall",
+    "query": "如何保证用户数据的安全性？",
+    "context": {
+      "availableTools": ["knowledgeSearchTool"],
+      "memorySnapshot": null,
+      "ragDocuments": [
+        {"id": "doc-security-001", "content": "数据安全：用户对话存储在 Redis，设置 24 小时 TTL 自动过期。向量库中的记忆文档支持手动删除。API Key 通过环境变量注入，不硬编码。"},
+        {"id": "doc-security-002", "content": "输入校验：CalculatorTool 对数学表达式做字符白名单过滤，防止代码注入。所有工具输入经过 Spring Validation 校验。"},
+        {"id": "doc-perf-001", "content": "性能优化：Redis 管道批量操作减少网络往返，JDBC 批量插入优化向量写入。"}
+      ]
+    },
+    "expected": {
+      "tools": ["knowledgeSearchTool"],
+      "answerCriteria": "回答应引用安全相关文档（数据安全+输入校验），不应引用性能优化文档",
+      "docIds": ["doc-security-001", "doc-security-002"]
     }
   },
   {
@@ -296,6 +568,63 @@
       "tools": ["dispatchSubAgentTool"],
       "answerCriteria": "前3次派发成功，第4次必须被拦截并返回明确的限制提示。如果第4次也成功了，说明限制机制失效",
       "docIds": null
+    }
+  },
+  {
+    "id": "answer_004",
+    "dimension": "answer_completeness",
+    "query": "当外部API调用失败时，这个项目的容错机制是怎样的？",
+    "context": {
+      "availableTools": ["knowledgeSearchTool"],
+      "memorySnapshot": null,
+      "ragDocuments": [
+        {"id": "doc-retry-001", "content": "重试机制：AgentOrchestrator 对 429 限流采用指数退避重试（5s/10s/20s），最多3次。ChatClient 调用包装在 callWithRetry() 中。"},
+        {"id": "doc-fallback-001", "content": "降级策略：Redis 不可用时 MemoryService 降级到 ConcurrentHashMap；子Agent超时返回 PARTIAL_SUCCESS；Embedding 服务不可用时 RAG 检索跳过向量召回，仅用 BM25。"},
+        {"id": "doc-monitor-001", "content": "监控告警：通过 Micrometer + Prometheus 暴露 metrics，Langfuse OTLP 追踪每个请求链路，Grafana Dashboard 可视化延迟和错误率。"}
+      ]
+    },
+    "expected": {
+      "tools": ["knowledgeSearchTool"],
+      "answerCriteria": "回答应覆盖：1)请求级重试机制(指数退避) 2)服务级降级策略(Redis/Embedding) 3)可观测性(监控+追踪)。三个层面缺一不可",
+      "docIds": ["doc-retry-001", "doc-fallback-001", "doc-monitor-001"]
+    }
+  },
+  {
+    "id": "answer_005",
+    "dimension": "answer_completeness",
+    "query": "这个项目的Multi-Agent架构是怎么设计的？子Agent如何与主Agent协作？",
+    "context": {
+      "availableTools": ["knowledgeSearchTool"],
+      "memorySnapshot": null,
+      "ragDocuments": [
+        {"id": "doc-multi-001", "content": "Multi-Agent设计：主Agent通过 DispatchSubAgentTool 派发子Agent，每个子Agent有独立的 StepCollectorContext 和超时控制。子Agent结果通过 CompletableFuture 返回。"},
+        {"id": "doc-multi-002", "content": "隔离约束：单次会话最多派发3个子Agent（max-dispatches-per-session）。子Agent超时默认30秒，超时返回 PARTIAL_SUCCESS。子Agent步骤不计入主Agent的 StepCollector。"},
+        {"id": "doc-multi-003", "content": "可观测性：子Agent的 span 通过 OTLP 上报到 Langfuse，与主Agent span 合并显示。Prometheus 指标包含 sub-agent 前缀区分。"}
+      ]
+    },
+    "expected": {
+      "tools": ["knowledgeSearchTool"],
+      "answerCriteria": "回答应覆盖：1)派发机制(DispatchSubAgentTool) 2)上下文隔离(独立StepCollector) 3)约束(超时+次数限制) 4)可观测性(Langfuse+Prometheus)。至少覆盖3个方面",
+      "docIds": ["doc-multi-001", "doc-multi-002", "doc-multi-003"]
+    }
+  },
+  {
+    "id": "answer_006",
+    "dimension": "answer_completeness",
+    "query": "如何对这个Agent进行端到端的质量评估？",
+    "context": {
+      "availableTools": ["knowledgeSearchTool"],
+      "memorySnapshot": null,
+      "ragDocuments": [
+        {"id": "doc-eval-001", "content": "评估体系：6维度自动化评估，包括工具选择、Prompt拼装、子Agent隔离、多轮对话连贯性、Answer完整性、RAG召回。使用 LLM-as-Judge 评分。"},
+        {"id": "doc-eval-002", "content": "评估执行：测试数据集在 evaluation-dataset.json，Judge prompt 在 judge-prompts/ 目录。运行 mvn test -Dgroups=evaluation 一键执行。结果双写本地JSON和Langfuse。"},
+        {"id": "doc-eval-003", "content": "评分标准：Binary维度用0/1评分，Likert维度用1-5评分。通过阈值 Binary>=1.0，Likert>=3.5。Judge模型独立于业务模型，避免自评偏见。"}
+      ]
+    },
+    "expected": {
+      "tools": ["knowledgeSearchTool"],
+      "answerCriteria": "回答应覆盖：1)评估维度(6个) 2)执行方式(mvn test) 3)评分机制(Binary+Likert+Judge) 4)结果存储(JSON+Langfuse)。至少覆盖3个方面",
+      "docIds": ["doc-eval-001", "doc-eval-002", "doc-eval-003"]
     }
   },
   {

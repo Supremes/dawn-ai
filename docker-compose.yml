@@ -53,6 +53,8 @@ services:
       # 外挂 skill 目录：宿主机 ./skills 下任何 SKILL.md 会覆盖 classpath skills-builtin/
       # 只读挂载，容器无法回写；reload 由 POST /actuator/skills 触发
       - ./skills:/app/skills:ro
+      # 覆盖 application.yml：解决 pgvector HNSW 索引不支持 >2000 维度的限制
+      - ./src/main/resources/application.yml:/app/config/application.yml:ro
     depends_on:
       postgres:
         condition: service_healthy
