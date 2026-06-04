@@ -1,5 +1,6 @@
 package com.dawn.ai.rag.query;
 
+import com.dawn.ai.config.PromptManager;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -26,16 +27,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class HydeQueryGenerator {
 
-    private static final String SYSTEM_PROMPT = """
-            你是一个领域专家。请基于用户的问题，写一段简短、客观、信息密集的回答（80-150字），
-            就像你正在引用一份真实的参考文档。
-            要求：
-            1. 直接陈述事实，不要使用"我认为"、"可能"等模糊语气。
-            2. 只输出回答正文，不要前缀、不要标题、不要 markdown 格式。
-            3. 即使你不确定答案，也请写出最合理的描述——这段文本仅用于向量检索，不会作为最终答案。
-            """;
-
     private final ChatClient chatClient;
+    private final PromptManager promptManager;
 
     @Setter
     @Value("${app.ai.rag.hyde-enabled:false}")
@@ -52,7 +45,7 @@ public class HydeQueryGenerator {
 
         try {
             String hypothetical = chatClient.prompt()
-                    .system(SYSTEM_PROMPT)
+                    .system(promptManager.render("hyde-system"))
                     .user(query)
                     .options(OpenAiChatOptions.builder().temperature(0.3).build())
                     .call()

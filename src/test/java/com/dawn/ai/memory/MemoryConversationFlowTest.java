@@ -1,5 +1,6 @@
 package com.dawn.ai.memory;
 
+import com.dawn.ai.config.PromptManager;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -56,6 +57,7 @@ class MemoryConversationFlowTest {
     private ChatClient                     chatClient;
     private ChatClient.ChatClientRequestSpec  requestSpec;
     private ChatClient.CallResponseSpec       callSpec;
+    private PromptManager                  promptManager;
 
     // ── 真实业务 Bean ────────────────────────────────────────────────────
     private MemoryService        memoryService;
@@ -78,12 +80,15 @@ class MemoryConversationFlowTest {
         requestSpec   = mock(ChatClient.ChatClientRequestSpec.class);
         callSpec      = mock(ChatClient.CallResponseSpec.class);
         vectorStore   = mock(VectorStore.class);
+        promptManager = mock(PromptManager.class);
 
         when(redisTemplate.opsForList()).thenReturn(listOps);
         when(redisTemplate.opsForHash()).thenReturn(hashOps);
         when(chatClient.prompt()).thenReturn(requestSpec);
         when(requestSpec.user(anyString())).thenReturn(requestSpec);
         when(requestSpec.call()).thenReturn(callSpec);
+        when(promptManager.render(anyString(), anyMap())).thenReturn("摘要提示");
+        when(promptManager.render(anyString())).thenReturn("反思提示");
 
         // 构建同步路由 Publisher（解决循环依赖：先 new 再注册路由）
         pipelinePublisher = new RoutingEventPublisher();
@@ -94,9 +99,9 @@ class MemoryConversationFlowTest {
         ReflectionTestUtils.setField(memoryService, "summaryBatchSize", SUMMARY_BATCH_SIZE);
 
         userProfileService = new UserProfileService(redisTemplate);
-        memorySummarizer   = new MemorySummarizer(chatClient, pipelinePublisher);
+        memorySummarizer   = new MemorySummarizer(chatClient, pipelinePublisher, promptManager);
         memoryConsolidator = new MemoryConsolidator(vectorStore, pipelinePublisher, REFLECTION_THRESHOLD);
-        reflectionWorker   = new ReflectionWorker(vectorStore, chatClient, userProfileService, EPISODE_THRESHOLD);
+        reflectionWorker   = new ReflectionWorker(vectorStore, chatClient, userProfileService, promptManager, EPISODE_THRESHOLD);
         evictionPolicyManager = new EvictionPolicyManager(vectorStore, 0.1, 180);
 
         // 注册路由：事件类型 → 处理方法（同步，绑过 @Async）

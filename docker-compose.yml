@@ -62,7 +62,9 @@ services:
       - dawn-network
 
   postgres:
-    image: pgvector/pgvector:0.8.0-pg16
+    build:
+      context: ./docker/postgres
+      dockerfile: Dockerfile
     restart: unless-stopped
     command: postgres -c max_connections=50
     environment:
@@ -73,6 +75,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-zhparser.sql:/docker-entrypoint-initdb.d/init-zhparser.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U dawn -d dawn_ai"]
       interval: 10s

@@ -74,6 +74,33 @@ public class StepCollector {
     }
 
     // -------------------------------------------------------------------------
+    // Sub-agent context management (public — used by SubAgent executors)
+    //
+    // Sub-agent 在自己的 StepCollectorContext 中跑 ReAct，主 Agent 的步骤计数与
+    // 步骤列表完全不被污染。{@link #snapshotContext()} 与 {@link #adoptContext}
+    // 也用于把主 Agent ThreadLocal 显式搬到另一线程（CompletableFuture worker）。
+    // -------------------------------------------------------------------------
+
+    /** 创建一个全新的、未挂载到 ThreadLocal 的 sub-agent 上下文。 */
+    public static StepCollectorContext newDetachedContext(int maxSteps, Consumer<AgentStep> listener) {
+        return new StepCollectorContext(maxSteps, listener);
+    }
+
+    /** 当前线程 ThreadLocal 持有的上下文（可能为 null）。 */
+    public static StepCollectorContext snapshotContext() {
+        return CONTEXT.get();
+    }
+
+    /** 将指定上下文挂到当前线程；{@code null} 表示清除。 */
+    public static void adoptContext(StepCollectorContext ctx) {
+        if (ctx == null) {
+            CONTEXT.remove();
+        } else {
+            CONTEXT.set(ctx);
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // Public API
     // -------------------------------------------------------------------------
 

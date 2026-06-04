@@ -101,7 +101,8 @@ app:
         min-score: 0.0            # cross-encoder rerank 分数下限，低于此分的文档被丢弃（0 = 关闭）
       hybrid-enabled: true        # 是否启用 BM25 + Dense 混合召回
       sparse:
-        text-search-config: english  # PostgreSQL FTS 配置名，例如 english | simple | custom config
+        text-search-config: english  # PostgreSQL FTS 配置名: chinese (需要zhparser) | english | simple
+        retriever-type: chinese-bm25  # postgres (纯 PostgreSQL ts_rank_cd) | chinese-bm25 (jieba分词 + BM25评分)
       cross-encoder:
         base-url: ""              # 可选：cross-encoder rerank 服务地址，例如 http://localhost:8081
         rerank-path: /rerank      # rerank 接口路径，默认请求体含 query/documents/top_n
@@ -113,6 +114,13 @@ app:
       query-rewrite-enabled: true  # 检索前是否用 LLM 改写查询，false 时原样传入
       hyde-enabled: true          # 检索前是否用 HyDE 生成假设文档作为查询，默认关闭（每次调用 +1 次 LLM）
       max-calls-per-session: 3    # 每次请求最多 RAG 工具调用次数，独立于 maxSteps
+    subagent:
+      max-dispatches-per-session: 3   # 单次主对话最多派发 sub-agent 次数（与 rag.max-calls-per-session 对称）
+      research:
+        max-steps: 15                  # research sub-agent 内部 ReAct 步数上限（高于主 Agent 因为干重活）
+        timeout-seconds: 60            # research sub-agent 总超时（秒），触发软失败返回 partial
+        # model-override:              # 留空则与主 Agent 同模型；填值则覆盖
+        # temperature-override:        # 留空则与主 Agent 同温度
     system-prompt: |
       You are Dawn AI, a helpful and knowledgeable assistant powered by advanced AI.
       You can help with calculations, weather queries, and answer questions based on your knowledge base.

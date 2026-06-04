@@ -1,5 +1,6 @@
 package com.dawn.ai.agent.planning;
 
+import com.dawn.ai.config.PromptManager;
 import com.dawn.ai.exception.PlanGenerationException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -18,6 +19,8 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -28,6 +31,7 @@ class TaskPlannerTest {
     @Mock private ChatClient chatClient;
     @Mock private ChatClient.ChatClientRequestSpec requestSpec;
     @Mock private ChatClient.CallResponseSpec callResponseSpec;
+    @Mock private PromptManager promptManager;
 
     @BeforeEach
     void setUp() {
@@ -37,8 +41,9 @@ class TaskPlannerTest {
         when(requestSpec.user(any(String.class))).thenReturn(requestSpec);
         when(requestSpec.options(any())).thenReturn(requestSpec);
         when(requestSpec.call()).thenReturn(callResponseSpec);
+        when(promptManager.render(anyString(), anyMap())).thenReturn("你是一个任务规划助手。");
 
-        taskPlanner = new TaskPlanner(chatClient, new ObjectMapper(), new SimpleMeterRegistry());
+        taskPlanner = new TaskPlanner(chatClient, new ObjectMapper(), new SimpleMeterRegistry(), promptManager);
         taskPlanner.initMetrics();
     }
 

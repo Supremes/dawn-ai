@@ -1,5 +1,6 @@
 package com.dawn.ai.rag.query;
 
+import com.dawn.ai.config.PromptManager;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -9,12 +10,15 @@ import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class QueryRewriter {
 
     private final ChatClient chatClient;
+    private final PromptManager promptManager;
 
     @Setter
     @Value("${app.ai.rag.query-rewrite-enabled:true}")
@@ -32,8 +36,7 @@ public class QueryRewriter {
 
         try {
             String response = chatClient.prompt()
-                    .system("将用户问题改写为适合向量检索的关键词短语，保留核心语义，去除口语助词。"
-                            + converter.getFormat())
+                    .system(promptManager.render("query-rewrite", Map.of("formatInstructions", converter.getFormat())))
                     .user(originalQuery)
                     .options(OpenAiChatOptions.builder().temperature(0.1).build())
                     .call()

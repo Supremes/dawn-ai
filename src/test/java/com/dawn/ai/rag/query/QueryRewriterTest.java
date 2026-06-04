@@ -1,5 +1,6 @@
 package com.dawn.ai.rag.query;
 
+import com.dawn.ai.config.PromptManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -8,9 +9,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
 
+import java.util.Map;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -21,12 +26,14 @@ class QueryRewriterTest {
     @Mock private ChatClient chatClient;
     @Mock private ChatClient.ChatClientRequestSpec requestSpec;
     @Mock private ChatClient.CallResponseSpec callResponseSpec;
+    @Mock private PromptManager promptManager;
 
     private QueryRewriter queryRewriter;
 
     @BeforeEach
     void setUp() {
-        queryRewriter = new QueryRewriter(chatClient);
+        lenient().when(promptManager.render(anyString(), anyMap())).thenReturn("将用户问题改写为适合向量检索的关键词短语。");
+        queryRewriter = new QueryRewriter(chatClient, promptManager);
     }
 
     @Test

@@ -8,6 +8,7 @@ import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -41,10 +42,15 @@ public class ToolExecutionAspect {
             Object result = pjp.proceed();
             long durationMs = System.currentTimeMillis() - start;
 
-            StepCollector.record(new AgentStep(stepNum, toolName, input, result.toString(), durationMs));
+            List<AgentStep> subSteps = (result instanceof SubStepProvider provider)
+                    ? provider.getSubSteps()
+                    : List.of();
 
-            log.debug("[ReAct] Step {} | tool={} | input={} | output={} | {}ms",
-                    stepNum, toolName, input, result, durationMs);
+            StepCollector.record(new AgentStep(stepNum, toolName, input, result.toString(), durationMs,
+                    status, subSteps));
+
+            log.debug("[ReAct] Step {} | tool={} | input={} | output={} | {}ms | subSteps={}",
+                    stepNum, toolName, input, result, durationMs, subSteps.size());
 
             recordMetrics(toolName, status, durationMs);
             return result;
