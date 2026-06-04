@@ -1,177 +1,127 @@
-# Dawn AI — Complete Java AI Agent Application
+# Dawn AI - Python版本
 
-> Built with Java 17 + Spring Boot 3.2 + Spring AI
+> 使用LangChain/LangGraph重写的AI Agent应用
 
-## 🏗️ Architecture
+## 架构
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                     REST API Layer                       │
-│              ChatController | RagController              │
+│                    FastAPI Layer                         │
+│              ChatRouter | RagRouter                      │
 └──────────────────────┬──────────────────────────────────┘
                        │
 ┌──────────────────────▼──────────────────────────────────┐
-│                  Service Layer                           │
-│         ChatService │ RagService │ MemoryService         │
+│                  Agent Layer                             │
+│         AgentOrchestrator (LangGraph)                    │
 └──────┬───────────────┬───────────────┬──────────────────┘
        │               │               │
 ┌──────▼──────┐ ┌──────▼──────┐ ┌──────▼──────┐
-│   Agent     │ │  PGVector   │ │    Redis    │
-│ Orchestrator│ │ (RAG Store) │ │  (Memory)  │
+│   LangGraph │ │   PGVector  │ │    Redis    │
+│  ReAct Loop │ │ (RAG Store) │ │  (Memory)  │
 └──────┬──────┘ └─────────────┘ └─────────────┘
        │
 ┌──────▼──────────────────────────────────────┐
-│           Spring AI / OpenAI API            │
+│           LangChain / OpenAI API            │
 │   Chat Model │ Embedding Model │ Tool Calls │
 └─────────────────────────────────────────────┘
 ```
 
-## 🚀 Quick Start
+## 快速开始
 
-### Prerequisites
-- Java 17+
+### 前置条件
+- Python 3.12+
 - Docker & Docker Compose
-- AI Model Configuration
-  - Local: with oMLX enabled, deployed LLM and embedding model as belows:
-    - Qwen3.5-9B-MLX-4bit
-    - bge-m3-mlx-fp16
+- AI模型配置（本地oMLX或云端）
 
-  - Cloud
-
-
-### Run with Docker Compose
+### 安装依赖
 
 ```bash
-# Start dependencies
-docker compose up -d
-
-# Run application with below env variables configured
-# oMLX - LLM
-OPENAI_API_KEY=2486
-BASE_URL=http://host.docker.internal:8000
-CHAT_MODEL=Qwen3.5-9B-MLX-4bit
-
-# oMXL - EMBEDDING MODEL 
-EMBEDDING_BASE_URL=http://host.docker.internal:8000
-EMBEDDING_API_KEY=2486
-EMBEDDING_DIMENSIONS=1024
-EMBEDDING_MODEL=bge-m3-mlx-fp16
+uv sync
 ```
 
+### 配置环境变量
 
-
-## 📡 API Usage
-
-### Chat (with agentic RAG + memory + tools)
 ```bash
-curl -X POST http://localhost:8080/api/v1/chat \
+cp .env.example .env
+# 编辑.env文件，配置API密钥等
+```
+
+### 启动服务
+
+```bash
+# 启动依赖
+docker compose up -d
+
+# 启动应用
+uv run dawn-ai
+```
+
+## API使用
+
+### Chat（带RAG + Memory + Tools）
+
+```bash
+curl -X POST http://localhost:8000/api/v1/chat \
   -H "Content-Type: application/json" \
   -d '{
-    "message": "What is the weather in Beijing?",
-    "sessionId": "my-session-001"
+    "message": "北京天气怎么样？",
+    "session_id": "my-session-001"
   }'
 ```
 
+### 流式Chat
 
-
-### Ingest Document into Knowledge Base
 ```bash
-curl -X POST http://localhost:8080/api/v1/rag/ingest \
+curl -X POST http://localhost:8000/api/v1/chat/stream \
   -H "Content-Type: application/json" \
   -d '{
-    "content": "Our refund policy allows returns within 30 days with receipt.",
+    "message": "北京天气怎么样？",
+    "session_id": "my-session-001"
+  }'
+```
+
+### 摄取文档到知识库
+
+```bash
+curl -X POST http://localhost:8000/api/v1/rag/ingest \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "我们的退款政策允许在30天内凭收据退货。",
     "source": "policy-doc-v1",
     "category": "policy"
   }'
 ```
 
-### Search Knowledge Base
+### 搜索知识库
+
 ```bash
-curl "http://localhost:8080/api/v1/rag/search?query=refund+policy&topK=3"
+curl "http://localhost:8000/api/v1/rag/search?query=退款政策&top_k=3"
 ```
 
-## 📊 Observability
+## 核心组件
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /actuator/health` | Health status |
-| `GET /actuator/prometheus` | Prometheus metrics |
-| `http://localhost:9090` | Prometheus UI |
-| `http://localhost:3000` | Grafana (admin/admin123) |
+| 组件 | 角色 | 类比 |
+|------|------|------|
+| `AgentOrchestrator` | ReAct循环，工具调度 | 线程池管理器 |
+| `MemoryService` | Redis对话历史 | 循环缓冲区 + TTL |
+| `RagService` | 向量相似度检索 | MySQL索引查找 |
 
-### Key Metrics
-- `ai.agent.chat.duration` — Agent response latency
-- `ai.rag.ingestion.total` — Documents ingested
-- `ai.rag.retrieval.total` — RAG queries executed
-- `ai.chat.request.duration` — Raw LLM call duration
+## 开发
 
-## 🧩 Core Components
-
-| Component | Role | Analogy |
-|-----------|------|---------|
-| `AgentOrchestrator` | ReAct loop, Tool dispatch | Thread Pool Manager |
-| `MemoryService` | Redis-backed conversation history | Circular Buffer + TTL |
-| `RagService` | Vector similarity retrieval | MySQL Index Lookup |
-
-## 📊 Observability
-
-可观测能力分两条独立线，全部走 **`docker-compose.observe.yml`** overlay 文件，
-按需 opt-in，互不依赖：
-
-| Profile | 启动的容器 | 用途 | UI |
-|---|---|---|---|
-| `--profile metrics` | `prometheus` + `grafana` | JVM / HTTP / 业务指标 | http://localhost:3000 |
-| `--profile observe` | `langfuse-*` + `clickhouse` + `minio` 等 7 个 | LLM trace / prompt / tool I/O | http://localhost:3001 |
-
-### 启动命令矩阵
+### 运行测试
 
 ```bash
-# 业务最小（仅 app + postgres + redis，~1.1 GB）
-docker compose up -d
-
-# + 监控
-docker compose -f docker-compose.yml -f docker-compose.observe.yml --profile metrics up -d
-
-# + Langfuse（首次启动等 ~60s 让 langfuse-web 健康）
-docker compose -f docker-compose.yml -f docker-compose.observe.yml --profile observe up -d
-
-# 全开
-docker compose -f docker-compose.yml -f docker-compose.observe.yml \
-  --profile metrics --profile observe up -d
+uv run pytest
 ```
 
-> **Tracing 总开关**：`MANAGEMENT_TRACING_ENABLED`（Spring Boot 原生 `management.tracing.enabled`）。
-> 主 compose 默认 `false`；叠加 `-f docker-compose.observe.yml` 时 overlay 会把它覆盖为 `true`。
-> 想强制覆盖时在 `.env` 里设置即可。⚠️ 这是整个 Spring Tracing 子系统的开关，
-> 关掉它所有 `@Observed` 和 OTLP exporter（不限后端）都会失效。
->
-> **Corner case**：单用 `--profile metrics`（叠加了 overlay 但没启 langfuse-web）时
-> tracing 仍被自动开为 `true`，会持续 OTLP warn。此时在 `.env` 里显式
-> `MANAGEMENT_TRACING_ENABLED=false` 静默即可。
-
-### 内存限制
-
-Docker Compose 不再为容器设置 `mem_limit` / `mem_reservation`，也不再为 Redis、Node 或 ClickHouse 额外设置本地开发内存上限。各组件按宿主机 / Docker Desktop 配额自适应。
-
-### Langfuse 登录
-
-Visit **http://localhost:3001**：
-
-| Field | Value (defaults from `.env.example`) |
-|---|---|
-| Email | `admin@dawn.local` |
-| Password | `dawn-admin-123` |
-
-`dawn-ai` 项目自动创建。新会话几秒后出现在 **Tracing**；**Sessions** 标签按
-你传入的 `sessionId` 聚合。
-
-### Rotating keys / production
-
-Change `LANGFUSE_INIT_PROJECT_PUBLIC_KEY` and `_SECRET_KEY` in `.env`,
-re-run `scripts/langfuse-auth-header.sh`, paste the new value into
-`LANGFUSE_AUTH_BASE64`, then:
+### 代码格式化
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.observe.yml \
-  --profile observe up -d --force-recreate langfuse-web app
+uv run ruff format
+```
+
+### 类型检查
+
+```bash
+uv run mypy src
 ```

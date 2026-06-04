@@ -15,7 +15,11 @@ import java.util.stream.Collectors;
 /**
  * Unified SSE event envelope.
  *
- * Event sequence per request: connected → plan_thinking* → plan? → thinking* → step* → token* → done | error
+ * Event sequence per request: connected → plan_thinking* → plan? → thinking* → (step | sub_progress)* → token* → done | error
+ *
+ * {@code sub_progress} 事件由 sub-agent 内部 ReAct 步骤完成时冒泡发出，
+ * 用于让前端在 sub-agent 长任务期间感知"还在跑"。前端可以选择不渲染本事件
+ * （退化到只看最终 {@code step}），协议向后兼容。
  *
  * Each event is serialised as the JSON body of a SSE data line,
  * while the SSE event name mirrors the {@code event} field.
@@ -70,6 +74,29 @@ public class ChatStreamEvent {
                 .sessionId(sessionId)
                 .timestamp(Instant.now().toString())
                 .data(agentStep)
+                .build();
+    }
+
+    /**
+     * Sub-agent 内部步骤完成时发出的轻量进度事件。
+     *
+     * @param parentToolName 主 Agent 中触发派发的工具名（通常 "DispatchSubAgentTool"）
+     * @param subAgentType   sub-agent 类型（如 "research"）
+     * @param subStep        sub-agent 内部完成的步骤序号（从 1 计）
+     * @param currentTool    sub-agent 本步骤刚调用完的工具名
+     */
+    public static ChatStreamEvent subProgress(String sessionId, String parentToolName, String subAgentType,
+                                              int subStep, String currentTool) {
+        return ChatStreamEvent.builder()
+                .event("sub_progress")
+                .sessionId(sessionId)
+                .timestamp(Instant.now().toString())
+                .data(Map.of(
+                        "parentToolName", parentToolName,
+                        "subAgentType", subAgentType,
+                        "subStep", subStep,
+                        "currentTool", currentTool
+                ))
                 .build();
     }
 

@@ -3,6 +3,7 @@ package com.dawn.ai.agent.orchestration;
 import com.dawn.ai.agent.planning.TaskPlanner;
 import com.dawn.ai.agent.registry.ToolRegistry;
 import com.dawn.ai.agent.skill.SkillRegistry;
+import com.dawn.ai.agent.subagent.SubAgentRegistry;
 import com.dawn.ai.exception.PlanGenerationException;
 import com.dawn.ai.service.MemoryService;
 import com.dawn.ai.memory.UserProfileService;
@@ -43,6 +44,7 @@ class AgentOrchestratorTest {
     @Mock private ToolRegistry toolRegistry;
     @Mock private UserProfileService userProfileService;
     @Mock private SkillRegistry skillRegistry;
+    @Mock private SubAgentRegistry subAgentRegistry;
 
     @BeforeEach
     void setUp() {
@@ -54,6 +56,7 @@ class AgentOrchestratorTest {
                 "calculatorTool", "数学计算"
         ));
         when(taskPlanner.plan(anyString(), any())).thenReturn(TaskPlanner.PlannerResult.empty());
+        when(subAgentRegistry.isEmpty()).thenReturn(true);
 
         agentOrchestrator = new AgentOrchestrator(
                 chatClient,
@@ -62,7 +65,8 @@ class AgentOrchestratorTest {
                 toolRegistry,
                 new SimpleMeterRegistry(),
                 userProfileService,
-                skillRegistry
+                skillRegistry,
+                subAgentRegistry
         );
         agentOrchestrator.initMetrics();
     }

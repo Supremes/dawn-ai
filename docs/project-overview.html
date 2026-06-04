@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dawn AI - Python版本项目总结</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-primary: #7c3aed;
+            --color-primary-light: #a78bfa;
+            --color-primary-dark: #5b21b6;
+            --color-text: #111827;
+            --color-text-secondary: #6b7280;
+            --color-bg: #ffffff;
+            --color-bg-secondary: #f9fafb;
+            --color-border: #e5e7eb;
+            --color-accent: #f59e0b;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            line-height: 1.7;
+            color: var(--color-text);
+            background: var(--color-bg);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--color-border);
+            z-index: 100;
+            padding: 16px 0;
+        }
+
+        nav .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--color-primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-logo svg {
+            width: 32px;
+            height: 32px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 32px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--color-text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--color-primary);
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 160px 0 120px;
+            background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 50%, #ddd6fe 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(124, 58, 237, 0.1) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(124, 58, 237, 0.1);
+            color: var(--color-primary);
+            padding: 8px 16px;
+            border-radius: 100px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 24px;
+        }
+
+        .hero h1 {
+            font-size: 4rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--color-text-secondary);
+            max-width: 600px;
+            margin: 0 auto 40px;
+            line-height: 1.8;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--color-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--color-primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--color-primary);
+            color: var(--color-primary);
+        }
+
+        /* Stats Section */
+        .stats {
+            padding: 80px 0;
+            background: white;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 40px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 32px;
+            background: var(--color-bg-secondary);
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+
+        .stat-item:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--color-primary);
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+            font-weight: 500;
+        }
+
+        /* Section Styles */
+        section {
+            padding: 100px 0;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 64px;
+        }
+
+        .section-header h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 16px;
+        }
+
+        .section-header p {
+            font-size: 1.125rem;
+            color: var(--color-text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Features Grid */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 32px;
+        }
+
+        .feature-card {
+            padding: 32px;
+            background: white;
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            border-color: var(--color-primary-light);
+            box-shadow: 0 12px 24px rgba(124, 58, 237, 0.08);
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+        }
+
+        .feature-card h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .feature-card p {
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+            line-height: 1.8;
+        }
+
+        /* Architecture Section */
+        .architecture {
+            background: var(--color-bg-secondary);
+        }
+
+        .architecture-diagram {
+            background: #1a1a2e;
+            color: #e2e8f0;
+            padding: 40px;
+            border-radius: 12px;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            overflow-x: auto;
+            line-height: 1.8;
+            position: relative;
+        }
+
+        .architecture-diagram::before {
+            content: 'Architecture';
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            font-size: 0.75rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        /* Tech Stack */
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 40px;
+            justify-content: center;
+        }
+
+        .tech-tag {
+            padding: 8px 20px;
+            background: white;
+            border: 1px solid var(--color-border);
+            border-radius: 100px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--color-text);
+            transition: all 0.2s;
+        }
+
+        .tech-tag:hover {
+            border-color: var(--color-primary);
+            color: var(--color-primary);
+            background: #f5f3ff;
+        }
+
+        /* Code Blocks */
+        .code-block {
+            background: #1a1a2e;
+            color: #e2e8f0;
+            padding: 24px;
+            border-radius: 12px;
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            overflow-x: auto;
+            line-height: 1.8;
+            position: relative;
+        }
+
+        .code-block::before {
+            content: 'Terminal';
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            font-size: 0.75rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .code-block .comment {
+            color: #64748b;
+        }
+
+        .code-block .command {
+            color: #a78bfa;
+        }
+
+        .code-block .string {
+            color: #34d399;
+        }
+
+        /* Comparison Table */
+        .comparison-section {
+            background: var(--color-bg-secondary);
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 16px 24px;
+            text-align: left;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .comparison-table th {
+            background: var(--color-primary);
+            color: white;
+            font-weight: 600;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .comparison-table td {
+            font-size: 0.875rem;
+        }
+
+        .comparison-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .comparison-table tr:hover td {
+            background: #f9fafb;
+        }
+
+        .comparison-table .highlight {
+            color: var(--color-primary);
+            font-weight: 500;
+        }
+
+        /* Roadmap */
+        .roadmap {
+            position: relative;
+            padding-left: 40px;
+        }
+
+        .roadmap::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, var(--color-primary), var(--color-primary-light));
+        }
+
+        .roadmap-item {
+            position: relative;
+            margin-bottom: 48px;
+            padding: 32px;
+            background: white;
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+
+        .roadmap-item:hover {
+            border-color: var(--color-primary-light);
+            box-shadow: 0 8px 24px rgba(124, 58, 237, 0.08);
+        }
+
+        .roadmap-item::before {
+            content: '';
+            position: absolute;
+            left: -33px;
+            top: 36px;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border: 3px solid var(--color-primary);
+            border-radius: 50%;
+        }
+
+        .roadmap-item h4 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--color-primary);
+            margin-bottom: 16px;
+        }
+
+        .roadmap-item ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .roadmap-item li {
+            position: relative;
+            padding-left: 24px;
+            margin-bottom: 12px;
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+        }
+
+        .roadmap-item li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 8px;
+            width: 6px;
+            height: 6px;
+            background: var(--color-primary-light);
+            border-radius: 50%;
+        }
+
+        /* Coverage Section */
+        .coverage-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 32px;
+        }
+
+        .coverage-card {
+            padding: 32px;
+            background: white;
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+        }
+
+        .coverage-card h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .coverage-bar {
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .coverage-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--color-primary), var(--color-primary-light));
+            border-radius: 4px;
+            transition: width 1s ease;
+        }
+
+        .coverage-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--color-text-secondary);
+        }
+
+        /* Footer */
+        footer {
+            background: #1a1a2e;
+            color: #94a3b8;
+            padding: 64px 0 32px;
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 32px;
+            border-bottom: 1px solid #334155;
+            margin-bottom: 32px;
+        }
+
+        .footer-logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: white;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 32px;
+        }
+
+        .footer-links a {
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: white;
+        }
+
+        .footer-bottom {
+            text-align: center;
+            font-size: 0.75rem;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate {
+            animation: fadeInUp 0.6s ease forwards;
+            opacity: 0;
+        }
+
+        .animate-delay-1 { animation-delay: 0.1s; }
+        .animate-delay-2 { animation-delay: 0.2s; }
+        .animate-delay-3 { animation-delay: 0.3s; }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .hero h1 {
+                font-size: 3rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            .hero {
+                padding: 120px 0 80px;
+            }
+
+            .hero h1 {
+                font-size: 2.25rem;
+            }
+
+            .hero p {
+                font-size: 1rem;
+            }
+
+            .hero-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 16px;
+            }
+
+            .stat-number {
+                font-size: 2rem;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .coverage-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-content {
+                flex-direction: column;
+                gap: 24px;
+                text-align: center;
+            }
+
+            .footer-links {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="container">
+            <a href="#" class="nav-logo">
+                <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="16" cy="16" r="14" fill="url(#gradient)"/>
+                    <path d="M12 16L16 12L20 16L16 20L12 16Z" fill="white"/>
+                    <defs>
+                        <linearGradient id="gradient" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#7c3aed"/>
+                            <stop offset="1" stop-color="#a78bfa"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                Dawn AI
+            </a>
+            <ul class="nav-links">
+                <li><a href="#features">功能</a></li>
+                <li><a href="#architecture">架构</a></li>
+                <li><a href="#quickstart">快速开始</a></li>
+                <li><a href="#roadmap">路线图</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container hero-content">
+            <div class="hero-badge animate">
+                <span>  Python版本发布</span>
+                v1.0.0
+            </div>
+            <h1 class="animate animate-delay-1">Dawn AI</h1>
+            <p class="animate animate-delay-2">
+                基于LangChain/LangGraph构建的智能Agent应用<br>
+                从Java/Spring Boot到Python生态的优雅迁移
+            </p>
+            <div class="hero-buttons animate animate-delay-3">
+                <a href="#quickstart" class="btn btn-primary">
+                    开始使用
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M6 12L10 8L6 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </a>
+                <a href="#architecture" class="btn btn-secondary">
+                    了解架构
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="stats">
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-item animate">
+                    <div class="stat-number">16</div>
+                    <div class="stat-label">测试用例</div>
+                </div>
+                <div class="stat-item animate animate-delay-1">
+                    <div class="stat-number">70%</div>
+                    <div class="stat-label">代码覆盖率</div>
+                </div>
+                <div class="stat-item animate animate-delay-2">
+                    <div class="stat-number">6</div>
+                    <div class="stat-label">核心模块</div>
+                </div>
+                <div class="stat-item animate animate-delay-3">
+                    <div class="stat-number">8</div>
+                    <div class="stat-label">API端点</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features">
+        <div class="container">
+            <div class="section-header">
+                <h2>核心功能</h2>
+                <p>强大的AI Agent能力，灵活的工具集成</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon"> </div>
+                    <h3>ReAct Agent编排</h3>
+                    <p>使用LangGraph实现Reasoning + Acting循环，支持多步骤任务执行、工具调用和动态规划。</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"> </div>
+                    <h3>RAG知识检索</h3>
+                    <p>基于PGVector的向量检索，支持文档摄取、语义搜索和上下文增强生成。</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"> </div>
+                    <h3>对话记忆管理</h3>
+                    <p>Redis-backed的对话历史管理，支持会话持久化和上下文窗口控制。</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>流式响应</h3>
+                    <p>支持SSE流式输出，实时返回Agent思考过程和工具调用结果。</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"> ️</div>
+                    <h3>工具集成</h3>
+                    <p>可扩展的工具系统，内置知识库搜索和计算器，支持自定义工具扩展。</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"> ️</div>
+                    <h3>微服务架构</h3>
+                    <p>FastAPI提供高性能REST API，支持异步处理和并发请求。</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Architecture Section -->
+    <section id="architecture" class="architecture">
+        <div class="container">
+            <div class="section-header">
+                <h2>技术架构</h2>
+                <p>清晰的分层设计，灵活的组件扩展</p>
+            </div>
+            <div class="architecture-diagram">
+┌─────────────────────────────────────────────────────────────────────┐
+│                          FastAPI Layer                              │
+│                    ChatRouter | RagRouter                           │
+└───────────────────────────────┬─────────────────────────────────────┘
+                                │
+┌───────────────────────────────▼─────────────────────────────────────┐
+│                        Agent Layer                                  │
+│              AgentOrchestrator (LangGraph ReAct Loop)               │
+└────────┬────────────────┬────────────────┬─────────────────────────┘
+         │                │                │
+┌────────▼───────┐ ┌──────▼───────┐ ┌──────▼───────┐
+│   LangGraph    │ │   PGVector   │ │    Redis     │
+│   ReAct Loop   │ │  (RAG Store) │ │   (Memory)   │
+└────────┬───────┘ └──────────────┘ └──────────────┘
+         │
+┌────────▼────────────────────────────────────────────────────────────┐
+│              LangChain / OpenAI API                                 │
+│     Chat Model │ Embedding Model │ Tool Calls                       │
+└─────────────────────────────────────────────────────────────────────┘
+            </div>
+            <div class="tech-stack">
+                <span class="tech-tag">Python 3.12</span>
+                <span class="tech-tag">LangChain</span>
+                <span class="tech-tag">LangGraph</span>
+                <span class="tech-tag">FastAPI</span>
+                <span class="tech-tag">Redis</span>
+                <span class="tech-tag">PostgreSQL</span>
+                <span class="tech-tag">PGVector</span>
+                <span class="tech-tag">uv</span>
+                <span class="tech-tag">Docker</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Start Section -->
+    <section id="quickstart">
+        <div class="container">
+            <div class="section-header">
+                <h2>快速开始</h2>
+                <p>几分钟内启动并运行</p>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 32px;">
+                <div>
+                    <h3 style="margin-bottom: 16px; font-size: 1.125rem;">环境准备</h3>
+                    <div class="code-block">
+<span class="comment"># 克隆项目</span>
+<span class="command">cd</span> /Users/junkangd/projects/dawn-ai-python
+
+<span class="comment"># 安装依赖</span>
+<span class="command">uv</span> sync
+
+<span class="comment"># 配置环境变量</span>
+<span class="command">cp</span> .env.example .env
+<span class="comment"># 编辑 .env 文件配置API密钥</span>
+                    </div>
+                </div>
+                <div>
+                    <h3 style="margin-bottom: 16px; font-size: 1.125rem;">启动服务</h3>
+                    <div class="code-block">
+<span class="comment"># 启动依赖服务</span>
+<span class="command">docker</span> compose up -d
+
+<span class="comment"># 启动应用</span>
+<span class="command">uv</span> run dawn-ai
+
+<span class="comment"># 运行测试</span>
+<span class="command">uv</span> run pytest tests/ -v
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Comparison Section -->
+    <section class="comparison-section">
+        <div class="container">
+            <div class="section-header">
+                <h2>Java vs Python 对比</h2>
+                <p>技术选型的思考与权衡</p>
+            </div>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>方面</th>
+                        <th>Java版本</th>
+                        <th>Python版本</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>框架</td>
+                        <td>Spring Boot + Spring AI</td>
+                        <td class="highlight">LangChain + LangGraph</td>
+                    </tr>
+                    <tr>
+                        <td>Agent编排</td>
+                        <td>自定义ReAct循环</td>
+                        <td class="highlight">LangGraph StateGraph</td>
+                    </tr>
+                    <tr>
+                        <td>依赖管理</td>
+                        <td>Maven</td>
+                        <td class="highlight">uv</td>
+                    </tr>
+                    <tr>
+                        <td>向量存储</td>
+                        <td>PGVector (JDBC)</td>
+                        <td class="highlight">PGVector (asyncpg)</td>
+                    </tr>
+                    <tr>
+                        <td>缓存</td>
+                        <td>Redis (Spring Data)</td>
+                        <td class="highlight">Redis (redis-py)</td>
+                    </tr>
+                    <tr>
+                        <td>API框架</td>
+                        <td>Spring MVC</td>
+                        <td class="highlight">FastAPI</td>
+                    </tr>
+                    <tr>
+                        <td>流式响应</td>
+                        <td>SSE (Spring WebFlux)</td>
+                        <td class="highlight">SSE (FastAPI StreamingResponse)</td>
+                    </tr>
+                    <tr>
+                        <td>可观测性</td>
+                        <td>Micrometer + Langfuse</td>
+                        <td class="highlight">LangSmith (可选)</td>
+                    </tr>
+                    <tr>
+                        <td>类型系统</td>
+                        <td>强类型 + Lombok</td>
+                        <td class="highlight">Pydantic + Type Hints</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Coverage Section -->
+    <section>
+        <div class="container">
+            <div class="section-header">
+                <h2>测试覆盖</h2>
+                <p>全面的质量保障</p>
+            </div>
+            <div class="coverage-grid">
+                <div class="coverage-card">
+                    <h4>  配置模块</h4>
+                    <div class="coverage-bar">
+                        <div class="coverage-fill" style="width: 100%"></div>
+                    </div>
+                    <div class="coverage-label">
+                        <span>config</span>
+                        <span>100%</span>
+                    </div>
+                </div>
+                <div class="coverage-card">
+                    <h4>  记忆模块</h4>
+                    <div class="coverage-bar">
+                        <div class="coverage-fill" style="width: 100%"></div>
+                    </div>
+                    <div class="coverage-label">
+                        <span>memory</span>
+                        <span>100%</span>
+                    </div>
+                </div>
+                <div class="coverage-card">
+                    <h4>  RAG模块</h4>
+                    <div class="coverage-bar">
+                        <div class="coverage-fill" style="width: 96%"></div>
+                    </div>
+                    <div class="coverage-label">
+                        <span>rag</span>
+                        <span>96%</span>
+                    </div>
+                </div>
+                <div class="coverage-card">
+                    <h4>  SSE模块</h4>
+                    <div class="coverage-bar">
+                        <div class="coverage-fill" style="width: 100%"></div>
+                    </div>
+                    <div class="coverage-label">
+                        <span>sse</span>
+                        <span>100%</span>
+                    </div>
+                </div>
+                <div class="coverage-card">
+                    <h4>  API模块</h4>
+                    <div class="coverage-bar">
+                        <div class="coverage-fill" style="width: 88%"></div>
+                    </div>
+                    <div class="coverage-label">
+                        <span>api</span>
+                        <span>88%</span>
+                    </div>
+                </div>
+                <div class="coverage-card">
+                    <h4>  Agent模块</h4>
+                    <div class="coverage-bar">
+                        <div class="coverage-fill" style="width: 44%"></div>
+                    </div>
+                    <div class="coverage-label">
+                        <span>agents</span>
+                        <span>44%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Roadmap Section -->
+    <section id="roadmap" class="architecture">
+        <div class="container">
+            <div class="section-header">
+                <h2>未来展望</h2>
+                <p>持续演进的技术路线</p>
+            </div>
+            <div class="roadmap">
+                <div class="roadmap-item">
+                    <h4>第一阶段：功能完善 (Q3 2026)</h4>
+                    <ul>
+                        <li>实现Sub-Agent系统，支持复杂任务分解</li>
+                        <li>添加任务规划器（TaskPlanner）</li>
+                        <li>集成Langfuse可观测性平台</li>
+                        <li>实现用户画像和个性化推荐</li>
+                    </ul>
+                </div>
+                <div class="roadmap-item">
+                    <h4>第二阶段：性能优化 (Q4 2026)</h4>
+                    <ul>
+                        <li>实现流式RAG检索优化</li>
+                        <li>添加缓存层减少重复计算</li>
+                        <li>优化向量检索性能</li>
+                        <li>实现批量文档摄取</li>
+                    </ul>
+                </div>
+                <div class="roadmap-item">
+                    <h4>第三阶段：生态扩展 (2027)</h4>
+                    <ul>
+                        <li>支持更多LLM提供商（Claude, Gemini）</li>
+                        <li>实现多模态能力（图像、音频）</li>
+                        <li>添加插件系统支持第三方扩展</li>
+                        <li>构建Agent Marketplace</li>
+                    </ul>
+                </div>
+                <div class="roadmap-item">
+                    <h4>第四阶段：生产就绪 (2027+)</h4>
+                    <ul>
+                        <li>实现完整的认证和授权系统</li>
+                        <li>添加API限流和配额管理</li>
+                        <li>实现分布式部署支持</li>
+                        <li>构建管理后台和监控面板</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">Dawn AI</div>
+                <div class="footer-links">
+                    <a href="#features">功能</a>
+                    <a href="#architecture">架构</a>
+                    <a href="#quickstart">快速开始</a>
+                    <a href="#roadmap">路线图</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2026 Dawn AI Team. All rights reserved.</p>
+                <p style="margin-top: 8px; color: #64748b;">使用LangChain/LangGraph构建的智能Agent应用</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Intersection Observer for animations
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, {
+            threshold: 0.1
+        });
+
+        document.querySelectorAll('.animate').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+            observer.observe(el);
+        });
+
+        // Smooth scroll for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Navbar background change on scroll
+        window.addEventListener('scroll', () => {
+            const nav = document.querySelector('nav');
+            if (window.scrollY > 50) {
+                nav.style.background = 'rgba(255, 255, 255, 0.98)';
+                nav.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
+            } else {
+                nav.style.background = 'rgba(255, 255, 255, 0.95)';
+                nav.style.boxShadow = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
