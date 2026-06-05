@@ -1,3 +1,6 @@
+---
+updated: 2026-06-05 22:33
+---
 # Multi-Agent 设计共识
 
 > 通过 `/grill-me` 与老大对齐后沉淀。所有关键决策点均经过对照评估，
@@ -160,4 +163,4 @@ com.dawn.ai.sse/
 
 ## 验收
 
-见 [verification.md](./verification.md)。
+见 [verification.md](multi-agent%20test.md)。

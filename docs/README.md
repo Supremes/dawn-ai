@@ -5,19 +5,19 @@ updated: 2026-06-03 21:30
 
 按 Agent 开发关注面组织，每个主题目录内可含 `*-design.md`（架构设计）、`plans/`（阶段性落地计划）及备忘。
 
-| 目录 | 关注面 |
-| --- | --- |
-| [`agent-paradigms/`](./agent-paradigms/) | Agent 范式：ReAct、Multi-Agent |
-| [`rag/`](./rag/) | 检索增强：查询改写、混合检索、重排、Agentic RAG |
-| [`memory/`](./memory/) | 3 层记忆体系（Working / Summary / Long-term） |
-| [`skill/`](./skill/) | Skill 加载与 MCP 协议支持 |
-| [`second-brain/`](./second-brain/) | Topic 元数据与知识盲点分析 |
-| [`evaluation/`](./evaluation/) | Agent 评估框架与测试结果 |
-| [`observability/`](./observability/) | Telemetry、Grafana、Langfuse |
-| [`streaming/`](./streaming/) | SSE 流式响应与跨线程上下文传播 |
-| [`notes/`](./notes/) | 学习笔记、调研、面试要点 |
-| [`assets/`](./assets/) | 共享图片资源 |
-| [`roadmap.md`](./roadmap.md) | 待办与 Agent 范式落地优先级 |
+| 目录                                       | 关注面                                    |
+| ---------------------------------------- | -------------------------------------- |
+| [`agent-paradigms/`](./agent-paradigms/) | Agent 范式：ReAct、Multi-Agent             |
+| [`rag/`](./rag/)                         | 检索增强：查询改写、混合检索、重排、Agentic RAG          |
+| [`memory/`](./memory/)                   | 3 层记忆体系（Working / Summary / Long-term） |
+| [`skill/`](./skill/)                     | Skill 加载与 MCP 协议支持                     |
+| [`second-brain/`](./second-brain/)       | Topic 元数据与知识盲点分析                       |
+| [`evaluation/`](./evaluation/)           | Agent 评估框架与测试结果                        |
+| [`observability/`](./observability/)     | Telemetry、Grafana、Langfuse             |
+| `SSE`                                    | SSE 流式响应与跨线程上下文传播                      |
+| [`notes/`](./notes/)                     | 学习笔记、调研、面试要点                           |
+| [`assets/`](./assets/)                   | 共享图片资源                                 |
+| [`roadmap.md`](./roadmap.md)             | 待办与 Agent 范式落地优先级                      |
 
 ---
 

@@ -1,12 +1,17 @@
 ---
-updated: 2026-05-23 20:34
+updated: 2026-06-05 22:45
 ---
-1. System Prompt 动态组装 #issue22
-2. Multi-Agent #issue28
-3. RAG 中文检索优化 + 引入 Hyde 召回率优化 #issue36
-4. 引入 Agent 评估系统 #issue26
-5. 支持 Skill 和 MCP 协议 #issue25
-6. 支持更多的 tools 
+- [x] System Prompt 动态组装 
+	- 
+- [x] Multi-Agent
+	- [ ] 缺少系统验证和测试回顾
+- [x] RAG 中文检索优化 + 引入 Hyde 召回率优化
+	- [ ] 缺少真实业务场景的测试
+- [x] 引入 Agent 评估系统
+	- [ ] 已经引入 langfuse 及其 LLM-AS-JUDGE 能力，但是没有完成系统测试
+- [x] 支持 Skill 和 MCP 协议 
+	- 放弃对 MCP 的支持，大部分业务场景完全可以使用 cli 来解决，不需要引入 MCP
+- [x] 支持更多的 tools 
 
 ## Issues
 
@@ -20,11 +25,7 @@ updated: 2026-05-23 20:34
 	- PreTurn：修改注入模型的上下文、注入 system 提醒、做权限检查，
 	- MidTurn：审批 tool call，修改参数、拦截危险操作
 	- PostTurn：在本轮 turn 结束，下一轮 turn 开始前触发。审查 observation、支持 loop、修改要传给下一个 turn 的内容
-- Skill
-
 - agent paradigm
-
-
 
 老大，结论：**dawn-ai 已经落地了 5 个 Agent 范式，最值得继续落地的是 Evaluator/Critic、Router/Supervisor、Workflow Agent 和 Human-in-the-loop；暂时不建议做“全自动长程自治 Agent / swarm”。**
 

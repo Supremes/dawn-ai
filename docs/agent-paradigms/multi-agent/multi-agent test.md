@@ -1,3 +1,6 @@
+---
+updated: 2026-06-05 22:27
+---
 # Multi-Agent 验收手册
 
 > 本分支不提供自动化 UT，请按以下 3 个场景在本地 / 测试环境逐项验证。
@@ -101,9 +104,9 @@ curl -s http://localhost:8080/actuator/prometheus | grep ai_subagent
 
 ### 截图存档
 
-- 完整 SSE 流（截图 /tmp/verify-A.sse 关键片段）→ `docs/multi-agent/screenshots/scenario-A-sse.png`
-- Grafana `ai.subagent.dispatches` 指标变化 → `docs/multi-agent/screenshots/scenario-A-metrics.png`
-- Langfuse Session `verify-A` 的 trace 列表（应同时看到主 Agent 和 sub-agent 的 LLM span）→ `docs/multi-agent/screenshots/scenario-A-langfuse.png`
+- 完整 SSE 流（截图 /tmp/verify-A.sse 关键片段）→ `docs/agent-paradigms/multi-agent/screenshots/scenario-A-sse.png`
+- Grafana `ai.subagent.dispatches` 指标变化 → `docs/agent-paradigms/multi-agent/screenshots/scenario-A-metrics.png`
+- Langfuse Session `verify-A` 的 trace 列表（应同时看到主 Agent 和 sub-agent 的 LLM span）→ `docs/agent-paradigms/multi-agent/screenshots/scenario-A-langfuse.png`
 
 ---
 
@@ -144,7 +147,7 @@ curl -N -H "Accept: text/event-stream" \
 
 ### 截图存档
 
-- SSE 流截图 → `docs/multi-agent/screenshots/scenario-B-sse.png`
+- SSE 流截图 → `docs/agent-paradigms/multi-agent/screenshots/scenario-B-sse.png`
 
 ---
 
@@ -202,9 +205,9 @@ curl -s http://localhost:8080/actuator/prometheus | grep ai_subagent_dispatches_
 
 ### 截图存档
 
-- SSE 流（突出 sub_progress 后超时 + 主 Agent 继续）→ `docs/multi-agent/screenshots/scenario-C-sse.png`
-- Prometheus PARTIAL_SUCCESS 计数 → `docs/multi-agent/screenshots/scenario-C-metrics.png`
-- 应用日志 timeout 告警 → `docs/multi-agent/screenshots/scenario-C-log.png`
+- SSE 流（突出 sub_progress 后超时 + 主 Agent 继续）→ `docs/agent-paradigms/multi-agent/screenshots/scenario-C-sse.png`
+- Prometheus PARTIAL_SUCCESS 计数 → `docs/agent-paradigms/multi-agent/screenshots/scenario-C-metrics.png`
+- 应用日志 timeout 告警 → `docs/agent-paradigms/multi-agent/screenshots/scenario-C-log.png`
 
 ### 收尾
 
