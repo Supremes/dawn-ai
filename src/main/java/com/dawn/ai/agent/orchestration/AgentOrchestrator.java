@@ -5,6 +5,8 @@ import com.dawn.ai.agent.planning.TaskPlanner;
 import com.dawn.ai.agent.registry.ToolRegistry;
 import com.dawn.ai.agent.skill.Skill;
 import com.dawn.ai.agent.skill.SkillRegistry;
+import com.dawn.ai.agent.subagent.SubAgentDefinition;
+import com.dawn.ai.agent.subagent.SubAgentRegistry;
 import com.dawn.ai.agent.trace.AgentStep;
 import com.dawn.ai.agent.trace.StepCollector;
 import com.dawn.ai.agent.tools.KnowledgeSearchTool;
@@ -15,6 +17,7 @@ import com.dawn.ai.exception.PlanGenerationException;
 import com.dawn.ai.memory.UserProfileService;
 import com.dawn.ai.service.MemoryService;
 import com.dawn.ai.sse.ChatStreamEvent;
+import com.dawn.ai.sse.StreamSinkHolder;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -61,6 +64,7 @@ public class AgentOrchestrator {
     private final MeterRegistry meterRegistry;
     private final UserProfileService userProfileService;
     private final SkillRegistry skillRegistry;
+    private final SubAgentRegistry subAgentRegistry;
 
     public AgentOrchestrator(ChatClient chatClient,
                               MemoryService memoryService,
@@ -68,7 +72,8 @@ public class AgentOrchestrator {
                               ToolRegistry toolRegistry,
                               MeterRegistry meterRegistry,
                               UserProfileService userProfileService,
-                              SkillRegistry skillRegistry) {
+                              SkillRegistry skillRegistry,
+                              SubAgentRegistry subAgentRegistry) {
         this.chatClient = chatClient;
         this.memoryService = memoryService;
         this.taskPlanner = taskPlanner;
@@ -76,6 +81,7 @@ public class AgentOrchestrator {
         this.meterRegistry = meterRegistry;
         this.userProfileService = userProfileService;
         this.skillRegistry = skillRegistry;
+        this.subAgentRegistry = subAgentRegistry;
     }
 
     @Value("${app.ai.system-prompt:You are a helpful AI assistant.}")
@@ -89,6 +95,9 @@ public class AgentOrchestrator {
 
     @Value("${spring.ai.openai.chat.options.model:qwen-plus}")
     private String model;
+
+    @Value("${app.ai.subagent.max-dispatches-per-session:3}")
+    private int maxSubAgentDispatches;
 
     private Counter inputTokenCounter;
     private Counter outputTokenCounter;
@@ -125,13 +134,13 @@ public class AgentOrchestrator {
             // 添加历史对话到上下文
             List<Message> history = buildHistory(sessionId);
 
-            ChatResponse chatResponse = chatClient.prompt()
+            ChatResponse chatResponse = callWithRetry(() -> chatClient.prompt()
                     .system(systemPrompt)
                     .messages(history)
                     .user(userMessage)
                     .toolNames(toolRegistry.getNames())
                     .call()
-                    .chatResponse();
+                    .chatResponse());
 
             String response = chatResponse.getResult().getOutput().getText();
             recordTokenUsage(chatResponse);
@@ -156,6 +165,26 @@ public class AgentOrchestrator {
         finally {
             StepCollector.clear();
         }
+    }
+
+    private <T> T callWithRetry(java.util.function.Supplier<T> call) {
+        int maxRetries = 3;
+        long baseDelay = 5000; // 5s
+        for (int attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                return call.get();
+            } catch (Exception e) {
+                boolean is429 = e.getMessage() != null && e.getMessage().contains("429");
+                if (is429 && attempt < maxRetries) {
+                    long delay = baseDelay * (1L << attempt); // exponential: 5s, 10s, 20s
+                    log.warn("[AgentOrchestrator] 429 rate limited, retrying in {}ms (attempt {}/{})", delay, attempt + 1, maxRetries);
+                    try { Thread.sleep(delay); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); throw e; }
+                } else {
+                    throw e;
+                }
+            }
+        }
+        throw new IllegalStateException("unreachable");
     }
 
     private TaskPlanner.PlannerResult resolvePlan(String userMessage) {
@@ -196,6 +225,7 @@ public class AgentOrchestrator {
 
         Consumer<AgentStep> stepEventPublisher = step -> sink.accept(ChatStreamEvent.step(sessionId, step));
         StepCollector.init(maxSteps, stepEventPublisher);
+        StreamSinkHolder.set(sink);
         try {
             TaskPlanner.PlannerResult plannerResult = resolvePlan(userMessage);
             List<PlanStep> plan = plannerResult.steps();
@@ -281,6 +311,7 @@ public class AgentOrchestrator {
             sink.accept(ChatStreamEvent.error(sessionId, code, cause.getMessage()));
         } finally {
             StepCollector.clear();
+            StreamSinkHolder.clear();
         }
     }
 
@@ -393,9 +424,35 @@ public class AgentOrchestrator {
                 + profileSection
                 + topicSection
                 + formatSkills()
+                + formatSubAgents()
                 + formatPlan(plan)
                 + formatPlanEnforcement(plan)
                 + String.format("%n请在回复中简短说明每次工具调用的原因。最多调用工具 %d 次。", maxSteps);
+    }
+
+    /**
+     * 列出当前可派发的 sub-agent 类型，并给出判断准则。
+     * 与 {@link #formatSkills()} 同源（progressive disclosure / 注册表驱动），
+     * 在 {@link SubAgentRegistry} 为空时返回空串，不污染 prompt。
+     */
+    private String formatSubAgents() {
+        if (subAgentRegistry.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder("\n\n## 可派发的子 Agent (Sub-Agent)\n")
+                .append("调用 `dispatchSubAgentTool(subagentType, taskDescription)` 把深度调研/长文档分析这类'重活'派给隔离上下文的子 Agent。\n")
+                .append("\n判断准则：\n")
+                .append("- ✅ 适合派：需要多轮检索 / 多角度分析 / 长文档综合，单 Agent 上下文会被噪声淹没\n")
+                .append("- ❌ 不要派：单次 knowledge_search 1-2 次能搞定的简单问题；用 weather/calculator 等专用工具就够的\n")
+                .append("\n约束：单次对话最多派 ").append(maxSubAgentDispatches).append(" 次；")
+                .append("taskDescription 必须自包含（子 Agent 看不到对话历史）；子 Agent 返回 status=PARTIAL_SUCCESS 时基于已有信息判断是否够用。\n\n")
+                .append("可用类型：\n");
+        for (SubAgentDefinition def : subAgentRegistry.list()) {
+            sb.append("- **").append(def.type()).append("**：");
+            String firstLine = def.systemPrompt().lines().findFirst().orElse(def.type());
+            sb.append(firstLine).append("\n");
+        }
+        return sb.toString();
     }
 
     /**

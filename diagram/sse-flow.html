@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<!--
+Execution plan:
+- Goal: 详解 Dawn AI 项目真实的 SSE 流式架构与事件流程，面向项目工程师 / 新成员
+- Confirmed facts: 全部来自源码 (ChatController / ChatService / AgentOrchestrator / ChatStreamEvent / StreamSinkHolder / app.js)
+- Assumptions: 无编造数据；所有事件名/字段/错误码/超时值均引用真实代码行
+- First artifact: 单文件 sse-flow.html，沿用 architecture.html 的 GitHub Dark 设计系统
+- Variation axes: none（与现有架构图风格统一）
+- Verification: 桌面+窄屏截图，无 console 错误，时序动画可播放，逐节检查
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dawn AI · SSE 流式架构详解</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-card: #161b22;
+    --bg-card-hover: #1c2333;
+    --bg-inset: #0a0d12;
+    --border: #30363d;
+    --border-soft: #21262d;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --text-muted: #6e7681;
+    --blue: #58a6ff;
+    --purple: #bc8cff;
+    --cyan: #39d2c0;
+    --green: #3fb950;
+    --orange: #d29922;
+    --red: #f85149;
+    --pink: #f778ba;
+    --yellow: #e3b341;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 2px 12px rgba(0,0,0,0.4);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+    --mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace, Menlo, Consolas, monospace;
+  }
+
+  /* per-event color tokens */
+  .ev-connected { --c: var(--text-muted); }
+  .ev-plan_thinking { --c: var(--purple); }
+  .ev-plan { --c: var(--purple); }
+  .ev-thinking { --c: var(--pink); }
+  .ev-step { --c: var(--blue); }
+  .ev-sub_progress { --c: var(--cyan); }
+  .ev-token { --c: var(--green); }
+  .ev-done { --c: var(--green); }
+  .ev-error { --c: var(--red); }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background-image: radial-gradient(circle at 12% 0%, rgba(88,166,255,0.05), transparent 40%),
+                      radial-gradient(circle at 88% 8%, rgba(63,185,80,0.05), transparent 42%);
+  }
+
+  .container { max-width: 1180px; margin: 0 auto; padding: 56px 32px 120px; }
+
+  /* === HEADER === */
+  .header { text-align: center; margin-bottom: 56px; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--green);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .header h1 {
+    font-size: 38px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 14px;
+  }
+  .header h1 .accent {
+    background: linear-gradient(120deg, var(--green), var(--cyan), var(--blue));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .header .subtitle {
+    font-size: 17px;
+    color: var(--text-dim);
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .tech-stack { display: flex; gap: 10px; justify-content: center; margin-top: 24px; flex-wrap: wrap; }
+  .tech-badge {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    background: var(--bg-card);
+  }
+
+  /* === SECTION === */
+  .section { margin-bottom: 72px; }
+  .section-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; }
+  .section-num {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--green);
+    font-weight: 600;
+  }
+  .section-title { font-size: 24px; font-weight: 700; letter-spacing: -0.3px; }
+  .section-lead { font-size: 15px; color: var(--text-dim); margin: 6px 0 28px; max-width: 760px; }
+
+  /* === OVERVIEW callouts === */
+  .ov-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .ov-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+  }
+  .ov-card .k {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    letter-spacing: 0.5px;
+  }
+  .ov-card .v { font-size: 15px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+  .ov-card .d { font-size: 13px; color: var(--text-dim); line-height: 1.65; }
+  .ov-card .v code, .d code { font-family: var(--mono); font-size: 12px; color: var(--cyan); background: rgba(57,210,192,0.08); padding: 1px 6px; border-radius: 4px; }
+
+  .why {
+    margin-top: 20px;
+    background: linear-gradient(180deg, rgba(210,153,34,0.06), transparent);
+    border: 1px solid rgba(210,153,34,0.25);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .why .tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--orange);
+    border: 1px solid rgba(210,153,34,0.4);
+    border-radius: 6px;
+    padding: 3px 9px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .why p { font-size: 14px; color: var(--text-dim); line-height: 1.7; }
+  .why code { font-family: var(--mono); font-size: 12.5px; color: var(--orange); }
+
+  /* === ARCHITECTURE DIAGRAM === */
+  .diagram {
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px 28px;
+    position: relative;
+  }
+  .lane { display: grid; grid-template-columns: 132px 1fr; gap: 20px; align-items: stretch; }
+  .lane + .lane { margin-top: 20px; }
+  .lane-label {
+    display: flex; flex-direction: column; justify-content: center;
+    border-right: 2px solid var(--border-soft);
+    padding-right: 16px;
+  }
+  .lane-label .ln { font-size: 14px; font-weight: 700; color: var(--c, var(--text)); }
+  .lane-label .ls { font-size: 11px; color: var(--text-muted); font-family: var(--mono); margin-top: 4px; }
+  .lane-client { --c: var(--blue); }
+  .lane-controller { --c: var(--cyan); }
+  .lane-service { --c: var(--green); }
+  .lane-agent { --c: var(--purple); }
+
+  .nodes { display: flex; gap: 14px; flex-wrap: wrap; align-content: center; }
+  .node {
+    flex: 1 1 0;
+    min-width: 150px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--c, var(--border));
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    transition: all .2s ease;
+  }
+  .node:hover { background: var(--bg-card-hover); transform: translateY(-2px); box-shadow: var(--shadow); }
+  .node .nt { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--c, var(--text)); margin-bottom: 6px; }
+  .node .nd { font-size: 12px; color: var(--text-dim); line-height: 1.55; }
+  .node .nm { font-family: var(--mono); font-size: 10.5px; color: var(--text-muted); margin-top: 8px; display: block; }
+
+  .flow-arrow { text-align: center; color: var(--text-muted); font-size: 20px; margin: 6px 0; line-height: 1; }
+  .flow-arrow .lbl { font-size: 11px; font-family: var(--mono); color: var(--green); margin-left: 8px; }
+
+  /* === EVENT TYPES === */
+  .events-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .event-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px 18px;
+    transition: all .2s ease;
+  }
+  .event-card:hover { border-color: var(--c); box-shadow: 0 0 0 1px var(--c) inset, var(--shadow); }
+  .event-card .name {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--c);
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 8px;
+  }
+  .event-card .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); flex-shrink: 0; }
+  .event-card .role { font-size: 13px; color: var(--text); margin-bottom: 8px; font-weight: 500; }
+  .event-card .payload { font-family: var(--mono); font-size: 11px; color: var(--text-muted); line-height: 1.7; }
+  .event-card .payload b { color: var(--text-dim); font-weight: 600; }
+
+  /* === TIMELINE PLAYER === */
+  .player {
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .player-bar {
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border-soft);
+    background: var(--bg-card);
+  }
+  .btn {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--bg);
+    background: var(--green);
+    border: none;
+    border-radius: 6px;
+    padding: 8px 18px;
+    cursor: pointer;
+    transition: opacity .15s ease;
+  }
+  .btn:hover { opacity: .88; }
+  .btn.ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .player-bar .meta { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--text-muted); }
+  .player-bar .meta b { color: var(--green); }
+
+  .player-body { display: grid; grid-template-columns: 150px 1fr 300px; min-height: 360px; }
+
+  /* lanes column */
+  .pl-lanes { border-right: 1px solid var(--border-soft); padding: 18px 0; }
+  .pl-lane {
+    height: 64px; display: flex; align-items: center;
+    padding: 0 18px;
+    font-size: 12px; color: var(--text-muted);
+    font-family: var(--mono);
+    border-bottom: 1px dashed var(--border-soft);
+  }
+  .pl-lane:last-child { border-bottom: none; }
+  .pl-lane span { color: var(--c); font-weight: 600; }
+
+  /* track */
+  .pl-track { position: relative; padding: 18px 24px; overflow: hidden; }
+  .track-row { height: 64px; border-bottom: 1px dashed var(--border-soft); position: relative; }
+  .track-row:last-child { border-bottom: none; }
+  .pulse {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%) scale(.6);
+    background: var(--c);
+    color: var(--bg);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 11px;
+    border-radius: 14px;
+    white-space: nowrap;
+    opacity: 0;
+    box-shadow: 0 0 14px -2px var(--c);
+    transition: opacity .25s ease, transform .25s ease;
+  }
+  .pulse.show { opacity: 1; transform: translateY(-50%) scale(1); }
+  .pulse .seq { opacity: .7; margin-right: 4px; }
+
+  /* client console */
+  .pl-console {
+    border-left: 1px solid var(--border-soft);
+    background: var(--bg-inset);
+    padding: 14px 16px;
+    overflow-y: auto;
+    max-height: 360px;
+  }
+  .pl-console .ctitle { font-size: 11px; font-family: var(--mono); color: var(--text-muted); margin-bottom: 12px; letter-spacing: .5px; }
+  .answer-build {
+    background: var(--bg-card);
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 14px;
+    min-height: 70px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text);
+  }
+  .answer-build .ph { color: var(--text-muted); font-style: italic; }
+  .answer-build .cursor { display: inline-block; width: 7px; height: 15px; background: var(--green); margin-left: 1px; vertical-align: text-bottom; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .log-line { font-family: var(--mono); font-size: 11px; line-height: 1.7; opacity: 0; transform: translateX(6px); transition: all .2s ease; }
+  .log-line.show { opacity: 1; transform: none; }
+  .log-line .lseq { color: var(--text-muted); }
+  .log-line .lev { color: var(--c); font-weight: 600; }
+
+  .speed-toggle { display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--text-muted); font-family: var(--mono); }
+  .speed-toggle button {
+    background: transparent; border: 1px solid var(--border); color: var(--text-dim);
+    font-family: var(--mono); font-size: 11px; padding: 3px 8px; border-radius: 5px; cursor: pointer;
+  }
+  .speed-toggle button.active { border-color: var(--green); color: var(--green); }
+
+  /* === CALL CHAIN === */
+  .chain { display: flex; flex-direction: column; gap: 0; }
+  .chain-step { display: grid; grid-template-columns: 40px 1fr; gap: 18px; padding-bottom: 24px; position: relative; }
+  .chain-step:not(:last-child)::before {
+    content: ''; position: absolute; left: 19px; top: 34px; bottom: 0; width: 2px; background: var(--border);
+  }
+  .chain-num {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--green);
+    z-index: 1;
+  }
+  .chain-body .ct { font-size: 15px; font-weight: 600; margin-bottom: 5px; }
+  .chain-body .ct .loc { font-family: var(--mono); font-size: 11.5px; color: var(--text-muted); font-weight: 400; margin-left: 8px; }
+  .chain-body .cd { font-size: 13.5px; color: var(--text-dim); line-height: 1.7; }
+  .chain-body .cd code { font-family: var(--mono); font-size: 12px; color: var(--cyan); }
+
+  /* === MECHANISMS === */
+  .mech-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .mech {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px 22px;
+  }
+  .mech .mh { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .mech .mi { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .mech .mtitle { font-size: 15px; font-weight: 600; }
+  .mech .mbody { font-size: 13px; color: var(--text-dim); line-height: 1.7; }
+  .mech .mbody code { font-family: var(--mono); font-size: 12px; color: var(--cyan); }
+  .err-codes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .err-chip { font-family: var(--mono); font-size: 11px; color: var(--red); border: 1px solid rgba(248,81,73,0.3); background: rgba(248,81,73,0.06); padding: 3px 9px; border-radius: 6px; }
+
+  /* === WIRE FORMAT === */
+  .wire {
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 26px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.9;
+    overflow-x: auto;
+  }
+  .wire .l-field { color: var(--blue); }
+  .wire .l-json { color: var(--text-dim); }
+  .wire .l-key { color: var(--purple); }
+  .wire .l-str { color: var(--green); }
+  .wire .l-com { color: var(--text-muted); }
+  .wire .blk { display: block; }
+  .wire .gap { height: 10px; }
+
+  /* footer */
+  .footer { text-align: center; margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border-soft); color: var(--text-muted); font-size: 12px; font-family: var(--mono); }
+
+  @media (max-width: 900px) {
+    .ov-grid, .events-grid, .mech-grid { grid-template-columns: 1fr; }
+    .player-body { grid-template-columns: 1fr; }
+    .pl-lanes, .pl-console { display: none; }
+    .lane { grid-template-columns: 1fr; }
+    .lane-label { border-right: none; border-bottom: 2px solid var(--border-soft); padding-bottom: 10px; flex-direction: row; gap: 10px; align-items: baseline; }
+    .container { padding: 40px 18px 80px; }
+    .header h1 { font-size: 28px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ============ HEADER ============ -->
+  <header class="header">
+    <div class="eyebrow">Server-Sent Events · Streaming Architecture</div>
+    <h1>Dawn AI <span class="accent">SSE 流式架构</span>详解</h1>
+    <p class="subtitle">从一次 <code>/api/v1/chat/stream</code> 请求出发，拆解事件如何在 Agent 推理过程中实时产生、序列化、并逐字节推送到浏览器。</p>
+    <div class="tech-stack">
+      <span class="tech-badge">Spring MVC · SseEmitter</span>
+      <span class="tech-badge">POST + fetch</span>
+      <span class="tech-badge">ReadableStream</span>
+      <span class="tech-badge">Reactor · ChatClient.stream()</span>
+      <span class="tech-badge">ThreadLocal Sink</span>
+    </div>
+  </header>
+
+  <!-- ============ 01 OVERVIEW ============ -->
+  <section class="section">
+    <div class="section-head"><span class="section-num">01</span><h2 class="section-title">为什么是 SSE，而且是 POST + fetch</h2></div>
+    <p class="section-lead">Agent 在回答前要先规划、再思考、再调用工具、最后逐字生成答案——这是一个长耗时、多阶段的过程。SSE 让服务端在过程中单向、持续地把中间态推给前端，用户无需等待整段答案。</p>
+
+    <div class="ov-grid">
+      <div class="ov-card">
+        <div class="k">ENDPOINT</div>
+        <div class="v"><code>POST /api/v1/chat/stream</code></div>
+        <div class="d">由 <code>ChatController.streamChat()</code> 暴露，<code>produces = text/event-stream</code>，返回 <code>SseEmitter</code>。</div>
+      </div>
+      <div class="ov-card">
+        <div class="k">TRANSPORT</div>
+        <div class="v">fetch + ReadableStream</div>
+        <div class="d">前端用 <code>fetch()</code> 读 <code>res.body.getReader()</code>，手工按 SSE 协议解析 <code>event:</code> / <code>data:</code> 行。</div>
+      </div>
+      <div class="ov-card">
+        <div class="k">ENVELOPE</div>
+        <div class="v"><code>ChatStreamEvent</code></div>
+        <div class="d">统一事件信封：<code>event / sessionId / seq / timestamp / data</code>，由 Jackson 序列化为 data 行的 JSON。</div>
+      </div>
+    </div>
+
+    <div class="why">
+      <span class="tag">设计决策</span>
+      <p>浏览器原生 <code>EventSource</code> 只支持 GET、无法携带请求体。而本接口需要 POST 一个 <code>ChatRequest</code> JSON（<code>message / sessionId / topicId</code>），因此放弃 <code>EventSource</code>，改用 <code>fetch()</code> 手工解析流。代价是：失去浏览器自带的断线自动重连——项目当前也确实<b>没有</b>实现重连机制。</p>
+    </div>
+  </section>
+
+  <!-- ============ 02 ARCHITECTURE ============ -->
+  <section class="section">
+    <div class="section-head"><span class="section-num">02</span><h2 class="section-title">分层架构：事件从哪里来，到哪里去</h2></div>
+    <p class="section-lead">控制器立即把 <code>SseEmitter</code> 交还给 Spring MVC，真正的处理跑在 <code>chatStreamExecutor</code> 线程池里。Orchestrator 通过一个 <code>Consumer&lt;ChatStreamEvent&gt;</code> sink 把事件回灌给 ChatService，再由它统一 <code>emitter.send()</code>。</p>
+
+    <div class="diagram">
+      <!-- Client -->
+      <div class="lane lane-client">
+        <div class="lane-label"><span class="ln">浏览器</span><span class="ls">app.js</span></div>
+        <div class="nodes">
+          <div class="node" style="--c:var(--blue)">
+            <div class="nt">fetch(POST)</div>
+            <div class="nd">提交 ChatRequest，读取 ReadableStream，按行解析 SSE 帧并驱动 UI。</div>
+            <span class="nm">sendMessageStream() · handleStreamEvent()</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow">↕ <span class="lbl">HTTP text/event-stream（长连接）</span></div>
+
+      <!-- Controller -->
+      <div class="lane lane-controller">
+        <div class="lane-label"><span class="ln">Controller</span><span class="ls">web 层</span></div>
+        <div class="nodes">
+          <div class="node" style="--c:var(--cyan)">
+            <div class="nt">ChatController</div>
+            <div class="nd">@PostMapping("/stream")，返回 SseEmitter 后立即把控制权还给容器。</div>
+            <span class="nm">streamChat(ChatRequest)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow">↓</div>
+
+      <!-- Service -->
+      <div class="lane lane-service">
+        <div class="lane-label"><span class="ln">ChatService</span><span class="ls">SSE 收口</span></div>
+        <div class="nodes">
+          <div class="node" style="--c:var(--green)">
+            <div class="nt">SseEmitter</div>
+            <div class="nd">new SseEmitter(timeout)，注册 onTimeout / onError / onCompletion 回调。</div>
+            <span class="nm">streamTimeoutMs = 120000</span>
+          </div>
+          <div class="node" style="--c:var(--green)">
+            <div class="nt">chatStreamExecutor</div>
+            <div class="nd">异步线程池执行处理；满载时抛 RejectedExecution → CAPACITY_EXCEEDED。</div>
+            <span class="nm">executor.execute(...)</span>
+          </div>
+          <div class="node" style="--c:var(--green)">
+            <div class="nt">sendEvent() sink</div>
+            <div class="nd">synchronized(emitter) 内设置 seq 自增、Jackson 序列化、emitter.send()。</div>
+            <span class="nm">seq = seqCounter.getAndIncrement()</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow">↓ <span class="lbl">Consumer&lt;ChatStreamEvent&gt; sink（事件回调）</span></div>
+
+      <!-- Agent -->
+      <div class="lane lane-agent">
+        <div class="lane-label"><span class="ln">Orchestrator</span><span class="ls">事件源头</span></div>
+        <div class="nodes">
+          <div class="node" style="--c:var(--purple)">
+            <div class="nt">AgentOrchestrator</div>
+            <div class="nd">resolvePlan → chatClient.stream()，每个 chunk 产出 thinking / token 事件。</div>
+            <span class="nm">streamChat(..., sink, isCancelled)</span>
+          </div>
+          <div class="node" style="--c:var(--purple)">
+            <div class="nt">StepCollector</div>
+            <div class="nd">工具调用步骤汇聚器，通过 stepEventPublisher 实时 emit step 事件。</div>
+            <span class="nm">init(maxSteps, publisher)</span>
+          </div>
+          <div class="node" style="--c:var(--purple)">
+            <div class="nt">StreamSinkHolder</div>
+            <div class="nd">ThreadLocal 持有当前 sink，供 sub-agent 冒泡 sub_progress 心跳。</div>
+            <span class="nm">set(sink) / get() / clear()</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 03 EVENT TYPES ============ -->
+  <section class="section">
+    <div class="section-head"><span class="section-num">03</span><h2 class="section-title">九种事件类型</h2></div>
+    <p class="section-lead">全部由 <code>ChatStreamEvent</code> 的工厂方法构造。规范顺序：<code>connected → plan_thinking* → plan? → thinking* → (step | sub_progress)* → token* → done | error</code>。</p>
+
+    <div class="events-grid">
+      <div class="event-card ev-connected">
+        <div class="name"><span class="dot"></span>connected</div>
+        <div class="role">连接建立，最先发出</div>
+        <div class="payload"><b>data:</b> sessionId, streamId</div>
+      </div>
+      <div class="event-card ev-plan_thinking">
+        <div class="name"><span class="dot"></span>plan_thinking</div>
+        <div class="role">规划器的思考过程增量</div>
+        <div class="payload"><b>data:</b> content, accumulatedLength</div>
+      </div>
+      <div class="event-card ev-plan">
+        <div class="name"><span class="dot"></span>plan</div>
+        <div class="role">规划结果（计划存在时才发）</div>
+        <div class="payload"><b>data:</b> steps[], summary</div>
+      </div>
+      <div class="event-card ev-thinking">
+        <div class="name"><span class="dot"></span>thinking</div>
+        <div class="role">主模型推理过程增量</div>
+        <div class="payload"><b>data:</b> content, accumulatedLength</div>
+      </div>
+      <div class="event-card ev-step">
+        <div class="name"><span class="dot"></span>step</div>
+        <div class="role">一次工具调用步骤完成</div>
+        <div class="payload"><b>data:</b> AgentStep（toolName, input, output, durationMs, status, subSteps）</div>
+      </div>
+      <div class="event-card ev-sub_progress">
+        <div class="name"><span class="dot"></span>sub_progress</div>
+        <div class="role">sub-agent 内部步骤进度心跳</div>
+        <div class="payload"><b>data:</b> parentToolName, subAgentType, subStep, currentTool</div>
+      </div>
+      <div class="event-card ev-token">
+        <div class="name"><span class="dot"></span>token</div>
+        <div class="role">最终答案 token 增量（逐字）</div>
+        <div class="payload"><b>data:</b> content, accumulatedLength</div>
+      </div>
+      <div class="event-card ev-done">
+        <div class="name"><span class="dot"></span>done</div>
+        <div class="role">流正常结束，含完整结果</div>
+        <div class="payload"><b>data:</b> answer, steps[], planSummary, totalSteps, durationMs, model</div>
+      </div>
+      <div class="event-card ev-error">
+        <div class="name"><span class="dot"></span>error</div>
+        <div class="role">异常终止</div>
+        <div class="payload"><b>data:</b> code, message</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 04 TIMELINE PLAYER ============ -->
+  <section class="section">
+    <div class="section-head"><span class="section-num">04</span><h2 class="section-title">时序演示：一次请求里事件如何流出</h2></div>
+    <p class="section-lead">点击播放，模拟一次真实请求中事件按 <code>seq</code> 递增、跨层产生并到达客户端的过程。左侧是产生事件的层，右侧是浏览器逐字拼装答案与解析日志。</p>
+
+    <div class="player">
+      <div class="player-bar">
+        <button class="btn" id="playBtn">▶ 播放</button>
+        <button class="btn ghost" id="resetBtn">↺ 重置</button>
+        <div class="speed-toggle">
+          速度
+          <button data-speed="1.6" id="sp-slow">0.6×</button>
+          <button data-speed="1" class="active" id="sp-normal">1×</button>
+          <button data-speed="0.45" id="sp-fast">2×</button>
+        </div>
+        <div class="meta">seq <b id="seqCounter">—</b> · <span id="statusText">idle</span></div>
+      </div>
+
+      <div class="player-body">
+        <!-- lane labels -->
+        <div class="pl-lanes">
+          <div class="pl-lane ev-connected">Service · <span>connected</span></div>
+          <div class="pl-lane ev-plan">Orchestrator · <span>plan</span></div>
+          <div class="pl-lane ev-thinking">Orchestrator · <span>thinking</span></div>
+          <div class="pl-lane ev-step">StepCollector · <span>step</span></div>
+          <div class="pl-lane ev-token">Orchestrator · <span>token</span></div>
+          <div class="pl-lane ev-done">Orchestrator · <span>done</span></div>
+        </div>
+
+        <!-- track -->
+        <div class="pl-track" id="track">
+          <div class="track-row" data-lane="0"></div>
+          <div class="track-row" data-lane="1"></div>
+          <div class="track-row" data-lane="2"></div>
+          <div class="track-row" data-lane="3"></div>
+          <div class="track-row" data-lane="4"></div>
+          <div class="track-row" data-lane="5"></div>
+        </div>
+
+        <!-- client console -->
+        <div class="pl-console">
+          <div class="ctitle">// 浏览器 · 答案拼装</div>
+          <div class="answer-build" id="answerBuild"><span class="ph">等待 token…</span></div>
+          <div class="ctitle">// 解析日志（handleStreamEvent）</div>
+          <div id="logArea"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 05 CALL CHAIN ============ -->
+  <section class="section">
+    <div class="section-head"><span class="section-num">05</span><h2 class="section-title">完整调用链</h2></div>
+    <p class="section-lead">从控制器入口到字节落地浏览器的端到端调用路径，对应源码真实方法。</p>
+
+    <div class="chain">
+      <div class="chain-step"><div class="chain-num">1</div><div class="chain-body">
+        <div class="ct">Controller 转发<span class="loc">ChatController.streamChat()</span></div>
+        <div class="cd">校验请求体后直接调用 <code>chatService.streamChat(request)</code>，把返回的 <code>SseEmitter</code> 交还给 Spring MVC，连接立即挂起等待事件。</div>
+      </div></div>
+
+      <div class="chain-step"><div class="chain-num">2</div><div class="chain-body">
+        <div class="ct">建立 Emitter 与状态<span class="loc">ChatService.streamChat()</span></div>
+        <div class="cd">创建 <code>SseEmitter(streamTimeoutMs)</code>、<code>seqCounter</code>、<code>cancelled</code> 标志与 <code>streamId</code>，注册 <code>onTimeout / onError / onCompletion</code> 回调。</div>
+      </div></div>
+
+      <div class="chain-step"><div class="chain-num">3</div><div class="chain-body">
+        <div class="ct">异步执行 + 首帧<span class="loc">chatStreamExecutor.execute()</span></div>
+        <div class="cd">在线程池中先发 <code>connected</code>，随后调用 <code>agentOrchestrator.streamChat(...)</code>，并把一个 lambda sink 与 <code>cancelled::get</code> 传进去。</div>
+      </div></div>
+
+      <div class="chain-step"><div class="chain-num">4</div><div class="chain-body">
+        <div class="ct">初始化事件源<span class="loc">AgentOrchestrator.streamChat()</span></div>
+        <div class="cd"><code>StepCollector.init(maxSteps, stepEventPublisher)</code> 注册 step 实时发布器；<code>StreamSinkHolder.set(sink)</code> 把 sink 暴露给 sub-agent。</div>
+      </div></div>
+
+      <div class="chain-step"><div class="chain-num">5</div><div class="chain-body">
+        <div class="ct">规划阶段<span class="loc">resolvePlan()</span></div>
+        <div class="cd">规划器返回 reasoning 与 steps：有思考则发 <code>plan_thinking</code>，计划非空则发 <code>plan</code>。</div>
+      </div></div>
+
+      <div class="chain-step"><div class="chain-num">6</div><div class="chain-body">
+        <div class="ct">流式推理<span class="loc">chatClient.prompt().stream()</span></div>
+        <div class="cd"><code>.contextCapture()</code> 快照 ThreadLocal 进 Reactor Context，<code>.takeWhile(!isCancelled)</code> 支持中途取消。每个 chunk：有 reasoning 发 <code>thinking</code>，有 delta 发 <code>token</code>；工具调用由 StepCollector 异步发 <code>step</code>。</div>
+      </div></div>
+
+      <div class="chain-step"><div class="chain-num">7</div><div class="chain-body">
+        <div class="ct">收尾<span class="loc">StepCollector.collect() → done</span></div>
+        <div class="cd"><code>blockLast()</code> 等流结束后，收集 steps、写入 memory，发出携带完整 answer / steps / planSummary 的 <code>done</code>；异常路径则发 <code>error</code>。finally 中 <code>StepCollector.clear()</code> + <code>StreamSinkHolder.clear()</code> 防 ThreadLocal 泄漏。</div>
+      </div></div>
+
+      <div class="chain-step"><div class="chain-num">8</div><div class="chain-body">
+        <div class="ct">统一下发<span class="loc">ChatService.sendEvent()</span></div>
+        <div class="cd">sink 每收到事件即进入 <code>synchronized(emitter)</code>：设置自增 <code>seq</code>，Jackson 序列化，<code>emitter.send(name + id + data)</code>。<code>done/error</code> 还会落库逻辑日志。最终 finally 里 <code>emitter.complete()</code>。</div>
+      </div></div>
+
+      <div class="chain-step"><div class="chain-num">9</div><div class="chain-body">
+        <div class="ct">前端消费<span class="loc">app.js · sendMessageStream()</span></div>
+        <div class="cd"><code>reader.read()</code> 增量解码，按 <code>\n</code> 切行解析 <code>event:</code> / <code>data:</code>，<code>handleStreamEvent()</code> 按类型驱动 UI：token 逐字拼接气泡，step 展开工具 trace，done 收尾。</div>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- ============ 06 MECHANISMS ============ -->
+  <section class="section">
+    <div class="section-head"><span class="section-num">06</span><h2 class="section-title">关键机制与边界处理</h2></div>
+
+    <div class="mech-grid">
+      <div class="mech">
+        <div class="mh"><div class="mi" style="background:rgba(210,153,34,.12);color:var(--orange)">⏱</div><div class="mtitle">超时</div></div>
+        <div class="mbody"><code>SseEmitter(streamTimeoutMs)</code>，默认 <code>app.ai.stream.timeout-ms = 120000</code>（120s）。<code>onTimeout</code> 触发时标记 cancelled、发 <code>error(TIMEOUT)</code> 并 <code>complete()</code>。</div>
+      </div>
+
+      <div class="mech">
+        <div class="mh"><div class="mi" style="background:rgba(88,166,255,.12);color:var(--blue)">⛔</div><div class="mtitle">取消 / 断线</div></div>
+        <div class="mbody"><code>onCompletion</code>（含客户端断开）置 <code>cancelled=true</code>，经 <code>cancelled::get</code> 传入 Orchestrator，<code>takeWhile(!isCancelled)</code> 终止 Reactor 流，避免无谓的模型消耗。</div>
+      </div>
+
+      <div class="mech">
+        <div class="mh"><div class="mi" style="background:rgba(63,185,80,.12);color:var(--green)">#</div><div class="mtitle">序号 seq</div></div>
+        <div class="mbody">每个事件在 <code>sendEvent()</code> 里取 <code>seqCounter.getAndIncrement()</code>，并写入 SSE 帧的 <code>id:</code> 字段。整个流内单调递增，前端可据此判序。</div>
+      </div>
+
+      <div class="mech">
+        <div class="mh"><div class="mi" style="background:rgba(57,210,192,.12);color:var(--cyan)">⇄</div><div class="mtitle">sub-agent 心跳冒泡</div></div>
+        <div class="mbody"><code>StreamSinkHolder</code> 用 ThreadLocal 持有 sink；<code>DispatchSubAgentTool</code> 取出后为 sub-agent 构造进度监听器，每完成一步发 <code>sub_progress</code>。非流式请求 sink 为 null，退化为静默执行。</div>
+      </div>
+
+      <div class="mech">
+        <div class="mh"><div class="mi" style="background:rgba(188,140,255,.12);color:var(--purple)">🔒</div><div class="mtitle">并发安全</div></div>
+        <div class="mbody">事件可能来自主流与 sub-agent 等不同线程，<code>sendEvent()</code> 用 <code>synchronized(emitter)</code> 串行化 send 与 seq 自增，保证帧不交错、序号不竞态。</div>
+      </div>
+
+      <div class="mech">
+        <div class="mh"><div class="mi" style="background:rgba(248,81,73,.12);color:var(--red)">!</div><div class="mtitle">错误码体系</div></div>
+        <div class="mbody">异常被分类成统一错误码后随 <code>error</code> 事件下发：</div>
+        <div class="err-codes">
+          <span class="err-chip">TIMEOUT</span>
+          <span class="err-chip">CAPACITY_EXCEEDED</span>
+          <span class="err-chip">MAX_STEPS_EXCEEDED</span>
+          <span class="err-chip">AI_NOT_CONFIGURED</span>
+          <span class="err-chip">INTERNAL_ERROR</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 07 WIRE FORMAT ============ -->
+  <section class="section">
+    <div class="section-head"><span class="section-num">07</span><h2 class="section-title">线缆上的真实报文</h2></div>
+    <p class="section-lead">每个事件序列化为一帧：<code>event:</code> 取自 <code>event</code> 字段，<code>id:</code> 取自 <code>seq</code>，<code>data:</code> 是整个信封的 JSON（<code>MediaType.APPLICATION_JSON</code>）。</p>
+
+    <div class="wire">
+<span class="blk"><span class="l-com">// seq=0 连接建立</span></span>
+<span class="blk"><span class="l-field">event:</span> connected</span>
+<span class="blk"><span class="l-field">id:</span> 0</span>
+<span class="blk"><span class="l-field">data:</span> <span class="l-json">{</span><span class="l-key">"event"</span>:<span class="l-str">"connected"</span>,<span class="l-key">"sessionId"</span>:<span class="l-str">"a1b2…"</span>,<span class="l-key">"seq"</span>:0,<span class="l-key">"data"</span>:<span class="l-json">{</span><span class="l-key">"streamId"</span>:<span class="l-str">"…"</span><span class="l-json">}}</span></span>
+<span class="gap"></span>
+<span class="blk"><span class="l-com">// seq=1 规划结果</span></span>
+<span class="blk"><span class="l-field">event:</span> plan</span>
+<span class="blk"><span class="l-field">id:</span> 1</span>
+<span class="blk"><span class="l-field">data:</span> <span class="l-json">{</span><span class="l-key">"event"</span>:<span class="l-str">"plan"</span>,<span class="l-key">"seq"</span>:1,<span class="l-key">"data"</span>:<span class="l-json">{</span><span class="l-key">"steps"</span>:<span class="l-json">[…],</span><span class="l-key">"summary"</span>:<span class="l-str">"步骤1: … → 步骤2: 完成"</span><span class="l-json">}}</span></span>
+<span class="gap"></span>
+<span class="blk"><span class="l-com">// seq=N 答案 token（逐字，多帧）</span></span>
+<span class="blk"><span class="l-field">event:</span> token</span>
+<span class="blk"><span class="l-field">id:</span> 7</span>
+<span class="blk"><span class="l-field">data:</span> <span class="l-json">{</span><span class="l-key">"event"</span>:<span class="l-str">"token"</span>,<span class="l-key">"seq"</span>:7,<span class="l-key">"data"</span>:<span class="l-json">{</span><span class="l-key">"content"</span>:<span class="l-str">"你"</span>,<span class="l-key">"accumulatedLength"</span>:1<span class="l-json">}}</span></span>
+<span class="gap"></span>
+<span class="blk"><span class="l-com">// seq=last 结束帧</span></span>
+<span class="blk"><span class="l-field">event:</span> done</span>
+<span class="blk"><span class="l-field">id:</span> 12</span>
+<span class="blk"><span class="l-field">data:</span> <span class="l-json">{</span><span class="l-key">"event"</span>:<span class="l-str">"done"</span>,<span class="l-key">"seq"</span>:12,<span class="l-key">"data"</span>:<span class="l-json">{</span><span class="l-key">"answer"</span>:<span class="l-str">"…"</span>,<span class="l-key">"totalSteps"</span>:2,<span class="l-key">"durationMs"</span>:8421,<span class="l-key">"model"</span>:<span class="l-str">"…"</span><span class="l-json">}}</span></span>
+    </div>
+  </section>
+
+  <div class="footer">Dawn AI · SSE Streaming Architecture — 内容源自 ChatController / ChatService / AgentOrchestrator / ChatStreamEvent / StreamSinkHolder / app.js</div>
+
+</div>
+
+<script>
+(function () {
+  // 模拟一次真实请求的事件序列：[laneIndex, eventName, payloadLabel, tokenChar?]
+  // lanes: 0 connected · 1 plan · 2 thinking · 3 step · 4 token · 5 done
+  const ANSWER = "今天晴，22°C。";
+  const script = [
+    { lane: 0, ev: "connected",     label: "连接建立" },
+    { lane: 1, ev: "plan",          label: "已规划 2 步" },
+    { lane: 2, ev: "thinking",      label: "推理中…" },
+    { lane: 3, ev: "step",          label: "weatherTool ✓" },
+    { lane: 2, ev: "thinking",      label: "整合结果" },
+    { lane: 4, ev: "token",         label: "token", tok: "今天" },
+    { lane: 4, ev: "token",         label: "token", tok: "晴，" },
+    { lane: 4, ev: "token",         label: "token", tok: "22°C" },
+    { lane: 4, ev: "token",         label: "token", tok: "。" },
+    { lane: 5, ev: "done",          label: "完成 · 8.4s" },
+  ];
+
+  const colorByEv = {
+    connected: "var(--text-muted)", plan: "var(--purple)", thinking: "var(--pink)",
+    step: "var(--blue)", token: "var(--green)", done: "var(--green)"
+  };
+
+  const playBtn = document.getElementById("playBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  const track = document.getElementById("track");
+  const rows = [...track.querySelectorAll(".track-row")];
+  const answerBuild = document.getElementById("answerBuild");
+  const logArea = document.getElementById("logArea");
+  const seqCounterEl = document.getElementById("seqCounter");
+  const statusText = document.getElementById("statusText");
+  const speedBtns = [...document.querySelectorAll(".speed-toggle button")];
+
+  let speed = 1;
+  let timers = [];
+  let running = false;
+
+  speedBtns.forEach(b => b.addEventListener("click", () => {
+    speedBtns.forEach(x => x.classList.remove("active"));
+    b.classList.add("active");
+    speed = parseFloat(b.dataset.speed);
+  }));
+
+  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+
+  function reset() {
+    clearTimers();
+    running = false;
+    rows.forEach(r => r.innerHTML = "");
+    answerBuild.innerHTML = '<span class="ph">等待 token…</span>';
+    logArea.innerHTML = "";
+    seqCounterEl.textContent = "—";
+    statusText.textContent = "idle";
+    playBtn.textContent = "▶ 播放";
+    playBtn.disabled = false;
+  }
+
+  function spawnPulse(item, seq) {
+    const row = rows[item.lane];
+    const p = document.createElement("div");
+    p.className = "pulse";
+    p.style.setProperty("--c", colorByEv[item.ev]);
+    p.innerHTML = '<span class="seq">#' + seq + '</span>' + item.ev + ' · ' + item.label;
+    row.appendChild(p);
+    // animate: appear at left, slide toward console
+    requestAnimationFrame(() => {
+      p.classList.add("show");
+      p.style.left = "calc(100% - 40px)";
+      p.style.transition = "opacity .25s ease, transform .25s ease, left " + (900 * speed) + "ms cubic-bezier(.4,0,.2,1)";
+    });
+    timers.push(setTimeout(() => {
+      p.style.opacity = "0";
+      timers.push(setTimeout(() => p.remove(), 300));
+    }, 900 * speed));
+  }
+
+  function appendLog(item, seq) {
+    const line = document.createElement("div");
+    line.className = "log-line ev-" + item.ev;
+    line.style.setProperty("--c", colorByEv[item.ev]);
+    line.innerHTML = '<span class="lseq">[' + seq + ']</span> <span class="lev">' + item.ev + '</span> ' +
+                     (item.tok ? '"' + item.tok + '"' : item.label);
+    logArea.appendChild(line);
+    requestAnimationFrame(() => line.classList.add("show"));
+    logArea.parentElement.scrollTop = logArea.parentElement.scrollHeight;
+  }
+
+  let builtAnswer = "";
+  function buildAnswer(item, isLast) {
+    if (item.ev === "token") {
+      builtAnswer += item.tok;
+      answerBuild.innerHTML = builtAnswer + '<span class="cursor"></span>';
+    }
+    if (item.ev === "done") {
+      answerBuild.innerHTML = builtAnswer || ANSWER;
+    }
+  }
+
+  function play() {
+    if (running) return;
+    reset();
+    running = true;
+    playBtn.disabled = true;
+    playBtn.textContent = "▶ 播放中…";
+    statusText.textContent = "streaming";
+
+    const stepGap = 720 * speed;
+    script.forEach((item, i) => {
+      const seq = i; // 与真实 seqCounter 一致：connected=0 起
+      timers.push(setTimeout(() => {
+        spawnPulse(item, seq);
+        appendLog(item, seq);
+        buildAnswer(item, i === script.length - 1);
+        seqCounterEl.textContent = seq;
+        if (i === script.length - 1) {
+          statusText.textContent = "done · complete()";
+          timers.push(setTimeout(() => {
+            running = false;
+            playBtn.disabled = false;
+            playBtn.textContent = "▶ 重新播放";
+          }, 600 * speed));
+        }
+      }, i * stepGap + 200));
+    });
+  }
+
+  playBtn.addEventListener("click", play);
+  resetBtn.addEventListener("click", reset);
+})();
+</script>
+</body>
+</html>
