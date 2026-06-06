@@ -1,15 +1,15 @@
 package com.dawn.ai.memory;
 
+import com.dawn.ai.memory.entity.MemoryEntity;
+import com.dawn.ai.memory.repository.MemoryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.jdbc.core.namedparam.SqlParameterSource;
+import org.springframework.data.domain.Pageable;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -17,15 +17,28 @@ import static org.mockito.Mockito.*;
 
 class ImportanceDecayManagerTest {
 
-    private NamedParameterJdbcTemplate jdbc;
+    private MemoryRepository memoryRepository;
     private ImportanceDecayManager manager;
 
     // halfLifeDays=30, minImportance=0.01, batchSize=500
     @BeforeEach
-    @SuppressWarnings("unchecked")
     void setUp() {
-        jdbc = mock(NamedParameterJdbcTemplate.class);
-        manager = new ImportanceDecayManager(jdbc, 30.0, 0.01, 500);
+        memoryRepository = mock(MemoryRepository.class);
+        manager = new ImportanceDecayManager(memoryRepository, 30.0, 0.01, 500);
+    }
+
+    private static MemoryEntity candidate(double importance, long lastAccessedMs) {
+        MemoryEntity entity = new MemoryEntity();
+        entity.setId(UUID.randomUUID());
+        entity.setUserId("user-1");
+        entity.setContent("content");
+        entity.setMemoryType(MemoryType.EPISODIC);
+        entity.setImportance(importance);
+        Instant ts = Instant.ofEpochMilli(lastAccessedMs);
+        entity.setCreatedAt(ts);
+        entity.setUpdatedAt(ts);
+        entity.setLastAccessedAt(ts);
+        return entity;
     }
 
     // ── computeDecay unit tests ──────────────────────────────────────────────
@@ -70,82 +83,62 @@ class ImportanceDecayManagerTest {
         assertThat(result).isGreaterThan(0.499);
     }
 
-    // ── decay() integration tests (JDBC mocked) ──────────────────────────────
+    // ── decay() integration tests (repository mocked) ─────────────────────────
 
     @Test
-    @SuppressWarnings("unchecked")
     void decay_appliesDecayToStaleDocuments() {
         long oldTs = Instant.now().minus(30, ChronoUnit.DAYS).toEpochMilli(); // one half-life
-        var candidate = new ImportanceDecayManager.DecayCandidate("doc-1", 0.5, oldTs);
+        MemoryEntity stale = candidate(0.5, oldTs);
 
-        when(jdbc.query(anyString(), any(SqlParameterSource.class), any(RowMapper.class)))
-                .thenReturn(List.of(candidate));
+        when(memoryRepository.findDecayCandidates(any(Pageable.class)))
+                .thenReturn(List.of(stale));
 
         manager.decay();
 
-        // batchUpdate should be called with 1 update (delta ≈ 0.25 >> MIN_DELTA)
-        verify(jdbc).batchUpdate(anyString(), argThat((MapSqlParameterSource[] params) ->
-                params.length == 1
-                && "doc-1".equals(params[0].getValue("id"))
-                && (double) params[0].getValue("importance") < 0.5
-        ));
+        // importance should be reduced (delta ≈ 0.25 >> MIN_DELTA)
+        verify(memoryRepository).updateImportance(eq(stale.getId()),
+                doubleThat(v -> v < 0.5));
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void decay_skipsDocumentsWithInsignificantDelta() {
         long justNow = Instant.now().minus(1, ChronoUnit.HOURS).toEpochMilli();
         // 1 hour / 30-day half-life → delta << MIN_DELTA (0.001)
-        var candidate = new ImportanceDecayManager.DecayCandidate("doc-fresh", 0.5, justNow);
+        MemoryEntity fresh = candidate(0.5, justNow);
 
-        when(jdbc.query(anyString(), any(SqlParameterSource.class), any(RowMapper.class)))
-                .thenReturn(List.of(candidate));
+        when(memoryRepository.findDecayCandidates(any(Pageable.class)))
+                .thenReturn(List.of(fresh));
 
         manager.decay();
 
-        verify(jdbc, never()).batchUpdate(anyString(), any(MapSqlParameterSource[].class));
+        verify(memoryRepository, never()).updateImportance(any(UUID.class), anyDouble());
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void decay_noOpsWhenNoCandidates() {
-        when(jdbc.query(anyString(), any(SqlParameterSource.class), any(RowMapper.class)))
+        when(memoryRepository.findDecayCandidates(any(Pageable.class)))
                 .thenReturn(List.of());
 
         manager.decay();
 
-        verify(jdbc, never()).batchUpdate(anyString(), any(MapSqlParameterSource[].class));
+        verify(memoryRepository, never()).updateImportance(any(UUID.class), anyDouble());
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    void decay_handlesJdbcQueryFailureGracefully() {
-        when(jdbc.query(anyString(), any(SqlParameterSource.class), any(RowMapper.class)))
-                .thenThrow(new RuntimeException("DB unreachable"));
-
-        // Should not throw
-        manager.decay();
-
-        verify(jdbc, never()).batchUpdate(anyString(), any(MapSqlParameterSource[].class));
-    }
-
-    @Test
-    @SuppressWarnings("unchecked")
     void decay_processesMixedBatch() {
         long oldTs   = Instant.now().minus(30, ChronoUnit.DAYS).toEpochMilli(); // needs decay
         long freshTs = Instant.now().minus(1,  ChronoUnit.HOURS).toEpochMilli(); // skip
 
-        when(jdbc.query(anyString(), any(SqlParameterSource.class), any(RowMapper.class)))
-                .thenReturn(List.of(
-                        new ImportanceDecayManager.DecayCandidate("doc-old",   0.5, oldTs),
-                        new ImportanceDecayManager.DecayCandidate("doc-fresh", 0.5, freshTs)
-                ));
+        MemoryEntity old   = candidate(0.5, oldTs);
+        MemoryEntity fresh = candidate(0.5, freshTs);
+
+        when(memoryRepository.findDecayCandidates(any(Pageable.class)))
+                .thenReturn(List.of(old, fresh));
 
         manager.decay();
 
-        // Only doc-old should be in the update batch
-        verify(jdbc).batchUpdate(anyString(), argThat((MapSqlParameterSource[] params) ->
-                params.length == 1 && "doc-old".equals(params[0].getValue("id"))
-        ));
+        // Only the stale document is updated
+        verify(memoryRepository).updateImportance(eq(old.getId()), anyDouble());
+        verify(memoryRepository, never()).updateImportance(eq(fresh.getId()), anyDouble());
     }
 }

@@ -40,6 +40,7 @@ class AgentOrchestratorTest {
     @Mock private ChatClient.ChatClientRequestSpec requestSpec;
     @Mock private ChatClient.CallResponseSpec callResponseSpec;
     @Mock private MemoryService memoryService;
+    @Mock private com.dawn.ai.memory.MemoryManager memoryManager;
     @Mock private TaskPlanner taskPlanner;
     @Mock private ToolRegistry toolRegistry;
     @Mock private UserProfileService userProfileService;
@@ -61,6 +62,7 @@ class AgentOrchestratorTest {
         agentOrchestrator = new AgentOrchestrator(
                 chatClient,
                 memoryService,
+                memoryManager,
                 taskPlanner,
                 toolRegistry,
                 new SimpleMeterRegistry(),
@@ -93,8 +95,8 @@ class AgentOrchestratorTest {
         ArgumentCaptor<List<Message>> historyCaptor = (ArgumentCaptor<List<Message>>) (ArgumentCaptor<?>) ArgumentCaptor.forClass(List.class);
         verify(requestSpec).messages(historyCaptor.capture());
         verify(requestSpec).user("current question");
-        verify(memoryService).addMessage("session-1", "user", "current question");
-        verify(memoryService).addMessage("session-1", "assistant", "final answer");
+        verify(memoryService).addMessage("session-1", "session-1", "user", "current question");
+        verify(memoryService).addMessage("session-1", "session-1", "assistant", "final answer");
 
         assertThat(result.finalAnswer()).isEqualTo("final answer");
         assertThat(historyCaptor.getValue()).hasSize(1);
@@ -124,6 +126,6 @@ class AgentOrchestratorTest {
         assertThat(result.plan()).isEmpty();
         verify(chatClient).prompt();
         verify(requestSpec, never()).system(org.mockito.ArgumentMatchers.contains("【执行计划】"));
-        verify(memoryService).addMessage("session-2", "assistant", "final answer");
+        verify(memoryService).addMessage("session-2", "session-2", "assistant", "final answer");
     }
 }

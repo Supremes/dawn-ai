@@ -1,69 +1,91 @@
 package com.dawn.ai.memory;
 
+import com.dawn.ai.memory.entity.MemoryEntity;
+import com.dawn.ai.memory.repository.MemoryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.data.domain.Pageable;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Map;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class EvictionPolicyManagerTest {
 
-    private VectorStore vectorStore;
+    private MemoryManager memoryManager;
+    private MemoryRepository memoryRepository;
     private EvictionPolicyManager manager;
 
     @BeforeEach
     void setUp() {
-        vectorStore = mock(VectorStore.class);
-        manager = new EvictionPolicyManager(vectorStore, 0.1, 180);
+        memoryManager = mock(MemoryManager.class);
+        memoryRepository = mock(MemoryRepository.class);
+        manager = new EvictionPolicyManager(memoryManager, memoryRepository, 0.1, 180);
+    }
+
+    private static MemoryEntity staleEntity() {
+        MemoryEntity entity = new MemoryEntity();
+        entity.setId(UUID.randomUUID());
+        entity.setUserId("user-1");
+        entity.setContent("old content");
+        entity.setMemoryType(MemoryType.EPISODIC);
+        entity.setImportance(0.05);
+        Instant old = Instant.now().minus(200, ChronoUnit.DAYS);
+        entity.setCreatedAt(old);
+        entity.setUpdatedAt(old);
+        entity.setLastAccessedAt(old);
+        return entity;
     }
 
     @Test
     void evict_deletesLowImportanceOldDocuments() {
-        long oldTs = Instant.now().minus(200, ChronoUnit.DAYS).toEpochMilli();
-        Document stale = new Document("doc1", "old content",
-                Map.of("type", "summary", "importance", 0.05, "createdAt", oldTs));
-        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of(stale));
+        MemoryEntity stale = staleEntity();
+        when(memoryRepository.findEvictionCandidates(anyDouble(), any(Instant.class), any(Pageable.class)))
+                .thenReturn(List.of(stale));
 
         manager.evict();
 
-        verify(vectorStore).delete(argThat((List<String> ids) -> ids.contains("doc1")));
+        verify(memoryManager).delete(stale.getId().toString());
     }
 
     @Test
     void evict_keepsHighImportanceDocumentsEvenIfOld() {
-        // pgvector filterExpression excludes high-importance docs before returning results
-        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
+        // JPA query filters out high-importance docs (importance < threshold) before returning
+        when(memoryRepository.findEvictionCandidates(anyDouble(), any(Instant.class), any(Pageable.class)))
+                .thenReturn(List.of());
 
         manager.evict();
 
-        verify(vectorStore, never()).delete(any(List.class));
+        verify(memoryManager, never()).delete(anyString());
     }
 
     @Test
     void evict_keepsRecentDocumentsEvenIfLowImportance() {
-        // pgvector filterExpression excludes recent docs (createdAt > cutoff) before returning results
-        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
+        // JPA query filters out recent docs (createdAt < cutoff) before returning
+        when(memoryRepository.findEvictionCandidates(anyDouble(), any(Instant.class), any(Pageable.class)))
+                .thenReturn(List.of());
 
         manager.evict();
 
-        verify(vectorStore, never()).delete(any(List.class));
+        verify(memoryManager, never()).delete(anyString());
     }
 
     @Test
-    void evict_handlesVectorStoreFailureGracefully() {
-        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenThrow(new RuntimeException("DB down"));
+    void evict_continuesWhenSingleDeleteFails() {
+        MemoryEntity stale = staleEntity();
+        when(memoryRepository.findEvictionCandidates(anyDouble(), any(Instant.class), any(Pageable.class)))
+                .thenReturn(List.of(stale));
+        when(memoryManager.delete(anyString())).thenThrow(new RuntimeException("delete failed"));
 
+        // Per-entity failures are caught; evict() should not propagate
         manager.evict();
 
-        verify(vectorStore, never()).delete(any(List.class));
+        verify(memoryManager).delete(stale.getId().toString());
     }
 }

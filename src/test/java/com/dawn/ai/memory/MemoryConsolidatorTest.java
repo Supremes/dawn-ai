@@ -2,11 +2,8 @@ package com.dawn.ai.memory;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.context.ApplicationEventPublisher;
 
-import java.time.Instant;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.*;
@@ -14,51 +11,55 @@ import static org.mockito.Mockito.*;
 
 class MemoryConsolidatorTest {
 
-    private VectorStore vectorStore;
+    private MemoryManager memoryManager;
     private ApplicationEventPublisher eventPublisher;
     private MemoryConsolidator consolidator;
 
     @BeforeEach
     void setUp() {
-        vectorStore = mock(VectorStore.class);
+        memoryManager = mock(MemoryManager.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
-        consolidator = new MemoryConsolidator(vectorStore, eventPublisher, 3);
+        consolidator = new MemoryConsolidator(memoryManager, eventPublisher, 3);
     }
 
     @Test
-    void onConsolidationRequest_writesDocumentToVectorStore() {
-        SummaryResult summary = new SummaryResult("s1", "User prefers Python.", 0.5, Instant.now());
-        consolidator.onConsolidationRequest(new ConsolidationRequestEvent(summary));
+    void onFactsExtracted_persistsEachFactAsSemanticMemory() {
+        FactsExtractedEvent event = new FactsExtractedEvent(
+                "s1", "u1", List.of("User prefers Python.", "User lives in Berlin."));
 
-        verify(vectorStore).add(argThat(docs ->
-                docs.size() == 1 &&
-                docs.get(0).getText().equals("User prefers Python.") &&
-                "summary".equals(docs.get(0).getMetadata().get("type")) &&
-                "s1".equals(docs.get(0).getMetadata().get("sessionId"))
-        ));
+        consolidator.onFactsExtracted(event);
+
+        verify(memoryManager).addWithDedup("u1", "s1", "User prefers Python.", MemoryType.SEMANTIC, 0.6);
+        verify(memoryManager).addWithDedup("u1", "s1", "User lives in Berlin.", MemoryType.SEMANTIC, 0.6);
     }
 
     @Test
-    void onConsolidationRequest_publishesReflectionEventWhenThresholdReached() {
-        consolidator = new MemoryConsolidator(vectorStore, eventPublisher, 2);
+    void onEpisodicMemory_persistsEpisodicSummary() {
+        EpisodicMemoryEvent event = new EpisodicMemoryEvent("s1", "u1", "Conversation summary", 0.5);
 
-        SummaryResult s1 = new SummaryResult("s1", "Summary A", 0.5, Instant.now());
-        SummaryResult s2 = new SummaryResult("s1", "Summary B", 0.5, Instant.now());
+        consolidator.onEpisodicMemory(event);
 
-        consolidator.onConsolidationRequest(new ConsolidationRequestEvent(s1));
-        consolidator.onConsolidationRequest(new ConsolidationRequestEvent(s2));
+        verify(memoryManager).add("u1", "s1", "Conversation summary", MemoryType.EPISODIC, 0.5);
+    }
+
+    @Test
+    void onEpisodicMemory_publishesReflectionEventWhenThresholdReached() {
+        consolidator = new MemoryConsolidator(memoryManager, eventPublisher, 2);
+
+        consolidator.onEpisodicMemory(new EpisodicMemoryEvent("s1", "u1", "Summary A", 0.5));
+        consolidator.onEpisodicMemory(new EpisodicMemoryEvent("s1", "u1", "Summary B", 0.5));
 
         verify(eventPublisher).publishEvent(any(ReflectionRequestEvent.class));
     }
 
     @Test
-    void onConsolidationRequest_stillSucceedsWhenVectorStoreFails() {
-        doThrow(new RuntimeException("PGVector down")).when(vectorStore).add(anyList());
+    void onEpisodicMemory_doesNotPublishReflectionWhenPersistFails() {
+        when(memoryManager.add(anyString(), anyString(), anyString(), any(MemoryType.class), anyDouble()))
+                .thenThrow(new RuntimeException("DB down"));
 
-        SummaryResult summary = new SummaryResult("s1", "Some summary", 0.5, Instant.now());
-        consolidator.onConsolidationRequest(new ConsolidationRequestEvent(summary));
+        // Should not throw, and should NOT publish reflection event (early return on failure)
+        consolidator.onEpisodicMemory(new EpisodicMemoryEvent("s1", "u1", "Some summary", 0.5));
 
-        // Should not throw, and should NOT publish reflection event (vectorStore failed → return early)
         verify(eventPublisher, never()).publishEvent(any());
     }
 }

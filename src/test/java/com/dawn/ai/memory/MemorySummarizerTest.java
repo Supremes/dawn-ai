@@ -1,4 +1,4 @@
- package com.dawn.ai.memory;
+package com.dawn.ai.memory;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,11 +34,12 @@ class MemorySummarizerTest {
     }
 
     @Test
-    void onSummarizationRequest_publishesConsolidationEventWithSummary() {
+    void onSummarizationRequest_publishesEpisodicEventWithSummary() {
         when(callSpec.content()).thenReturn("用户讨论了天气问题，询问了北京气温。");
 
         SummarizationRequestEvent event = new SummarizationRequestEvent(
                 "session1",
+                "user1",
                 List.of(
                         Map.of("role", "user", "content", "北京今天天气如何？"),
                         Map.of("role", "assistant", "content", "北京今天晴，25度。")
@@ -48,10 +49,11 @@ class MemorySummarizerTest {
         summarizer.onSummarizationRequest(event);
 
         verify(eventPublisher).publishEvent(argThat((Object e) ->
-                e instanceof ConsolidationRequestEvent cre &&
-                "session1".equals(cre.result().sessionId()) &&
-                "用户讨论了天气问题，询问了北京气温。".equals(cre.result().text()) &&
-                cre.result().importanceScore() == 0.5
+                e instanceof EpisodicMemoryEvent eme &&
+                "session1".equals(eme.sessionId()) &&
+                "user1".equals(eme.userId()) &&
+                "用户讨论了天气问题，询问了北京气温。".equals(eme.summary()) &&
+                eme.importance() == 0.5
         ));
     }
 
@@ -61,14 +63,15 @@ class MemorySummarizerTest {
 
         SummarizationRequestEvent event = new SummarizationRequestEvent(
                 "session2",
+                "user2",
                 List.of(Map.of("role", "user", "content", "test message"))
         );
 
         summarizer.onSummarizationRequest(event);
 
         verify(eventPublisher).publishEvent(argThat((Object e) ->
-                e instanceof ConsolidationRequestEvent cre &&
-                cre.result().importanceScore() < 0.4
+                e instanceof EpisodicMemoryEvent eme &&
+                eme.importance() < 0.4
         ));
     }
 }

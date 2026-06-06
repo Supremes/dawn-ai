@@ -244,6 +244,8 @@ public class AgentOrchestrator {
                 sink.accept(ChatStreamEvent.plan(sessionId, plan, formatPlanSummary(plan)));
             }
 
+            // 系统提示词 + 用户画像 + 相关记忆（top-k）
+            // skills meta data + subagent description + plan description
             String systemPrompt = buildSystemPrompt(plan, sessionId, topicId);
 
             // 添加历史对话到上下文
@@ -419,8 +421,8 @@ public class AgentOrchestrator {
      * Includes the execution plan, plan-enforcement directive, and max-steps constraint.
      */
     private String buildSystemPrompt(List<PlanStep> plan, String sessionId, String topicId) {
-        String profileSection = userProfileService.formatForSystemPrompt(sessionId);
-        String memorySection = formatMemories(sessionId);
+        String profileSection = userProfileService.formatForSystemPrompt(sessionId); // 用户画像
+        String memorySection = formatMemories(sessionId); // 相关记忆，top-k
         String topicSection = (topicId != null && !topicId.isBlank())
                 ? String.format("%n%n【研究主题】你当前在帮助用户研究主题：%s。" +
                   "调用 KnowledgeSearchTool 时，topicId 参数必须使用 \"%s\"。", topicId, topicId)

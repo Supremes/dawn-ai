@@ -3,19 +3,17 @@ package com.dawn.ai.memory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.VectorStore;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ReflectionWorkerTest {
 
-    private VectorStore vectorStore;
+    private MemoryManager memoryManager;
     private ChatClient chatClient;
     private ChatClient.ChatClientRequestSpec requestSpec;
     private ChatClient.CallResponseSpec callSpec;
@@ -24,7 +22,7 @@ class ReflectionWorkerTest {
 
     @BeforeEach
     void setUp() {
-        vectorStore = mock(VectorStore.class);
+        memoryManager = mock(MemoryManager.class);
         chatClient = mock(ChatClient.class);
         requestSpec = mock(ChatClient.ChatClientRequestSpec.class);
         callSpec = mock(ChatClient.CallResponseSpec.class);
@@ -35,55 +33,53 @@ class ReflectionWorkerTest {
         when(requestSpec.call()).thenReturn(callSpec);
 
         // episodeThreshold=4, so needs >= 2 episodes to proceed
-        reflectionWorker = new ReflectionWorker(vectorStore, chatClient, userProfileService, 4);
+        reflectionWorker = new ReflectionWorker(memoryManager, chatClient, userProfileService, 4);
+    }
+
+    private static List<MemoryManager.MemorySearchResult> episodes(int count) {
+        List<MemoryManager.MemorySearchResult> list = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            list.add(new MemoryManager.MemorySearchResult(
+                    UUID.randomUUID().toString(), "episode " + i, "episodic", 0.5, 0.9));
+        }
+        return list;
     }
 
     @Test
-    void onReflectionRequest_persistsHighImportanceReflectionToVectorStore() {
-        List<Document> episodes = List.of(
-                new Document("1", "用户喜欢Java", Map.of()),
-                new Document("2", "用户偏好并发编程", Map.of()),
-                new Document("3", "用户在学习Spring", Map.of()),
-                new Document("4", "用户关注性能优化", Map.of())
-        );
-        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(episodes);
+    void onReflectionRequest_persistsHighImportanceReflectionAsProcedural() {
+        when(memoryManager.search(eq("user1"), anyString(), anyInt(), eq(MemoryType.EPISODIC)))
+                .thenReturn(episodes(4));
         when(callSpec.content()).thenReturn("用户是Java开发者，擅长并发，正在学Spring。");
 
-        reflectionWorker.onReflectionRequest(new ReflectionRequestEvent("session1"));
+        reflectionWorker.onReflectionRequest(new ReflectionRequestEvent("session1", "user1"));
 
-        verify(vectorStore).add(argThat(docs ->
-                docs.size() == 1 &&
-                "reflection".equals(docs.get(0).getMetadata().get("type")) &&
-                ((Number) docs.get(0).getMetadata().get("importance")).doubleValue() >= 0.8
-        ));
+        verify(memoryManager).add(eq("user1"), eq("session1"),
+                eq("用户是Java开发者，擅长并发，正在学Spring。"), eq(MemoryType.PROCEDURAL), eq(0.9));
+        verify(userProfileService).upsertAttribute(eq("user1"), eq("reflection"),
+                eq("用户是Java开发者，擅长并发，正在学Spring。"));
     }
 
     @Test
     void onReflectionRequest_skipsWhenNotEnoughEpisodes() {
         // episodeThreshold=4, threshold/2=2, only 1 episode → skip
-        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(
-                List.of(new Document("1", "only one episode", Map.of()))
-        );
+        when(memoryManager.search(eq("user1"), anyString(), anyInt(), eq(MemoryType.EPISODIC)))
+                .thenReturn(episodes(1));
 
-        reflectionWorker.onReflectionRequest(new ReflectionRequestEvent("session1"));
+        reflectionWorker.onReflectionRequest(new ReflectionRequestEvent("session1", "user1"));
 
         verify(chatClient, never()).prompt();
-        verify(vectorStore, never()).add(any());
+        verify(memoryManager, never()).add(anyString(), anyString(), anyString(), any(MemoryType.class), anyDouble());
     }
 
     @Test
     void onReflectionRequest_handlesLLMFailureGracefully() {
-        List<Document> episodes = List.of(
-                new Document("1", "e1", Map.of()),
-                new Document("2", "e2", Map.of()),
-                new Document("3", "e3", Map.of()),
-                new Document("4", "e4", Map.of())
-        );
-        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(episodes);
+        when(memoryManager.search(eq("user1"), anyString(), anyInt(), eq(MemoryType.EPISODIC)))
+                .thenReturn(episodes(4));
         when(callSpec.content()).thenThrow(new RuntimeException("LLM error"));
 
-        reflectionWorker.onReflectionRequest(new ReflectionRequestEvent("session1"));
+        reflectionWorker.onReflectionRequest(new ReflectionRequestEvent("session1", "user1"));
 
-        verify(vectorStore, never()).add(any());
+        verify(memoryManager, never()).add(anyString(), anyString(), anyString(), any(MemoryType.class), anyDouble());
+        verify(userProfileService, never()).upsertAttribute(anyString(), anyString(), anyString());
     }
 }
