@@ -1,5 +1,7 @@
 package com.dawn.ai.memory;
 
+import com.dawn.ai.memory.event.EpisodicMemoryEvent;
+import com.dawn.ai.memory.event.SummarizationRequestEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;

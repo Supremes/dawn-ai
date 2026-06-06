@@ -1,6 +1,6 @@
 package com.dawn.ai.service;
 
-import com.dawn.ai.memory.SummarizationRequestEvent;
+import com.dawn.ai.memory.event.SummarizationRequestEvent;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;

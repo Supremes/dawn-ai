@@ -1,5 +1,6 @@
 package com.dawn.ai.memory;
 
+import com.dawn.ai.memory.event.ReflectionRequestEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;

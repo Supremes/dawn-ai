@@ -103,6 +103,9 @@ public class AgentOrchestrator {
     @Value("${app.ai.subagent.max-dispatches-per-session:3}")
     private int maxSubAgentDispatches;
 
+    @Value("${app.memory.default-user-id:local-user}")
+    private String defaultUserId;
+
     private Counter inputTokenCounter;
     private Counter outputTokenCounter;
     private DistributionSummary ragCallsSummary;
@@ -133,7 +136,7 @@ public class AgentOrchestrator {
             TaskPlanner.PlannerResult plannerResult = resolvePlan(userMessage);
             List<PlanStep> plan = plannerResult.steps();
 
-            String systemPrompt = buildSystemPrompt(plan, sessionId, topicId);
+            String systemPrompt = buildSystemPrompt(plan, topicId, userMessage);
 
             // 添加历史对话到上下文
             List<Message> history = buildHistory(sessionId);
@@ -152,8 +155,8 @@ public class AgentOrchestrator {
             List<AgentStep> steps = StepCollector.collect();
             recordRagMetrics(steps);
 
-            memoryService.addMessage(sessionId, sessionId, "user", userMessage);
-            memoryService.addMessage(sessionId, sessionId, "assistant", response);
+            memoryService.addMessage(sessionId, defaultUserId, "user", userMessage);
+            memoryService.addMessage(sessionId, defaultUserId, "assistant", response);
 
             log.info("[AgentOrchestrator] session={}, planSteps={}, toolCalls={}, userMsg={}",
                     sessionId, plan.size(), steps.size(),
@@ -246,7 +249,7 @@ public class AgentOrchestrator {
 
             // 系统提示词 + 用户画像 + 相关记忆（top-k）
             // skills meta data + subagent description + plan description
-            String systemPrompt = buildSystemPrompt(plan, sessionId, topicId);
+            String systemPrompt = buildSystemPrompt(plan, topicId, userMessage);
 
             // 添加历史对话到上下文
             List<Message> history = buildHistory(sessionId);
@@ -293,8 +296,8 @@ public class AgentOrchestrator {
             List<AgentStep> steps = StepCollector.collect();
             recordRagMetrics(steps);
 
-            memoryService.addMessage(sessionId, sessionId, "user", userMessage);
-            memoryService.addMessage(sessionId, sessionId, "assistant", answer.toString());
+            memoryService.addMessage(sessionId, defaultUserId, "user", userMessage);
+            memoryService.addMessage(sessionId, defaultUserId, "assistant", answer.toString());
 
             log.info("[AgentOrchestrator] stream session={}, planSteps={}, toolCalls={}, tokens={}",
                     sessionId, plan.size(), steps.size(), answer.length());
@@ -420,9 +423,9 @@ public class AgentOrchestrator {
      * Builds the system prompt shared by both sync and stream paths.
      * Includes the execution plan, plan-enforcement directive, and max-steps constraint.
      */
-    private String buildSystemPrompt(List<PlanStep> plan, String sessionId, String topicId) {
-        String profileSection = userProfileService.formatForSystemPrompt(sessionId); // 用户画像
-        String memorySection = formatMemories(sessionId); // 相关记忆，top-k
+    private String buildSystemPrompt(List<PlanStep> plan, String topicId, String userQuery) {
+        String profileSection = userProfileService.formatForSystemPrompt(defaultUserId); // 用户画像
+        String memorySection = formatMemories(defaultUserId, userQuery); // 相关记忆，top-k
         String topicSection = (topicId != null && !topicId.isBlank())
                 ? String.format("%n%n【研究主题】你当前在帮助用户研究主题：%s。" +
                   "调用 KnowledgeSearchTool 时，topicId 参数必须使用 \"%s\"。", topicId, topicId)
@@ -483,9 +486,9 @@ public class AgentOrchestrator {
         return sb.toString();
     }
 
-    private String formatMemories(String userId) {
+    private String formatMemories(String userId, String query) {
         try {
-            List<MemoryManager.MemorySearchResult> memories = memoryManager.search(userId, "用户偏好和习惯", 5);
+            List<MemoryManager.MemorySearchResult> memories = memoryManager.search(userId, query, 5);
             if (memories.isEmpty()) {
                 return "";
             }

@@ -1,6 +1,6 @@
 package com.dawn.ai.service;
 
-import com.dawn.ai.memory.SummarizationRequestEvent;
+import com.dawn.ai.memory.event.SummarizationRequestEvent;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

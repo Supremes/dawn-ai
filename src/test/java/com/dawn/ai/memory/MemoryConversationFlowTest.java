@@ -1,6 +1,9 @@
 package com.dawn.ai.memory;
 
 import com.dawn.ai.memory.entity.MemoryEntity;
+import com.dawn.ai.memory.event.EpisodicMemoryEvent;
+import com.dawn.ai.memory.event.ReflectionRequestEvent;
+import com.dawn.ai.memory.event.SummarizationRequestEvent;
 import com.dawn.ai.memory.repository.MemoryRepository;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;

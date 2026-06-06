@@ -1,4 +1,4 @@
-package com.dawn.ai.memory;
+package com.dawn.ai.memory.event;
 
 import java.util.List;
 

@@ -130,6 +130,7 @@ app:
     path: ${APP_SKILLS_PATH:./skills}   # 外挂 skill 目录；classpath skills-builtin/ 永远作为兜底
 
   memory:
+    default-user-id: local-user        # 单用户部署：固定 userId，让长期记忆跨会话（sessionId）生效
     summary:
       batch-size: 3
     extraction:
@@ -153,6 +154,9 @@ logging:
   level:
     com.dawn.ai: DEBUG
     org.springframework.ai: INFO
+    # 打印 Hibernate 实际执行的 SQL 及参数绑定（走 logback，落盘到 app.log）
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36}:%line - %msg%n"
 

@@ -1,5 +1,8 @@
 package com.dawn.ai.memory;
 
+import com.dawn.ai.memory.event.EpisodicMemoryEvent;
+import com.dawn.ai.memory.event.FactsExtractedEvent;
+import com.dawn.ai.memory.event.ReflectionRequestEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
@@ -7,7 +10,6 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 

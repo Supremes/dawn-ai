@@ -1,5 +1,7 @@
 package com.dawn.ai.memory;
 
+import com.dawn.ai.memory.event.FactsExtractedEvent;
+import com.dawn.ai.memory.event.SummarizationRequestEvent;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
