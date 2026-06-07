@@ -131,6 +131,11 @@ app:
 
   memory:
     default-user-id: local-user        # 单用户部署：固定 userId，让长期记忆跨会话（sessionId）生效
+    search:
+      importance-weight: 0.3           # 召回加权：finalScore = similarity * (1 + w * importance)
+    injection:
+      procedural-top-k: 2              # 注入 system prompt 的 PROCEDURAL 记忆条数
+      semantic-top-k: 3               # 注入 system prompt 的 SEMANTIC 记忆条数
     summary:
       batch-size: 3
     extraction:

@@ -15,6 +15,7 @@ import com.dawn.ai.exception.LLMProviderException;
 import com.dawn.ai.exception.MaxStepsExceededException;
 import com.dawn.ai.exception.PlanGenerationException;
 import com.dawn.ai.memory.MemoryManager;
+import com.dawn.ai.memory.MemoryType;
 import com.dawn.ai.memory.UserProfileService;
 import com.dawn.ai.service.MemoryService;
 import com.dawn.ai.sse.ChatStreamEvent;
@@ -105,6 +106,12 @@ public class AgentOrchestrator {
 
     @Value("${app.memory.default-user-id:local-user}")
     private String defaultUserId;
+
+    @Value("${app.memory.injection.procedural-top-k:2}")
+    private int proceduralTopK;
+
+    @Value("${app.memory.injection.semantic-top-k:3}")
+    private int semanticTopK;
 
     private Counter inputTokenCounter;
     private Counter outputTokenCounter;
@@ -488,7 +495,11 @@ public class AgentOrchestrator {
 
     private String formatMemories(String userId, String query) {
         try {
-            List<MemoryManager.MemorySearchResult> memories = memoryManager.search(userId, query, 5);
+            // 仅注入 PROCEDURAL（长期偏好/习惯）与 SEMANTIC（事实），按配额分配 topK；
+            // EPISODIC（对话摘要）是反思的中间产物，不进主 prompt，避免长文本挤占名额。
+            List<MemoryManager.MemorySearchResult> memories = new ArrayList<>();
+            memories.addAll(memoryManager.search(userId, query, proceduralTopK, MemoryType.PROCEDURAL));
+            memories.addAll(memoryManager.search(userId, query, semanticTopK, MemoryType.SEMANTIC));
             if (memories.isEmpty()) {
                 return "";
             }

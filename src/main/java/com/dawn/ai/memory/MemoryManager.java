@@ -10,6 +10,7 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,12 @@ public class MemoryManager {
     private final MemoryRepository memoryRepository;
     private final MemoryHistoryRepository historyRepository;
     private final VectorStore vectorStore;
+
+    @Value("${app.memory.search.importance-weight:0.3}")
+    private double importanceWeight;
+
+    // 重排前多取候选的倍数，让高 importance 记忆有机会从被截断区冠头
+    private static final int SEARCH_CANDIDATE_MULTIPLIER = 2;
 
     private static final String VECTOR_COLLECTION = "memory_entries";
 
@@ -116,7 +123,7 @@ public class MemoryManager {
             results = vectorStore.similaritySearch(
                     SearchRequest.builder()
                             .query(query)
-                            .topK(topK)
+                            .topK(topK * SEARCH_CANDIDATE_MULTIPLIER)
                             .filterExpression(filter.build())
                             .build());
         } catch (Exception e) {
@@ -129,16 +136,15 @@ public class MemoryManager {
         Set<UUID> existingIds = memoryRepository.findAllById(ids.stream().map(id -> parseUuidSafe(id)).filter(Objects::nonNull).toList())
                 .stream().filter(e -> !e.isDeleted()).map(MemoryEntity::getId).collect(Collectors.toSet());
 
-        results = results.stream()
+        List<Document> filtered = results.stream()
                 .filter(doc -> {
                     UUID docId = parseUuidSafe(doc.getId());
                     return docId != null && existingIds.contains(docId);
                 })
                 .toList();
 
-        updateAccessTime(results);
-
-        return results.stream()
+        // importance 加权重排：finalScore = similarity * (1 + w * importance)，再截断到 topK
+        List<MemorySearchResult> ranked = filtered.stream()
                 .map(doc -> new MemorySearchResult(
                         doc.getId(),
                         doc.getText(),
@@ -146,7 +152,20 @@ public class MemoryManager {
                         toDouble(doc.getMetadata().get("importance")),
                         doc.getScore()
                 ))
+                .sorted(Comparator.comparingDouble(this::weightedScore).reversed())
+                .limit(topK)
                 .toList();
+
+        // 仅对最终返回的记忆刷新访问时间
+        Set<String> finalIds = ranked.stream().map(MemorySearchResult::id).collect(Collectors.toSet());
+        updateAccessTime(filtered.stream().filter(doc -> finalIds.contains(doc.getId())).toList());
+
+        return ranked;
+    }
+
+    private double weightedScore(MemorySearchResult r) {
+        double similarity = r.score() != null ? r.score() : 0.0;
+        return similarity * (1 + importanceWeight * r.importance());
     }
 
     @Transactional
