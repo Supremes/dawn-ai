@@ -132,8 +132,8 @@ public class SkillRegistry {
 
     /**
      * 列出 skill 资源根下所有可被 {@link #readResource} 访问的文件相对路径
-     * （排除 {@code SKILL.md} 本身与 {@code scripts/} 子目录）。供 {@code load_skill}
-     * 在返回 body 时一并暴露给模型，提示哪些子文件可继续 {@code read_skill_resource}。
+        * （排除 {@code SKILL.md} 本身与 {@code scripts/} 子目录）。供 {@code loadSkillTool}
+        * 在返回 body 时一并暴露给模型，提示哪些子文件可继续 {@code readSkillResourceTool}。
      */
     public List<String> listResources(String name) {
         Skill skill = skills.get(name);

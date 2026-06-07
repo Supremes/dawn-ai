@@ -20,7 +20,6 @@ public class MemoryService {
 
     private static final String SESSION_PREFIX = "ai:session:";
     private static final String PENDING_SUFFIX = ":pending";
-    private static final int MAX_HISTORY = 20;
     private static final Duration SESSION_TTL = Duration.ofHours(2);
 
     private final RedisTemplate<String, Object> redisTemplate;
@@ -32,8 +31,11 @@ public class MemoryService {
     private Counter redisWriteFailureCounter;
     private Counter redisReadFailureCounter;
 
-    @Value("${app.memory.summary.batch-size:5}")
+    @Value("${app.memory.summary.batch-size:3}")
     private int summaryBatchSize;
+
+    @Value("${app.memory.max-history:10}")
+    private int maxHistory;
 
     public MemoryService(RedisTemplate<String, Object> redisTemplate,
                          MeterRegistry meterRegistry,
@@ -62,7 +64,7 @@ public class MemoryService {
         try {
             redisTemplate.opsForList().rightPush(key, message);
             Long size = redisTemplate.opsForList().size(key);
-            if (size != null && size > MAX_HISTORY) {
+            if (size != null && size > maxHistory) {
                 Object popped = redisTemplate.opsForList().leftPop(key);
                 if (popped instanceof Map<?, ?> poppedMsg) {
                     enqueuePending(sessionId, userId, (Map<String, String>) poppedMsg);
@@ -145,7 +147,7 @@ public class MemoryService {
         List<Map<String, String>> list = fallbackStore.computeIfAbsent(sessionId, k -> new ArrayList<>());
         synchronized (list) {
             list.add(message);
-            if (list.size() > MAX_HISTORY) list.remove(0);
+            if (list.size() > maxHistory) list.remove(0);
         }
     }
 }

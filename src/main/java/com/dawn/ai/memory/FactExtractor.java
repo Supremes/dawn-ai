@@ -2,7 +2,7 @@ package com.dawn.ai.memory;
 
 import com.dawn.ai.memory.event.FactsExtractedEvent;
 import com.dawn.ai.memory.event.SummarizationRequestEvent;
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +14,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -90,18 +91,49 @@ public class FactExtractor {
 
     private List<String> parseFacts(String response) {
         try {
-            String json = response.trim();
-            int start = json.indexOf('{');
-            int end = json.lastIndexOf('}');
-            if (start >= 0 && end > start) {
-                json = json.substring(start, end + 1);
+            String json = extractJsonPayload(response);
+            if (json.isBlank()) {
+                return List.of();
             }
-            Map<String, List<String>> parsed = objectMapper.readValue(json, new TypeReference<>() {});
-            List<String> facts = parsed.getOrDefault("facts", List.of());
-            return facts.stream().filter(f -> f != null && !f.isBlank()).toList();
+            JsonNode root = objectMapper.readTree(json);
+            JsonNode factsNode = root.isArray() ? root : root.path("facts");
+            if (!factsNode.isArray()) {
+                return List.of();
+            }
+            List<String> facts = new ArrayList<>();
+            for (JsonNode fact : factsNode) {
+                if (fact.isTextual() && !fact.asText().isBlank()) {
+                    facts.add(fact.asText());
+                }
+            }
+            return facts;
         } catch (Exception e) {
             log.debug("[FactExtractor] Failed to parse facts JSON: {}", e.getMessage());
             return List.of();
         }
+    }
+
+    private String extractJsonPayload(String response) {
+        if (response == null) {
+            return "";
+        }
+        String text = response.trim();
+        int objectStart = text.indexOf('{');
+        int arrayStart = text.indexOf('[');
+
+        int start;
+        char close;
+        if (objectStart >= 0 && (arrayStart < 0 || objectStart < arrayStart)) {
+            start = objectStart;
+            close = '}';
+        } else if (arrayStart >= 0) {
+            start = arrayStart;
+            close = ']';
+        } else {
+            return text;
+        }
+
+        int end = text.lastIndexOf(close);
+        return end > start ? text.substring(start, end + 1) : text;
     }
 }

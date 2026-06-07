@@ -475,7 +475,7 @@ public class AgentOrchestrator {
 
     /**
      * 列出所有可用 Skill 的 name + description（progressive disclosure 第一层）。
-     * 模型据此判断是否调用 {@code load_skill} 加载某个 skill 的完整指令。
+     * 模型据此判断是否调用 {@code loadSkillTool} 加载某个 skill 的完整指令。
      * 若无可用 skill 则返回空串，不污染 prompt。
      */
     private String formatSkills() {
@@ -484,8 +484,10 @@ public class AgentOrchestrator {
             return "";
         }
         StringBuilder sb = new StringBuilder("\n\n## 可用 Skills\n")
-                .append("按需调用 `load_skill(name)` 加载完整指令；")
-                .append("需要 skill 的内嵌资源时调用 `read_skill_resource(skill, path)`。\n\n");
+                .append("仅当下方某个 skill 的 name 和 description 明确匹配当前任务时，")
+                .append("才调用 `loadSkillTool(name)` 加载完整指令；")
+                .append("需要 skill 的内嵌资源时调用 `readSkillResourceTool(skill, path)`。")
+                .append("只能使用下方列出的 skill name，不要发明或猜测不存在的 skill。\n\n");
         for (Skill s : all) {
             sb.append("- **").append(s.manifest().name()).append("**: ")
               .append(s.manifest().description()).append("\n");

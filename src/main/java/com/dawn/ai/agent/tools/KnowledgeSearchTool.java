@@ -13,6 +13,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Description;
 import org.springframework.stereotype.Component;
 
@@ -38,6 +39,7 @@ import java.util.function.Function;
  */
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "app.ai.rag.tool-enabled", havingValue = "true", matchIfMissing = true)
 @Description("搜索内部知识库，获取与问题相关的背景信息。需要查询产品信息、技术文档或领域知识时调用。")
 @RequiredArgsConstructor
 public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request, KnowledgeSearchTool.Response> {

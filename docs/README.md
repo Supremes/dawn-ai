@@ -1,5 +1,5 @@
 ---
-updated: 2026-06-03 21:30
+updated: 2026-06-07 17:20
 ---
 # Dawn-AI 文档索引
 
@@ -82,6 +82,18 @@ ApplicationRunner.run()
 | **性能**      | 适合中等并发                       | 极高吞吐量、高并发场景首选                   |
 | **集成难度**    | 简单，直接用注解控制器                  | 需要理解 Mono/Flux，响应式数据源更佳         |
 | **适用场景**    | 已有 MVC 项目、简单实时推送、中低并发        | 新项目、高并发微服务、流式数据处理               |
+
+### SprinigAI - Tool Call
+
+Spring AI 自定义 Tool：
+- 简单场景用 `Function + @Description` 自动生成工具；
+- 复杂场景用 `ToolCallback/ToolCallbackProvider` 自定义 schema、元数据与执行。
+
+流程：
+
+```
+LLM 产出 tool call → `ToolCallbackResolver` 按 name 找工具 → 校验/解析 input → `call()` 执行 → 结果回填给 LLM → 生成最终回复。
+```
 
 # 应用方向
 

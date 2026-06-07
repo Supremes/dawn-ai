@@ -34,14 +34,16 @@ public class MemoryConsolidator {
     @EventListener
     @Async
     public void onFactsExtracted(FactsExtractedEvent event) {
+        int factPersisted = event.facts().size();
         for (String fact : event.facts()) {
             try {
                 memoryManager.addWithDedup(event.userId(), event.sessionId(), fact, MemoryType.SEMANTIC, 0.6);
             } catch (Exception e) {
                 log.warn("[MemoryConsolidator] Failed to persist fact for session={}: {}", event.sessionId(), e.getMessage());
+                factPersisted -= 1;
             }
         }
-        log.info("[MemoryConsolidator] Persisted {} semantic facts for session={}", event.facts().size(), event.sessionId());
+        log.info("[MemoryConsolidator] Persisted {} semantic facts for session={}", factPersisted, event.sessionId());
     }
 
     @EventListener
