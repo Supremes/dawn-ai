@@ -83,6 +83,7 @@ import static org.mockito.Mockito.when;
         }
 )
 @ActiveProfiles("e2e-test")
+@Tag("e2e")
 @DisplayName("Memory Pipeline E2E — 真实 Redis + PGVector")
 @TestMethodOrder(MethodOrderer.DisplayName.class)
 class MemoryPipelineE2ETest {
@@ -168,11 +169,11 @@ class MemoryPipelineE2ETest {
     void e2e01_l1_messages_persisted_and_ordered_in_redis() {
         String sid = sid("l1-order");
 
-        memoryService.addMessage(sid, "user",      "你好，我是 Alice");
-        memoryService.addMessage(sid, "assistant", "你好 Alice！有什么可以帮你的？");
-        memoryService.addMessage(sid, "user",      "我想学 Go 语言的并发模型");
-        memoryService.addMessage(sid, "assistant", "建议从 goroutine 和 channel 入手。");
-        memoryService.addMessage(sid, "user",      "好的，先从 channel 开始");
+        memoryService.addMessage(sid, sid, "user",      "你好，我是 Alice");
+        memoryService.addMessage(sid, sid, "assistant", "你好 Alice！有什么可以帮你的？");
+        memoryService.addMessage(sid, sid, "user",      "我想学 Go 语言的并发模型");
+        memoryService.addMessage(sid, sid, "assistant", "建议从 goroutine 和 channel 入手。");
+        memoryService.addMessage(sid, sid, "user",      "好的，先从 channel 开始");
 
         List<Map<String, String>> history = memoryService.getHistory(sid);
 
@@ -193,8 +194,8 @@ class MemoryPipelineE2ETest {
     void e2e02_l1_clearSession_removes_redis_key() {
         String sid = sid("l1-clear");
 
-        memoryService.addMessage(sid, "user",      "待删消息 A");
-        memoryService.addMessage(sid, "assistant", "待删消息 B");
+        memoryService.addMessage(sid, sid, "user",      "待删消息 A");
+        memoryService.addMessage(sid, sid, "assistant", "待删消息 B");
         assertThat(memoryService.getHistory(sid)).hasSize(2);
 
         memoryService.clearSession(sid);
@@ -209,7 +210,7 @@ class MemoryPipelineE2ETest {
 
         // 发 25 条消息：前 20 条填满窗口，第 21-25 条每条溢出 1 条到 pending
         for (int i = 1; i <= 25; i++) {
-            memoryService.addMessage(sid, "user", "消息 " + i);
+            memoryService.addMessage(sid, sid, "user", "消息 " + i);
         }
 
         List<Map<String, String>> history = memoryService.getHistory(sid);
@@ -538,8 +539,8 @@ class MemoryPipelineE2ETest {
                 "混沌工程实践",          "技术债务量化管理"
         };
         for (int i = 0; i < 29; i++) {
-            memoryService.addMessage(sid, "user",      "请详细介绍" + topics[i]);
-            memoryService.addMessage(sid, "assistant", topics[i] + "的核心要点是：【详细解释】");
+            memoryService.addMessage(sid, sid, "user",      "请详细介绍" + topics[i]);
+            memoryService.addMessage(sid, sid, "assistant", topics[i] + "的核心要点是：【详细解释】");
         }
 
         // ── L1 验证：真实 Redis 活跃窗口 ≤ 20 条 ─────────────────────
@@ -595,7 +596,7 @@ class MemoryPipelineE2ETest {
     private void sendMessages(String sessionId, int count) {
         for (int i = 1; i <= count; i++) {
             String role = (i % 2 == 1) ? "user" : "assistant";
-            memoryService.addMessage(sessionId, role,
+            memoryService.addMessage(sessionId, sessionId, role,
                     "消息 " + i + "：Go 并发编程中关于 goroutine 调度的深度探讨");
         }
     }

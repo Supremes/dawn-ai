@@ -18,7 +18,7 @@ import java.util.function.Function;
  *
  * <p>模型在 system prompt 的"## 可用 Skills"清单中看到 skill 的 name+description 后，
  * 判断需要详细指令时调用本工具。返回的 {@code content} 是 SKILL.md 正文（不含 frontmatter），
- * {@code availableResources} 列出该 skill 目录下可继续 {@code read_skill_resource}
+ * {@code availableResources} 列出该 skill 目录下可继续 {@code readSkillResourceTool}
  * 加载的子文件路径（progressive disclosure 第二层入口）。
  */
 @Slf4j

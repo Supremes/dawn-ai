@@ -1,17 +1,15 @@
 package com.dawn.ai.memory;
 
+import com.dawn.ai.memory.event.EpisodicMemoryEvent;
+import com.dawn.ai.memory.event.FactsExtractedEvent;
+import com.dawn.ai.memory.event.ReflectionRequestEvent;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -19,47 +17,54 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Service
 public class MemoryConsolidator {
 
-    private final VectorStore vectorStore;
+    private final MemoryManager memoryManager;
     private final ApplicationEventPublisher eventPublisher;
     private final int reflectionThreshold;
 
     private final ConcurrentHashMap<String, AtomicInteger> consolidationCount = new ConcurrentHashMap<>();
 
-    public MemoryConsolidator(VectorStore vectorStore,
+    public MemoryConsolidator(MemoryManager memoryManager,
                                ApplicationEventPublisher eventPublisher,
-                               @Value("${app.memory.consolidation.reflection-threshold:10}") int reflectionThreshold) {
-        this.vectorStore = vectorStore;
+                               @Value("${app.memory.consolidation.reflection-threshold:3}") int reflectionThreshold) {
+        this.memoryManager = memoryManager;
         this.eventPublisher = eventPublisher;
         this.reflectionThreshold = reflectionThreshold;
     }
 
     @EventListener
     @Async
-    public void onConsolidationRequest(ConsolidationRequestEvent event) {
-        SummaryResult result = event.result();
-        Document doc = new Document(
-                UUID.randomUUID().toString(),
-                result.text(),
-                Map.of(
-                        "type", "summary",
-                        "sessionId", result.sessionId(),
-                        "importance", result.importanceScore(),
-                        "createdAt", result.createdAt().toEpochMilli(),
-                        "lastAccessedAt", result.createdAt().toEpochMilli()
-                )
-        );
+    public void onFactsExtracted(FactsExtractedEvent event) {
+        int factPersisted = event.facts().size();
+        for (String fact : event.facts()) {
+            try {
+                memoryManager.addWithDedup(event.userId(), event.sessionId(), fact, MemoryType.SEMANTIC, 0.6);
+            } catch (Exception e) {
+                log.warn("[MemoryConsolidator] Failed to persist fact for session={}: {}", event.sessionId(), e.getMessage());
+                factPersisted -= 1;
+            }
+        }
+        log.info("[MemoryConsolidator] Persisted {} semantic facts for session={}", factPersisted, event.sessionId());
+    }
+
+    @EventListener
+    @Async
+    public void onEpisodicMemory(EpisodicMemoryEvent event) {
         try {
-            vectorStore.add(List.of(doc));
-            log.info("[MemoryConsolidator] Persisted summary for session={}, importance={}", result.sessionId(), result.importanceScore());
+            memoryManager.add(event.userId(), event.sessionId(), event.summary(), MemoryType.EPISODIC, event.importance());
+            log.info("[MemoryConsolidator] Persisted episodic summary for session={}, importance={}", event.sessionId(), event.importance());
         } catch (Exception e) {
-            log.warn("[MemoryConsolidator] VectorStore write failed session={}: {}", result.sessionId(), e.getMessage());
+            log.warn("[MemoryConsolidator] Failed to persist episodic memory for session={}: {}", event.sessionId(), e.getMessage());
             return;
         }
 
-        AtomicInteger counter = consolidationCount.computeIfAbsent(result.sessionId(), k -> new AtomicInteger());
+        triggerReflectionIfNeeded(event.sessionId(), event.userId());
+    }
+
+    private void triggerReflectionIfNeeded(String sessionId, String userId) {
+        AtomicInteger counter = consolidationCount.computeIfAbsent(sessionId, k -> new AtomicInteger());
         int count = counter.incrementAndGet();
         if (count >= reflectionThreshold && counter.compareAndSet(count, 0)) {
-            eventPublisher.publishEvent(new ReflectionRequestEvent(result.sessionId()));
+            eventPublisher.publishEvent(new ReflectionRequestEvent(sessionId, userId));
         }
     }
 }

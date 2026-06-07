@@ -43,7 +43,7 @@ class MultiTurnCoherenceEvaluationTest extends AbstractEvaluationTest {
             List<Map<String, String>> snapshot = (List<Map<String, String>>) evalCase.context().get("memorySnapshot");
             if (snapshot != null) {
                 for (Map<String, String> msg : snapshot) {
-                    memoryService.addMessage(sessionId, msg.get("role"), msg.get("content"));
+                    memoryService.addMessage(sessionId, evalCase.id(), msg.get("role"), msg.get("content"));
                 }
             }
 

@@ -1,24 +1,21 @@
 # docker-compose.yml
 # Apple Silicon 本地开发：
-#   - embedding 服务由宿主机原生脚本提供（Metal GPU / MPS），不在容器中运行
 #   - 业务侧默认启动：app / postgres / redis
 #   - 可观测能力全部移到 docker-compose.observe.yml，按需 opt-in：
 #       --profile metrics  → Prometheus + Grafana
 #       --profile observe  → Langfuse 全家桶
 #
 # 启动步骤：
-#   1. ./scripts/start-embedding-mac.sh --daemon
-#   2. docker compose up -d
+#   1. docker compose up -d
 #                                                                            # 业务（最小）
-#   3. docker compose -f docker-compose.yml -f docker-compose.observe.yml --profile metrics up -d
+#   2. docker compose -f docker-compose.yml -f docker-compose.observe.yml --profile metrics up -d
 #                                                                            # + Prometheus/Grafana
-#   4. docker compose -f docker-compose.yml -f docker-compose.observe.yml --profile observe up -d
+#   3. docker compose -f docker-compose.yml -f docker-compose.observe.yml --profile observe up -d
 #                                                                            # + Langfuse 全家桶
-#   5. 全开：上一行再追加 `--profile metrics`
+#   4. 全开：上一行再追加 `--profile metrics`
 #
 # 停止：
 #   docker compose [上述同样的 -f / --profile 组合] down
-#   ./scripts/stop-embedding-mac.sh
 
 services:
   app:
@@ -53,8 +50,6 @@ services:
       # 外挂 skill 目录：宿主机 ./skills 下任何 SKILL.md 会覆盖 classpath skills-builtin/
       # 只读挂载，容器无法回写；reload 由 POST /actuator/skills 触发
       - ./skills:/app/skills:ro
-      # 覆盖 application.yml：解决 pgvector HNSW 索引不支持 >2000 维度的限制
-      - ./src/main/resources/application.yml:/app/config/application.yml:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -100,7 +95,6 @@ services:
       - dawn-network
 
 volumes:
-  huggingface_cache:
   postgres_data:
   redis_data:
 

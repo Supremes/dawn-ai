@@ -87,10 +87,11 @@ app:
     react:
       max-steps: 10        # 单次对话最多工具调用次数（超出时 LLM 自行收敛）
       show-steps: true    # 响应体中是否包含 steps 详情
-      plan-enabled: true   # 是否启用执行前规划（关闭后跳过 TaskPlanner)
+      plan-enabled: false   # 是否启用执行前规划（关闭后跳过 TaskPlanner)
     stream:
       timeout-ms: 1200000   # SSE 单次请求最大等待时长（毫秒）
     rag:
+      tool-enabled: false          # 是否把 knowledgeSearchTool 暴露给 Agent；测试时可设为 false
       chunk-size: 500                 # 单个 chunk 的 token 数
       chunk-overlap: 50              # 相邻 chunk 的重叠 token 数
       similarity-threshold: 0.6  # 向量相似度过滤阈值，低于此值的文档被丢弃 (bge-m3 cosine scores are typically 0.4-0.65)
@@ -130,8 +131,20 @@ app:
     path: ${APP_SKILLS_PATH:./skills}   # 外挂 skill 目录；classpath skills-builtin/ 永远作为兜底
 
   memory:
+    default-user-id: local-user        # 单用户部署：固定 userId，让长期记忆跨会话（sessionId）生效
+    max-history: 10                    # 每个 sessionId 的消息历史最大条数，超过时最早的消息会被丢弃到 pending list（Redis 列表）以备后续分析
+    search:
+      importance-weight: 0.3           # 召回加权：finalScore = similarity * (1 + w * importance)
+    injection:
+      procedural-top-k: 2              # 注入 system prompt 的 PROCEDURAL 记忆条数
+      semantic-top-k: 3               # 注入 system prompt 的 SEMANTIC 记忆条数
     summary:
-      batch-size: 3
+      batch-size: 4
+    extraction:
+      enabled: true                    # 是否启用 fact extraction（对齐 mem0）
+    dedup:
+      semantic-enabled: true           # 语义去重：fact 写入前用向量相似度拦同义改写
+      semantic-top-k: 10                # 语义去重候选数：先向量召回 topK，再交给 LLM 判断是否重复
     consolidation:
       reflection-threshold: 3
     eviction:
@@ -150,6 +163,9 @@ logging:
   level:
     com.dawn.ai: DEBUG
     org.springframework.ai: INFO
+    # 打印 Hibernate 实际执行的 SQL 及参数绑定（走 logback，落盘到 app.log）
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36}:%line - %msg%n"
 

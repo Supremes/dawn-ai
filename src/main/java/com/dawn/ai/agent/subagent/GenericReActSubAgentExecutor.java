@@ -1,5 +1,7 @@
 package com.dawn.ai.agent.subagent;
 
+import com.dawn.ai.agent.skill.Skill;
+import com.dawn.ai.agent.skill.SkillRegistry;
 import com.dawn.ai.agent.trace.AgentStep;
 import com.dawn.ai.agent.trace.StepCollector;
 import com.dawn.ai.agent.trace.StepCollectorContext;
@@ -17,6 +19,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -47,15 +50,18 @@ public class GenericReActSubAgentExecutor implements SubAgentExecutor {
 
     private final ChatClient chatClient;
     private final SubAgentRegistry registry;
+    private final SkillRegistry skillRegistry;
     private final ExecutorService subAgentExecutor;
     private final MeterRegistry meterRegistry;
 
     public GenericReActSubAgentExecutor(ChatClient chatClient,
                                          SubAgentRegistry registry,
+                                         SkillRegistry skillRegistry,
                                          @Qualifier("subAgentExecutor") ExecutorService subAgentExecutor,
                                          MeterRegistry meterRegistry) {
         this.chatClient = chatClient;
         this.registry = registry;
+        this.skillRegistry = skillRegistry;
         this.subAgentExecutor = subAgentExecutor;
         this.meterRegistry = meterRegistry;
     }
@@ -203,7 +209,7 @@ public class GenericReActSubAgentExecutor implements SubAgentExecutor {
         StepCollector.adoptContext(subCtx);
         try {
             ChatClient.ChatClientRequestSpec spec = chatClient.prompt()
-                    .system(def.systemPrompt())
+                    .system(def.systemPrompt() + formatSkills())
                     .user(task)
                     .toolNames(def.allowedTools().toArray(String[]::new));
 
@@ -222,6 +228,23 @@ public class GenericReActSubAgentExecutor implements SubAgentExecutor {
         } finally {
             StepCollector.adoptContext(previous);
         }
+    }
+
+    private String formatSkills() {
+        Collection<Skill> all = skillRegistry.list();
+        if (all.isEmpty()) {
+            return "\n\n## 可用 Skills\n当前没有可用 Skills；不要调用 loadSkillTool 或 readSkillResourceTool。";
+        }
+        StringBuilder sb = new StringBuilder("\n\n## 可用 Skills\n")
+                .append("仅当下方某个 skill 的 name 和 description 明确匹配当前任务时，")
+                .append("才调用 `loadSkillTool(name)` 加载完整指令；")
+                .append("需要 skill 的内嵌资源时调用 `readSkillResourceTool(skill, path)`。")
+                .append("只能使用下方列出的 skill name，不要发明或猜测不存在的 skill。\n\n");
+        for (Skill skill : all) {
+            sb.append("- **").append(skill.manifest().name()).append("**: ")
+                    .append(skill.manifest().description()).append("\n");
+        }
+        return sb.toString();
     }
 
     /**

@@ -1,11 +1,10 @@
 package com.dawn.ai.memory;
 
+import com.dawn.ai.memory.entity.MemoryEntity;
+import com.dawn.ai.memory.repository.MemoryRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -17,63 +16,44 @@ import java.util.List;
 @Service
 public class EvictionPolicyManager {
 
-    private final VectorStore vectorStore;
+    private final MemoryManager memoryManager;
+    private final MemoryRepository memoryRepository;
     private final double importanceThreshold;
     private final int maxAgeDays;
-
-    private static final String EVICTION_PROBE_QUERY = "对话历史摘要";
     private static final int EVICTION_BATCH = 500;
 
     public EvictionPolicyManager(
-            VectorStore vectorStore,
+            MemoryManager memoryManager,
+            MemoryRepository memoryRepository,
             @Value("${app.memory.eviction.importance-threshold:0.1}") double importanceThreshold,
             @Value("${app.memory.eviction.max-age-days:180}") int maxAgeDays) {
-        this.vectorStore = vectorStore;
+        this.memoryManager = memoryManager;
+        this.memoryRepository = memoryRepository;
         this.importanceThreshold = importanceThreshold;
         this.maxAgeDays = maxAgeDays;
     }
 
     @Scheduled(cron = "${app.memory.eviction.cron:0 0 3 * * ?}")
     public void evict() {
-        long cutoffMs = Instant.now().minus(maxAgeDays, ChronoUnit.DAYS).toEpochMilli();
+        Instant cutoff = Instant.now().minus(maxAgeDays, ChronoUnit.DAYS);
 
-        // Push eviction conditions to pgvector as metadata filters (SQL WHERE clause),
-        // so only genuinely stale docs are fetched — no in-memory post-filtering needed.
-        // Limitation: results are still similarity-ranked by the probe query; documents
-        // semantically far from it may not surface if total stale count > EVICTION_BATCH.
-        FilterExpressionBuilder fb = new FilterExpressionBuilder();
-        var filter = fb.and(
-                fb.and(
-                        fb.ne("type", "reflection"),
-                        fb.lt("importance", importanceThreshold)
-                ),
-                fb.lt("createdAt", cutoffMs)
-        ).build();
+        List<MemoryEntity> candidates = memoryRepository.findEvictionCandidates(
+                importanceThreshold, cutoff, PageRequest.of(0, EVICTION_BATCH));
 
-        List<Document> candidates;
-        try {
-            candidates = vectorStore.similaritySearch(
-                    SearchRequest.builder()
-                            .query(EVICTION_PROBE_QUERY)
-                            .topK(EVICTION_BATCH)
-                            .similarityThreshold(0.0)
-                            .filterExpression(filter)
-                            .build());
-        } catch (Exception e) {
-            log.warn("[EvictionPolicyManager] Failed to fetch eviction candidates: {}", e.getMessage());
-            return;
-        }
-
-        List<String> toDelete = candidates.stream()
-                .map(Document::getId)
-                .toList();
-
-        if (toDelete.isEmpty()) {
+        if (candidates.isEmpty()) {
             log.debug("[EvictionPolicyManager] No documents to evict");
             return;
         }
-        vectorStore.delete(toDelete);
+
+        for (MemoryEntity entity : candidates) {
+            try {
+                memoryManager.delete(entity.getId().toString());
+            } catch (Exception e) {
+                log.warn("[EvictionPolicyManager] Failed to evict memory={}: {}", entity.getId(), e.getMessage());
+            }
+        }
+
         log.info("[EvictionPolicyManager] Evicted {} documents (importance<{}, age>{}d)",
-                toDelete.size(), importanceThreshold, maxAgeDays);
+                candidates.size(), importanceThreshold, maxAgeDays);
     }
 }

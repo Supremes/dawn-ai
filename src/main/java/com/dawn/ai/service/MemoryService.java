@@ -1,6 +1,6 @@
 package com.dawn.ai.service;
 
-import com.dawn.ai.memory.SummarizationRequestEvent;
+import com.dawn.ai.memory.event.SummarizationRequestEvent;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
@@ -20,7 +20,6 @@ public class MemoryService {
 
     private static final String SESSION_PREFIX = "ai:session:";
     private static final String PENDING_SUFFIX = ":pending";
-    private static final int MAX_HISTORY = 20;
     private static final Duration SESSION_TTL = Duration.ofHours(2);
 
     private final RedisTemplate<String, Object> redisTemplate;
@@ -32,8 +31,11 @@ public class MemoryService {
     private Counter redisWriteFailureCounter;
     private Counter redisReadFailureCounter;
 
-    @Value("${app.memory.summary.batch-size:5}")
+    @Value("${app.memory.summary.batch-size:3}")
     private int summaryBatchSize;
+
+    @Value("${app.memory.max-history:10}")
+    private int maxHistory;
 
     public MemoryService(RedisTemplate<String, Object> redisTemplate,
                          MeterRegistry meterRegistry,
@@ -56,16 +58,16 @@ public class MemoryService {
     }
 
     @SuppressWarnings("unchecked")
-    public void addMessage(String sessionId, String role, String content) {
+    public void addMessage(String sessionId, String userId, String role, String content) {
         String key = SESSION_PREFIX + sessionId;
         Map<String, String> message = Map.of("role", role, "content", content);
         try {
             redisTemplate.opsForList().rightPush(key, message);
             Long size = redisTemplate.opsForList().size(key);
-            if (size != null && size > MAX_HISTORY) {
+            if (size != null && size > maxHistory) {
                 Object popped = redisTemplate.opsForList().leftPop(key);
                 if (popped instanceof Map<?, ?> poppedMsg) {
-                    enqueuePending(sessionId, (Map<String, String>) poppedMsg);
+                    enqueuePending(sessionId, userId, (Map<String, String>) poppedMsg);
                 }
             }
             redisTemplate.expire(key, SESSION_TTL);
@@ -124,7 +126,7 @@ public class MemoryService {
         }
     }
 
-    private void enqueuePending(String sessionId, Map<String, String> message) {
+    private void enqueuePending(String sessionId, String userId, Map<String, String> message) {
         String pendingKey = SESSION_PREFIX + sessionId + PENDING_SUFFIX;
         try {
             redisTemplate.opsForList().rightPush(pendingKey, message);
@@ -133,7 +135,7 @@ public class MemoryService {
             if (pendingSize != null && pendingSize >= summaryBatchSize) {
                 List<Map<String, String>> batch = drainPending(sessionId);
                 if (!batch.isEmpty()) {
-                    eventPublisher.publishEvent(new SummarizationRequestEvent(sessionId, batch));
+                    eventPublisher.publishEvent(new SummarizationRequestEvent(sessionId, userId, batch));
                 }
             }
         } catch (Exception e) {
@@ -145,7 +147,7 @@ public class MemoryService {
         List<Map<String, String>> list = fallbackStore.computeIfAbsent(sessionId, k -> new ArrayList<>());
         synchronized (list) {
             list.add(message);
-            if (list.size() > MAX_HISTORY) list.remove(0);
+            if (list.size() > maxHistory) list.remove(0);
         }
     }
 }

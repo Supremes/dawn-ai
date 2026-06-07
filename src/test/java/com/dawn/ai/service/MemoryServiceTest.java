@@ -1,6 +1,6 @@
 package com.dawn.ai.service;
 
-import com.dawn.ai.memory.SummarizationRequestEvent;
+import com.dawn.ai.memory.event.SummarizationRequestEvent;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,8 +36,8 @@ class MemoryServiceTest {
     void addMessage_fallsBackToMemoryWhenRedisFails() {
         doThrow(new RuntimeException("Redis down")).when(listOps).rightPush(anyString(), any());
 
-        memoryService.addMessage("session1", "user", "hello");
-        memoryService.addMessage("session1", "assistant", "hi");
+        memoryService.addMessage("session1", "user1", "user", "hello");
+        memoryService.addMessage("session1", "user1", "assistant", "hi");
 
         doThrow(new RuntimeException("Redis down")).when(listOps).range(anyString(), anyLong(), anyLong());
         List<Map<String, String>> history = memoryService.getHistory("session1");
@@ -59,7 +59,7 @@ class MemoryServiceTest {
         when(listOps.range(argThat(k -> k != null && k.contains(":pending")), anyLong(), anyLong()))
                 .thenReturn(List.of(poppedMsg));
 
-        memoryService.addMessage("session1", "user", "msg");
+        memoryService.addMessage("session1", "user1", "user", "msg");
 
         verify(eventPublisher).publishEvent(any(SummarizationRequestEvent.class));
     }
@@ -75,7 +75,7 @@ class MemoryServiceTest {
     @Test
     void clearSession_removesSessionFromFallback() {
         doThrow(new RuntimeException("Redis down")).when(listOps).rightPush(anyString(), any());
-        memoryService.addMessage("session1", "user", "hello");
+        memoryService.addMessage("session1", "user1", "user", "hello");
 
         memoryService.clearSession("session1");
 

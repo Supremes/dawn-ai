@@ -133,7 +133,7 @@ public record SummarizationRequestEvent(String sessionId, List<Map<String, Strin
 ```java
 package com.dawn.ai.service;
 
-import com.dawn.ai.memory.SummarizationRequestEvent;
+import com.dawn.ai.memory.event.SummarizationRequestEvent;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -236,7 +236,7 @@ Expected: FAILURE (class not yet updated)
 ```java
 package com.dawn.ai.service;
 
-import com.dawn.ai.memory.SummarizationRequestEvent;
+import com.dawn.ai.memory.event.SummarizationRequestEvent;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
@@ -423,6 +423,7 @@ public record SummaryResult(String sessionId, String text, double importanceScor
 ```java
 package com.dawn.ai.memory;
 
+import com.dawn.ai.memory.event.SummarizationRequestEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
@@ -473,8 +474,8 @@ class MemorySummarizerTest {
 
         verify(eventPublisher).publishEvent(argThat(e ->
                 e instanceof ConsolidationRequestEvent cre &&
-                "session1".equals(cre.result().sessionId()) &&
-                cre.result().text().contains("天气")
+                        "session1".equals(cre.result().sessionId()) &&
+                        cre.result().text().contains("天气")
         ));
     }
 
@@ -492,7 +493,7 @@ class MemorySummarizerTest {
         // Should still publish with fallback text
         verify(eventPublisher).publishEvent(argThat(e ->
                 e instanceof ConsolidationRequestEvent cre &&
-                cre.result().importanceScore() < 0.4
+                        cre.result().importanceScore() < 0.4
         ));
     }
 }
@@ -519,6 +520,7 @@ public record ConsolidationRequestEvent(SummaryResult result) {}
 ```java
 package com.dawn.ai.memory;
 
+import com.dawn.ai.memory.event.SummarizationRequestEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -528,8 +530,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -542,7 +542,7 @@ public class MemorySummarizer {
 
     private static final String PROMPT_TEMPLATE =
             "以下是一段对话历史，请将其压缩成简洁的摘要（100字以内），保留关键信息、用户偏好和重要事实。\n" +
-            "对话历史:\n%s\n摘要:";
+                    "对话历史:\n%s\n摘要:";
 
     @EventListener
     @Async
@@ -599,14 +599,13 @@ git commit -m "feat(memory): summary buffer - async LLM compression of evicted m
 ```java
 package com.dawn.ai.memory;
 
+import com.dawn.ai.memory.event.ReflectionRequestEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Instant;
-import java.util.List;
 
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
@@ -631,9 +630,9 @@ class MemoryConsolidatorTest {
 
         verify(vectorStore).add(argThat(docs ->
                 docs.size() == 1 &&
-                docs.get(0).getText().equals("User prefers Python.") &&
-                "summary".equals(docs.get(0).getMetadata().get("type")) &&
-                "s1".equals(docs.get(0).getMetadata().get("sessionId"))
+                        docs.get(0).getText().equals("User prefers Python.") &&
+                        "summary".equals(docs.get(0).getMetadata().get("type")) &&
+                        "s1".equals(docs.get(0).getMetadata().get("sessionId"))
         ));
     }
 
@@ -682,6 +681,7 @@ public record ReflectionRequestEvent(String sessionId) {}
 ```java
 package com.dawn.ai.memory;
 
+import com.dawn.ai.memory.event.ReflectionRequestEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -708,8 +708,8 @@ public class MemoryConsolidator {
     private final ConcurrentHashMap<String, AtomicInteger> consolidationCount = new ConcurrentHashMap<>();
 
     public MemoryConsolidator(VectorStore vectorStore,
-                               ApplicationEventPublisher eventPublisher,
-                               @Value("${app.memory.consolidation.reflection-threshold:10}") int reflectionThreshold) {
+                              ApplicationEventPublisher eventPublisher,
+                              @Value("${app.memory.consolidation.reflection-threshold:10}") int reflectionThreshold) {
         this.vectorStore = vectorStore;
         this.eventPublisher = eventPublisher;
         this.reflectionThreshold = reflectionThreshold;
@@ -1175,6 +1175,7 @@ git commit -m "feat(memory): decay/eviction - scheduled removal of stale low-imp
 ```java
 package com.dawn.ai.memory;
 
+import com.dawn.ai.memory.event.ReflectionRequestEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
@@ -1223,8 +1224,8 @@ class ReflectionWorkerTest {
 
         verify(vectorStore).add(argThat(docs ->
                 docs.size() == 1 &&
-                docs.get(0).getMetadata().get("type").equals("reflection") &&
-                ((Number) docs.get(0).getMetadata().get("importance")).doubleValue() >= 0.8
+                        docs.get(0).getMetadata().get("type").equals("reflection") &&
+                        ((Number) docs.get(0).getMetadata().get("importance")).doubleValue() >= 0.8
         ));
     }
 
@@ -1270,6 +1271,7 @@ Expected: FAILURE
 ```java
 package com.dawn.ai.memory;
 
+import com.dawn.ai.memory.event.ReflectionRequestEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
@@ -1297,7 +1299,7 @@ public class ReflectionWorker {
 
     private static final String REFLECT_PROMPT =
             "以下是用户的多段对话摘要，请从中提炼出用户的长期偏好、习惯和重要特征（200字以内）。\n" +
-            "摘要集合:\n%s\n用户画像提炼:";
+                    "摘要集合:\n%s\n用户画像提炼:";
 
     public ReflectionWorker(
             VectorStore vectorStore,

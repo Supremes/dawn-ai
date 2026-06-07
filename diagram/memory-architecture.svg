@@ -1,0 +1,302 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1480" height="2040" viewBox="0 0 1480 2040" font-family="'Segoe UI','PingFang SC','Microsoft YaHei',Helvetica,Arial,sans-serif">
+  <defs>
+    <style>
+      .band      { fill:#11161d; stroke:#30363d; stroke-width:1; rx:14; }
+      .bandlabel { fill:#e6edf3; font-size:18px; font-weight:700; }
+      .bandtag   { fill:#8b949e; font-size:12px; }
+      .card      { fill:#161b22; stroke-width:1.6; rx:10; }
+      .title     { fill:#e6edf3; font-size:15px; font-weight:700; }
+      .sub       { fill:#c9d1d9; font-size:12.5px; }
+      .dim       { fill:#8b949e; font-size:11.5px; }
+      .mono      { font-family:'SFMono-Regular',Consolas,monospace; }
+      .pill      { rx:7; }
+      .edge      { fill:none; stroke-width:2; }
+      .elabel    { font-size:11.5px; font-weight:600; }
+      .ico       { font-size:13px; font-weight:700; }
+    </style>
+    <marker id="aBlue"   markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#58a6ff"/></marker>
+    <marker id="aGreen"  markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#3fb950"/></marker>
+    <marker id="aPurple" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#bc8cff"/></marker>
+    <marker id="aRed"    markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#f85149"/></marker>
+    <marker id="aOrange" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#d29922"/></marker>
+    <marker id="aGray"   markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#8b949e"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="1480" height="2040" fill="#0d1117"/>
+
+  <!-- ===================== TITLE ===================== -->
+  <text x="40" y="44" fill="#e6edf3" font-size="26" font-weight="800">Dawn AI · 记忆系统架构 (Memory Architecture)</text>
+  <text x="40" y="72" fill="#8b949e" font-size="14">认知科学启发的分层记忆：工作记忆(Redis) → 事件驱动整合管线 → 长期记忆(PGVector + PostgreSQL) → 生命周期治理</text>
+  <text x="40" y="92" fill="#6e7681" font-size="12.5">三类记忆 SEMANTIC / EPISODIC / PROCEDURAL · 摘要-抽取-整合-反思 · 重要度衰减 / 淘汰 / 强化</text>
+
+  <!-- ===================== BAND A: Retrieval ===================== -->
+  <rect class="band" x="40" y="112" width="1400" height="190" fill="#0f1620" stroke="#1f6feb" stroke-opacity="0.5"/>
+  <text class="bandlabel" x="60" y="140" fill="#58a6ff">① 检索注入层 · Agent Retrieval</text>
+  <text class="bandtag" x="60" y="158">AgentOrchestrator 在每轮对话组装 System Prompt + 历史消息后调用 LLM</text>
+
+  <!-- Orchestrator main box -->
+  <rect class="card" x="60" y="172" width="320" height="112" stroke="#58a6ff"/>
+  <text class="title" x="76" y="196">AgentOrchestrator</text>
+  <text class="dim mono" x="76" y="216">buildSystemPrompt()</text>
+  <text class="dim mono" x="76" y="233">buildHistory()</text>
+  <text class="sub" x="76" y="256">组装：用户画像 + 相关记忆 +</text>
+  <text class="sub" x="76" y="273">近期历史 → 调用 ChatModel</text>
+
+  <!-- three retrieval pills -->
+  <rect class="card pill" x="420" y="176" width="320" height="50" stroke="#39d2c0"/>
+  <text class="sub" x="436" y="198" fill="#39d2c0" font-weight="700">getHistory(sessionId)</text>
+  <text class="dim" x="436" y="216">→ 近期对话消息（工作记忆）</text>
+
+  <rect class="card pill" x="420" y="232" width="320" height="50" stroke="#3fb950"/>
+  <text class="sub mono" x="436" y="254" fill="#3fb950" font-weight="700">memoryManager.search(q, topK=5)</text>
+  <text class="dim" x="436" y="272">→ 【相关记忆】注入 Prompt</text>
+
+  <rect class="card pill" x="760" y="204" width="300" height="50" stroke="#f778ba"/>
+  <text class="sub mono" x="776" y="226" fill="#f778ba" font-weight="700">formatForSystemPrompt()</text>
+  <text class="dim" x="776" y="244">→ 【用户画像】注入 Prompt</text>
+
+  <!-- LLM output -->
+  <rect class="card" x="1090" y="176" width="320" height="106" stroke="#bc8cff"/>
+  <text class="title" x="1106" y="200">→ Spring AI ChatClient</text>
+  <text class="sub" x="1106" y="222">System Prompt（画像+记忆）</text>
+  <text class="sub" x="1106" y="242">+ History Messages</text>
+  <text class="dim" x="1106" y="266">每轮对话写回 addMessage()</text>
+
+  <line class="edge" x1="380" y1="201" x2="416" y2="201" stroke="#39d2c0" marker-end="url(#aGreen)"/>
+  <line class="edge" x1="380" y1="257" x2="416" y2="257" stroke="#3fb950" marker-end="url(#aGreen)"/>
+  <line class="edge" x1="380" y1="229" x2="756" y2="229" stroke="#f778ba" marker-end="url(#aPurple)" opacity="0.7"/>
+  <line class="edge" x1="1060" y1="229" x2="1086" y2="229" stroke="#bc8cff" marker-end="url(#aPurple)"/>
+
+  <!-- ===================== BAND B: Working Memory (Redis) ===================== -->
+  <rect class="band" x="40" y="326" width="1400" height="232" fill="#1a140c" stroke="#d29922" stroke-opacity="0.45"/>
+  <text class="bandlabel" x="60" y="354" fill="#d29922">② 工作记忆 · Working Memory（Redis）</text>
+  <text class="bandtag" x="60" y="372">MemoryService — 短期会话上下文，溢出触发整合；UserProfileService — 长期用户画像</text>
+
+  <!-- MemoryService -->
+  <rect class="card" x="60" y="388" width="250" height="150" stroke="#d29922"/>
+  <text class="title" x="76" y="412">MemoryService</text>
+  <text class="dim mono" x="76" y="432">addMessage / getHistory</text>
+  <text class="dim" x="76" y="452">每轮 user/assistant 入栈</text>
+  <text class="dim" x="76" y="472">rightPush → 超限 leftPop</text>
+  <text class="sub" x="76" y="500" fill="#f0883e">降级：ConcurrentHashMap</text>
+  <text class="dim" x="76" y="518">Metric: agent.memory.redis.failure</text>
+
+  <!-- session list -->
+  <rect class="card" x="340" y="388" width="290" height="150" stroke="#e3b341"/>
+  <text class="title" x="356" y="412">会话历史 List</text>
+  <text class="dim mono" x="356" y="432" fill="#e3b341">ai:session:{sessionId}</text>
+  <text class="sub" x="356" y="456">• Redis List 结构</text>
+  <text class="sub" x="356" y="476">• MAX_HISTORY = 20 条</text>
+  <text class="sub" x="356" y="496">• TTL = 2 小时</text>
+  <text class="dim" x="356" y="520">溢出最旧消息 → pending 队列</text>
+
+  <!-- pending -->
+  <rect class="card" x="660" y="388" width="320" height="150" stroke="#f85149"/>
+  <text class="title" x="676" y="412">待整合队列 pending</text>
+  <text class="dim mono" x="676" y="432" fill="#f85149">ai:session:{id}:pending</text>
+  <text class="sub" x="676" y="456">• 累计 ≥ batch-size(5) 触发</text>
+  <text class="sub" x="676" y="476">• drainPending：rename 原子排空</text>
+  <text class="sub" x="676" y="498" fill="#bc8cff" font-weight="700">→ publish SummarizationRequestEvent</text>
+  <text class="dim" x="676" y="518">进入异步整合管线 ③</text>
+
+  <!-- user profile -->
+  <rect class="card" x="1010" y="388" width="400" height="150" stroke="#f778ba"/>
+  <text class="title" x="1026" y="412">UserProfileService（用户画像）</text>
+  <text class="dim mono" x="1026" y="432" fill="#f778ba">ai:profile:{userId}  ·  Redis Hash</text>
+  <text class="sub" x="1026" y="456">• upsertAttribute(key, value)，TTL = 30 天</text>
+  <text class="sub" x="1026" y="476">• 由 ReflectionWorker 写入 reflection 画像</text>
+  <text class="sub" x="1026" y="496">• getProfile → formatForSystemPrompt()</text>
+  <text class="dim" x="1026" y="518">为检索注入层 ① 提供【用户画像】</text>
+
+  <line class="edge" x1="310" y1="430" x2="336" y2="430" stroke="#d29922" marker-end="url(#aOrange)"/>
+  <line class="edge" x1="630" y1="445" x2="656" y2="445" stroke="#f85149" marker-end="url(#aRed)"/>
+  <!-- profile back up to band A pill -->
+  <line class="edge" x1="1210" y1="388" x2="910" y2="258" stroke="#f778ba" marker-end="url(#aPurple)" opacity="0.6" stroke-dasharray="5 4"/>
+
+  <!-- ===================== BAND C: Consolidation Pipeline ===================== -->
+  <rect class="band" x="40" y="582" width="1400" height="470" fill="#150f1f" stroke="#bc8cff" stroke-opacity="0.45"/>
+  <text class="bandlabel" x="60" y="610" fill="#bc8cff">③ 异步整合管线 · Consolidation Pipeline（Spring Event @Async）</text>
+  <text class="bandtag" x="60" y="628">摘要 → 事实抽取 → 整合落库 → 反思提炼画像；全部基于 ApplicationEvent 解耦、异步执行</text>
+
+  <!-- trigger event -->
+  <rect class="card pill" x="60" y="648" width="300" height="52" stroke="#bc8cff"/>
+  <text class="sub mono" x="76" y="670" fill="#bc8cff" font-weight="700">SummarizationRequestEvent</text>
+  <text class="dim" x="76" y="688">(sessionId, userId, messages[5])</text>
+
+  <!-- fan: summarizer + extractor -->
+  <rect class="card" x="60" y="730" width="430" height="120" stroke="#39d2c0"/>
+  <text class="title" x="76" y="754">MemorySummarizer  <tspan class="dim" font-size="11">@Async</tspan></text>
+  <text class="sub" x="76" y="776">LLM 将对话压缩成 ≤100字摘要</text>
+  <text class="dim" x="76" y="796">失败降级：原文 + importance 0.3</text>
+  <text class="sub mono" x="76" y="822" fill="#bc8cff" font-weight="700">→ EpisodicMemoryEvent</text>
+  <text class="dim" x="76" y="840">(summary, importance=0.5/0.3)</text>
+
+  <rect class="card" x="520" y="730" width="430" height="120" stroke="#39d2c0"/>
+  <text class="title" x="536" y="754">FactExtractor  <tspan class="dim" font-size="11">@Async</tspan></text>
+  <text class="sub" x="536" y="776">LLM 从用户消息抽取事实/偏好</text>
+  <text class="dim mono" x="536" y="796">返回 JSON {"facts":[...]}</text>
+  <text class="sub mono" x="536" y="822" fill="#bc8cff" font-weight="700">→ FactsExtractedEvent</text>
+  <text class="dim" x="536" y="840">(facts: List&lt;String&gt;)</text>
+
+  <!-- consolidator -->
+  <rect class="card" x="60" y="880" width="890" height="120" stroke="#3fb950"/>
+  <text class="title" x="76" y="904">MemoryConsolidator  <tspan class="dim" font-size="11">@Async · 事件落库</tspan></text>
+  <text class="sub" x="76" y="928">onEpisodicMemory → <tspan class="mono" fill="#e3b341">add(EPISODIC, imp)</tspan>，并计数 ≥3 触发反思</text>
+  <text class="sub" x="76" y="950">onFactsExtracted → <tspan class="mono" fill="#58a6ff">addWithDedup(SEMANTIC, 0.6)</tspan> 逐条去重落库</text>
+  <text class="sub mono" x="76" y="976" fill="#bc8cff" font-weight="700">→ ReflectionRequestEvent（每累计 3 条情景记忆触发一次）</text>
+
+  <!-- reflection worker -->
+  <rect class="card" x="980" y="730" width="430" height="270" stroke="#f778ba"/>
+  <text class="title" x="996" y="754">ReflectionWorker  <tspan class="dim" font-size="11">@Async</tspan></text>
+  <text class="sub" x="996" y="780">检索 EPISODIC(top4) 摘要集合</text>
+  <text class="sub" x="996" y="802">LLM 提炼长期偏好/习惯/画像</text>
+  <text class="dim" x="996" y="822">(episodes 不足阈值则跳过)</text>
+  <text class="sub mono" x="996" y="852" fill="#e3b341" font-weight="700">→ add(PROCEDURAL, 0.9)</text>
+  <text class="sub mono" x="996" y="876" fill="#f778ba" font-weight="700">→ UserProfile.upsert("reflection")</text>
+  <text class="dim" x="996" y="902">程序性记忆 = 用户画像，重要度最高</text>
+  <text class="dim" x="996" y="924">写入长期记忆 ④ + Redis 画像 ②</text>
+
+  <!-- edges in band C -->
+  <line class="edge" x1="160" y1="700" x2="200" y2="726" stroke="#bc8cff" marker-end="url(#aPurple)"/>
+  <line class="edge" x1="300" y1="700" x2="640" y2="726" stroke="#bc8cff" marker-end="url(#aPurple)"/>
+  <line class="edge" x1="275" y1="850" x2="320" y2="876" stroke="#bc8cff" marker-end="url(#aPurple)"/>
+  <line class="edge" x1="735" y1="850" x2="640" y2="876" stroke="#bc8cff" marker-end="url(#aPurple)"/>
+  <line class="edge" x1="950" y1="940" x2="1100" y2="940" stroke="#bc8cff" marker-end="url(#aPurple)" opacity="0.8"/>
+  <line class="edge" x1="1100" y1="940" x2="1100" y2="1004" stroke="#bc8cff" opacity="0.5" stroke-dasharray="4 4"/>
+  <line class="edge" x1="1195" y1="730" x2="1195" y2="700" stroke="#bc8cff" marker-end="url(#aPurple)" opacity="0.7"/>
+  <text class="dim elabel" x="1205" y="718" fill="#bc8cff">ReflectionRequestEvent ↺</text>
+
+  <!-- ===================== BAND D: Long-Term Memory ===================== -->
+  <rect class="band" x="40" y="1076" width="1400" height="430" fill="#0c1a17" stroke="#39d2c0" stroke-opacity="0.45"/>
+  <text class="bandlabel" x="60" y="1104" fill="#39d2c0">④ 长期记忆存储 · Long-Term Memory（MemoryManager）</text>
+  <text class="bandtag" x="60" y="1122">双写一致性：先写 VectorStore 再提交 JPA；JPA 为真相源，search 回查过滤软删除；全程审计</text>
+
+  <!-- MemoryManager core -->
+  <rect class="card" x="60" y="1140" width="360" height="200" stroke="#39d2c0"/>
+  <text class="title" x="76" y="1164">MemoryManager</text>
+  <text class="dim mono" x="76" y="1184">add / addWithDedup</text>
+  <text class="dim mono" x="76" y="1202">search / update / delete</text>
+  <text class="sub" x="76" y="1226">• MD5 去重（hash+userId）</text>
+  <text class="sub" x="76" y="1248">• 双写：VectorStore → JPA</text>
+  <text class="sub" x="76" y="1270">• 软删除 deleted，JPA 为真相</text>
+  <text class="sub" x="76" y="1292">• search 回查 JPA 过滤陈旧向量</text>
+  <text class="sub" x="76" y="1314">• 命中即 updateLastAccessedAt</text>
+
+  <!-- PGVector -->
+  <rect class="card" x="450" y="1140" width="300" height="135" stroke="#58a6ff"/>
+  <text class="title" x="466" y="1164">PGVector 向量库</text>
+  <text class="dim mono" x="466" y="1184" fill="#58a6ff">collection: memory_entries</text>
+  <text class="sub" x="466" y="1208">• Embedding 相似度检索</text>
+  <text class="sub" x="466" y="1230">• 元数据：type/userId/importance</text>
+  <text class="dim" x="466" y="1252">similaritySearch(topK, filter)</text>
+
+  <!-- Postgres entity -->
+  <rect class="card" x="450" y="1287" width="300" height="125" stroke="#3fb950"/>
+  <text class="title" x="466" y="1311">PostgreSQL · MemoryEntity</text>
+  <text class="dim mono" x="466" y="1331" fill="#3fb950">table: memory_entries</text>
+  <text class="sub" x="466" y="1353">真相源 · 索引(userId/type/hash)</text>
+  <text class="dim" x="466" y="1374">id,content,importance,deleted,</text>
+  <text class="dim" x="466" y="1392">createdAt,lastAccessedAt …</text>
+
+  <!-- history -->
+  <rect class="card" x="780" y="1287" width="300" height="125" stroke="#8b949e"/>
+  <text class="title" x="796" y="1311">MemoryHistory（审计）</text>
+  <text class="dim mono" x="796" y="1331">table: memory_history</text>
+  <text class="sub" x="796" y="1353">event: ADD / UPDATE / DELETE</text>
+  <text class="dim" x="796" y="1374">oldContent / newContent 留痕</text>
+  <text class="dim" x="796" y="1392">每次变更追加一条历史</text>
+
+  <!-- memory types -->
+  <rect class="card" x="780" y="1140" width="630" height="135" stroke="#e3b341"/>
+  <text class="title" x="796" y="1164">三类记忆 · MemoryType</text>
+  <rect class="pill" x="796" y="1178" width="190" height="82" fill="#1c2333" stroke="#58a6ff" stroke-width="1.4" rx="8"/>
+  <text class="sub" x="810" y="1200" fill="#58a6ff" font-weight="700">SEMANTIC</text>
+  <text class="dim" x="810" y="1220">语义 / 事实偏好</text>
+  <text class="dim" x="810" y="1238">来源：FactExtractor</text>
+  <text class="dim" x="810" y="1254">importance ≈ 0.6</text>
+  <rect class="pill" x="1000" y="1178" width="190" height="82" fill="#1c2333" stroke="#e3b341" stroke-width="1.4" rx="8"/>
+  <text class="sub" x="1014" y="1200" fill="#e3b341" font-weight="700">EPISODIC</text>
+  <text class="dim" x="1014" y="1220">情景 / 会话摘要</text>
+  <text class="dim" x="1014" y="1238">来源：Summarizer</text>
+  <text class="dim" x="1014" y="1254">importance ≈ 0.5</text>
+  <rect class="pill" x="1204" y="1178" width="192" height="82" fill="#1c2333" stroke="#f778ba" stroke-width="1.4" rx="8"/>
+  <text class="sub" x="1218" y="1200" fill="#f778ba" font-weight="700">PROCEDURAL</text>
+  <text class="dim" x="1218" y="1220">程序 / 用户画像</text>
+  <text class="dim" x="1218" y="1238">来源：Reflection</text>
+  <text class="dim" x="1218" y="1254">imp 0.9 · 永不淘汰</text>
+
+  <!-- edges band D -->
+  <line class="edge" x1="420" y1="1190" x2="446" y2="1200" stroke="#3fb950" marker-end="url(#aGreen)"/>
+  <text class="dim elabel" x="424" y="1184" fill="#3fb950">① VectorStore</text>
+  <line class="edge" x1="420" y1="1330" x2="446" y2="1345" stroke="#3fb950" marker-end="url(#aGreen)"/>
+  <text class="dim elabel" x="424" y="1320" fill="#3fb950">② JPA commit</text>
+  <line class="edge" x1="600" y1="1287" x2="600" y2="1277" stroke="#8b949e" opacity="0.5"/>
+  <line class="edge" x1="750" y1="1349" x2="776" y2="1349" stroke="#8b949e" marker-end="url(#aGray)"/>
+
+  <!-- consolidator/reflection writes into MemoryManager (cross-band) -->
+  <line class="edge" x1="240" y1="1000" x2="240" y2="1136" stroke="#3fb950" marker-end="url(#aGreen)"/>
+  <text class="dim elabel" x="250" y="1060" fill="#3fb950">整合落库 add()</text>
+  <line class="edge" x1="1100" y1="1004" x2="300" y2="1138" stroke="#f778ba" marker-end="url(#aPurple)" opacity="0.45" stroke-dasharray="5 4"/>
+
+  <!-- retrieval read from band A into MemoryManager -->
+  <line class="edge" x1="540" y1="284" x2="540" y2="318" stroke="#3fb950" opacity="0.0"/>
+  <path class="edge" d="M150,257 L150,300 L40,300" stroke="#3fb950" opacity="0"/>
+  <line class="edge" x1="240" y1="1136" x2="240" y2="1136" stroke="#3fb950"/>
+
+  <!-- ===================== BAND E: Lifecycle ===================== -->
+  <rect class="band" x="40" y="1530" width="1400" height="230" fill="#1a0e0e" stroke="#f85149" stroke-opacity="0.45"/>
+  <text class="bandlabel" x="60" y="1558" fill="#f85149">⑤ 生命周期治理 · Lifecycle（@Scheduled / @Async）</text>
+  <text class="bandtag" x="60" y="1576">遗忘曲线：重要度随时间指数衰减，低价值过期记忆被淘汰，访问则强化——模拟人类记忆消退与巩固</text>
+
+  <rect class="card" x="60" y="1592" width="430" height="150" stroke="#d29922"/>
+  <text class="title" x="76" y="1616">ImportanceDecayManager</text>
+  <text class="dim mono" x="76" y="1636">@Scheduled cron 03:30</text>
+  <text class="sub" x="76" y="1660">对 EPISODIC 记忆指数衰减：</text>
+  <text class="sub mono" x="76" y="1684" fill="#e3b341">imp = imp · e^(−ln2·Δdays / 30)</text>
+  <text class="dim" x="76" y="1706">半衰期 30 天 · 下限 0.01</text>
+  <text class="dim" x="76" y="1726">越久未访问，重要度越低</text>
+
+  <rect class="card" x="520" y="1592" width="430" height="150" stroke="#f85149"/>
+  <text class="title" x="536" y="1616">EvictionPolicyManager</text>
+  <text class="dim mono" x="536" y="1636">@Scheduled cron 03:00</text>
+  <text class="sub" x="536" y="1660">淘汰候选：</text>
+  <text class="sub mono" x="536" y="1684" fill="#f85149">importance &lt; 0.1  AND  age &gt; 180d</text>
+  <text class="sub" x="536" y="1708">排除 PROCEDURAL（画像永久保留）</text>
+  <text class="dim" x="536" y="1728">软删除 + 清理向量 + 写审计</text>
+
+  <rect class="card" x="980" y="1592" width="430" height="150" stroke="#3fb950"/>
+  <text class="title" x="996" y="1616">MemoryAccessUpdater</text>
+  <text class="dim mono" x="996" y="1636">@Async · 命中即更新</text>
+  <text class="sub" x="996" y="1660">检索命中 → updateLastAccessedAt</text>
+  <text class="sub" x="996" y="1684">刷新访问时间 = 记忆强化</text>
+  <text class="dim" x="996" y="1708">抵抗衰减，延缓淘汰</text>
+  <text class="dim" x="996" y="1728">高频使用的记忆得以保留</text>
+
+  <!-- edges to MemoryManager/Postgres -->
+  <line class="edge" x1="275" y1="1592" x2="275" y2="1410" stroke="#d29922" marker-end="url(#aOrange)" opacity="0.8"/>
+  <text class="dim elabel" x="285" y="1500" fill="#d29922">updateImportance</text>
+  <line class="edge" x1="735" y1="1592" x2="735" y2="1416" stroke="#f85149" marker-end="url(#aRed)" opacity="0.8"/>
+  <text class="dim elabel" x="745" y="1500" fill="#f85149">delete()</text>
+  <line class="edge" x1="1100" y1="1592" x2="600" y2="1416" stroke="#3fb950" marker-end="url(#aGreen)" opacity="0.6" stroke-dasharray="5 4"/>
+
+  <!-- ===================== LEGEND ===================== -->
+  <rect class="card" x="40" y="1788" width="1400" height="120" stroke="#30363d"/>
+  <text class="title" x="60" y="1814">图例 · Legend</text>
+
+  <line x1="60" y1="1840" x2="110" y2="1840" stroke="#3fb950" stroke-width="2.5" marker-end="url(#aGreen)"/>
+  <text class="dim" x="120" y="1844">写入 / 落库 (write)</text>
+  <line x1="280" y1="1840" x2="330" y2="1840" stroke="#bc8cff" stroke-width="2.5" marker-end="url(#aPurple)"/>
+  <text class="dim" x="340" y="1844">事件流 (Spring Event @Async)</text>
+  <line x1="610" y1="1840" x2="660" y2="1840" stroke="#f85149" stroke-width="2.5" marker-end="url(#aRed)"/>
+  <text class="dim" x="670" y="1844">淘汰 / 删除 (eviction)</text>
+  <line x1="860" y1="1840" x2="910" y2="1840" stroke="#d29922" stroke-width="2.5" marker-end="url(#aOrange)"/>
+  <text class="dim" x="920" y="1844">衰减 / Redis 写 (decay)</text>
+  <line x1="1130" y1="1840" x2="1180" y2="1840" stroke="#39d2c0" stroke-width="2.5" marker-end="url(#aGreen)"/>
+  <text class="dim" x="1190" y="1844">检索读取 (read)</text>
+
+  <text class="dim" x="60" y="1878">关键配置：app.memory.summary.batch-size=5 · consolidation.reflection-threshold=3 · decay.half-life-days=30 · eviction.importance-threshold=0.1 · eviction.max-age-days=180</text>
+  <text class="dim" x="60" y="1898" fill="#6e7681">存储：Redis（工作记忆/画像，易失+TTL） · PostgreSQL+PGVector（长期记忆，持久+向量检索） · 三类记忆对应认知科学的 语义/情景/程序 记忆</text>
+
+  <text x="40" y="1960" fill="#6e7681" font-size="12">Dawn AI — Java 17 · Spring Boot 3.2 · Spring AI　|　com.dawn.ai.memory + com.dawn.ai.service.MemoryService</text>
+  <text x="40" y="1982" fill="#484f58" font-size="11.5">数据流向：对话 ②工作记忆 →(溢出/批量)→ ③整合管线(摘要·抽取·整合·反思) →(写入)→ ④长期记忆 →(检索)→ ①注入 Prompt；⑤定时治理衰减/淘汰/强化</text>
+</svg>

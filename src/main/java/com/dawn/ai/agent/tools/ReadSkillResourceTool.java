@@ -14,7 +14,7 @@ import java.util.function.Function;
 /**
  * 元工具：读取已注册 skill 的内嵌资源文件（progressive disclosure 第二层）。
  *
- * <p>典型用法：模型调用 {@code load_skill} 拿到 {@code availableResources} 后，
+ * <p>典型用法：模型调用 {@code loadSkillTool} 拿到 {@code availableResources} 后，
  * 决定要进一步深入哪个子文件，再调用本工具。
  *
  * <p>安全：路径穿越防御与 source-aware 读取由 {@link SkillRegistry#readResource}
@@ -23,14 +23,14 @@ import java.util.function.Function;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@Description("读取已加载 skill 的内嵌资源文件（如 references/ 下的细节文档）。仅在 load_skill 返回的 availableResources 列表中出现的路径才可读取。Input: skill (skill 名), path (相对路径如 references/checklist.md)")
+@Description("读取已加载 skill 的内嵌资源文件（如 references/ 下的细节文档）。仅在 loadSkillTool 返回的 availableResources 列表中出现的路径才可读取。Input: skill (skill 名), path (相对路径如 references/checklist.md)")
 public class ReadSkillResourceTool implements Function<ReadSkillResourceTool.Request, ReadSkillResourceTool.Response> {
 
     private final SkillRegistry skillRegistry;
 
     public record Request(
             @JsonProperty(required = true)
-            @JsonPropertyDescription("Skill 名称，必须与之前 load_skill 调用的 name 一致")
+            @JsonPropertyDescription("Skill 名称，必须与之前 loadSkillTool 调用的 name 一致")
             String skill,
 
             @JsonProperty(required = true)

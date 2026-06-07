@@ -19,6 +19,7 @@ import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -40,6 +41,7 @@ class AgentOrchestratorTest {
     @Mock private ChatClient.ChatClientRequestSpec requestSpec;
     @Mock private ChatClient.CallResponseSpec callResponseSpec;
     @Mock private MemoryService memoryService;
+    @Mock private com.dawn.ai.memory.MemoryManager memoryManager;
     @Mock private TaskPlanner taskPlanner;
     @Mock private ToolRegistry toolRegistry;
     @Mock private UserProfileService userProfileService;
@@ -61,6 +63,7 @@ class AgentOrchestratorTest {
         agentOrchestrator = new AgentOrchestrator(
                 chatClient,
                 memoryService,
+                memoryManager,
                 taskPlanner,
                 toolRegistry,
                 new SimpleMeterRegistry(),
@@ -69,6 +72,8 @@ class AgentOrchestratorTest {
                 subAgentRegistry
         );
         agentOrchestrator.initMetrics();
+        // @Value 字段在单元测试（不经 Spring）下不会注入，显式设置固定 userId
+        ReflectionTestUtils.setField(agentOrchestrator, "defaultUserId", "local-user");
     }
 
     @Test
@@ -93,8 +98,8 @@ class AgentOrchestratorTest {
         ArgumentCaptor<List<Message>> historyCaptor = (ArgumentCaptor<List<Message>>) (ArgumentCaptor<?>) ArgumentCaptor.forClass(List.class);
         verify(requestSpec).messages(historyCaptor.capture());
         verify(requestSpec).user("current question");
-        verify(memoryService).addMessage("session-1", "user", "current question");
-        verify(memoryService).addMessage("session-1", "assistant", "final answer");
+        verify(memoryService).addMessage("session-1", "local-user", "user", "current question");
+        verify(memoryService).addMessage("session-1", "local-user", "assistant", "final answer");
 
         assertThat(result.finalAnswer()).isEqualTo("final answer");
         assertThat(historyCaptor.getValue()).hasSize(1);
@@ -124,6 +129,6 @@ class AgentOrchestratorTest {
         assertThat(result.plan()).isEmpty();
         verify(chatClient).prompt();
         verify(requestSpec, never()).system(org.mockito.ArgumentMatchers.contains("【执行计划】"));
-        verify(memoryService).addMessage("session-2", "assistant", "final answer");
+        verify(memoryService).addMessage("session-2", "local-user", "assistant", "final answer");
     }
 }

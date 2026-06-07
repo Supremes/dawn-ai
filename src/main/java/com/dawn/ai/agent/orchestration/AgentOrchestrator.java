@@ -14,6 +14,8 @@ import com.dawn.ai.exception.AiConfigurationException;
 import com.dawn.ai.exception.LLMProviderException;
 import com.dawn.ai.exception.MaxStepsExceededException;
 import com.dawn.ai.exception.PlanGenerationException;
+import com.dawn.ai.memory.MemoryManager;
+import com.dawn.ai.memory.MemoryType;
 import com.dawn.ai.memory.UserProfileService;
 import com.dawn.ai.service.MemoryService;
 import com.dawn.ai.sse.ChatStreamEvent;
@@ -59,6 +61,7 @@ public class AgentOrchestrator {
 
     private final ChatClient chatClient;
     private final MemoryService memoryService;
+    private final MemoryManager memoryManager;
     private final TaskPlanner taskPlanner;
     private final ToolRegistry toolRegistry;
     private final MeterRegistry meterRegistry;
@@ -68,6 +71,7 @@ public class AgentOrchestrator {
 
     public AgentOrchestrator(ChatClient chatClient,
                               MemoryService memoryService,
+                              MemoryManager memoryManager,
                               TaskPlanner taskPlanner,
                               ToolRegistry toolRegistry,
                               MeterRegistry meterRegistry,
@@ -76,6 +80,7 @@ public class AgentOrchestrator {
                               SubAgentRegistry subAgentRegistry) {
         this.chatClient = chatClient;
         this.memoryService = memoryService;
+        this.memoryManager = memoryManager;
         this.taskPlanner = taskPlanner;
         this.toolRegistry = toolRegistry;
         this.meterRegistry = meterRegistry;
@@ -98,6 +103,15 @@ public class AgentOrchestrator {
 
     @Value("${app.ai.subagent.max-dispatches-per-session:3}")
     private int maxSubAgentDispatches;
+
+    @Value("${app.memory.default-user-id:local-user}")
+    private String defaultUserId;
+
+    @Value("${app.memory.injection.procedural-top-k:2}")
+    private int proceduralTopK;
+
+    @Value("${app.memory.injection.semantic-top-k:3}")
+    private int semanticTopK;
 
     private Counter inputTokenCounter;
     private Counter outputTokenCounter;
@@ -129,7 +143,7 @@ public class AgentOrchestrator {
             TaskPlanner.PlannerResult plannerResult = resolvePlan(userMessage);
             List<PlanStep> plan = plannerResult.steps();
 
-            String systemPrompt = buildSystemPrompt(plan, sessionId, topicId);
+            String systemPrompt = buildSystemPrompt(plan, topicId, userMessage);
 
             // 添加历史对话到上下文
             List<Message> history = buildHistory(sessionId);
@@ -148,8 +162,8 @@ public class AgentOrchestrator {
             List<AgentStep> steps = StepCollector.collect();
             recordRagMetrics(steps);
 
-            memoryService.addMessage(sessionId, "user", userMessage);
-            memoryService.addMessage(sessionId, "assistant", response);
+            memoryService.addMessage(sessionId, defaultUserId, "user", userMessage);
+            memoryService.addMessage(sessionId, defaultUserId, "assistant", response);
 
             log.info("[AgentOrchestrator] session={}, planSteps={}, toolCalls={}, userMsg={}",
                     sessionId, plan.size(), steps.size(),
@@ -240,7 +254,9 @@ public class AgentOrchestrator {
                 sink.accept(ChatStreamEvent.plan(sessionId, plan, formatPlanSummary(plan)));
             }
 
-            String systemPrompt = buildSystemPrompt(plan, sessionId, topicId);
+            // 系统提示词 + 用户画像 + 相关记忆（top-k）
+            // skills meta data + subagent description + plan description
+            String systemPrompt = buildSystemPrompt(plan, topicId, userMessage);
 
             // 添加历史对话到上下文
             List<Message> history = buildHistory(sessionId);
@@ -287,8 +303,8 @@ public class AgentOrchestrator {
             List<AgentStep> steps = StepCollector.collect();
             recordRagMetrics(steps);
 
-            memoryService.addMessage(sessionId, "user", userMessage);
-            memoryService.addMessage(sessionId, "assistant", answer.toString());
+            memoryService.addMessage(sessionId, defaultUserId, "user", userMessage);
+            memoryService.addMessage(sessionId, defaultUserId, "assistant", answer.toString());
 
             log.info("[AgentOrchestrator] stream session={}, planSteps={}, toolCalls={}, tokens={}",
                     sessionId, plan.size(), steps.size(), answer.length());
@@ -414,14 +430,16 @@ public class AgentOrchestrator {
      * Builds the system prompt shared by both sync and stream paths.
      * Includes the execution plan, plan-enforcement directive, and max-steps constraint.
      */
-    private String buildSystemPrompt(List<PlanStep> plan, String sessionId, String topicId) {
-        String profileSection = userProfileService.formatForSystemPrompt(sessionId);
+    private String buildSystemPrompt(List<PlanStep> plan, String topicId, String userQuery) {
+        String profileSection = userProfileService.formatForSystemPrompt(defaultUserId); // 用户画像
+        String memorySection = formatMemories(defaultUserId, userQuery); // 相关记忆，top-k
         String topicSection = (topicId != null && !topicId.isBlank())
                 ? String.format("%n%n【研究主题】你当前在帮助用户研究主题：%s。" +
                   "调用 KnowledgeSearchTool 时，topicId 参数必须使用 \"%s\"。", topicId, topicId)
                 : "";
         return baseSystemPrompt
                 + profileSection
+                + memorySection
                 + topicSection
                 + formatSkills()
                 + formatSubAgents()
@@ -457,7 +475,7 @@ public class AgentOrchestrator {
 
     /**
      * 列出所有可用 Skill 的 name + description（progressive disclosure 第一层）。
-     * 模型据此判断是否调用 {@code load_skill} 加载某个 skill 的完整指令。
+     * 模型据此判断是否调用 {@code loadSkillTool} 加载某个 skill 的完整指令。
      * 若无可用 skill 则返回空串，不污染 prompt。
      */
     private String formatSkills() {
@@ -466,13 +484,36 @@ public class AgentOrchestrator {
             return "";
         }
         StringBuilder sb = new StringBuilder("\n\n## 可用 Skills\n")
-                .append("按需调用 `load_skill(name)` 加载完整指令；")
-                .append("需要 skill 的内嵌资源时调用 `read_skill_resource(skill, path)`。\n\n");
+                .append("仅当下方某个 skill 的 name 和 description 明确匹配当前任务时，")
+                .append("才调用 `loadSkillTool(name)` 加载完整指令；")
+                .append("需要 skill 的内嵌资源时调用 `readSkillResourceTool(skill, path)`。")
+                .append("只能使用下方列出的 skill name，不要发明或猜测不存在的 skill。\n\n");
         for (Skill s : all) {
             sb.append("- **").append(s.manifest().name()).append("**: ")
               .append(s.manifest().description()).append("\n");
         }
         return sb.toString();
+    }
+
+    private String formatMemories(String userId, String query) {
+        try {
+            // 仅注入 PROCEDURAL（长期偏好/习惯）与 SEMANTIC（事实），按配额分配 topK；
+            // EPISODIC（对话摘要）是反思的中间产物，不进主 prompt，避免长文本挤占名额。
+            List<MemoryManager.MemorySearchResult> memories = new ArrayList<>();
+            memories.addAll(memoryManager.search(userId, query, proceduralTopK, MemoryType.PROCEDURAL));
+            memories.addAll(memoryManager.search(userId, query, semanticTopK, MemoryType.SEMANTIC));
+            if (memories.isEmpty()) {
+                return "";
+            }
+            StringBuilder sb = new StringBuilder("\n\n【相关记忆】\n");
+            for (MemoryManager.MemorySearchResult mem : memories) {
+                sb.append("- ").append(mem.content()).append("\n");
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            log.debug("[AgentOrchestrator] Failed to fetch memories for user={}: {}", userId, e.getMessage());
+            return "";
+        }
     }
 
     private String formatPlanEnforcement(List<PlanStep> plan) {
