@@ -46,8 +46,6 @@ public class MemoryManager {
     // 重排前多取候选的倍数，让高 importance 记忆有机会从被截断区冠头
     private static final int SEARCH_CANDIDATE_MULTIPLIER = 2;
 
-    private static final String VECTOR_COLLECTION = "memory_entries";
-
         private static final String SEMANTIC_DEDUP_PROMPT = """
                         你是一个长期记忆去重判断器。请判断“新记忆”是否与候选记忆中的某一条表达同一个可保存事实。
 
@@ -100,23 +98,6 @@ public class MemoryManager {
 
         Instant now = Instant.now();
         UUID memoryId = UUID.randomUUID();
-
-        // Write VectorStore first — if it fails, JPA won't commit
-        Document doc = new Document(
-                memoryId.toString(),
-                content,
-                Map.of(
-                        "type", type.name().toLowerCase(),
-                        "userId", userId,
-                        "sessionId", sessionId != null ? sessionId : "",
-                        "importance", importance,
-                        "hash", hash,
-                        "createdAt", now.toEpochMilli(),
-                        "lastAccessedAt", now.toEpochMilli()
-                )
-        );
-        vectorStore.add(List.of(doc));
-
         MemoryEntity entity = new MemoryEntity();
         entity.setId(memoryId);
         entity.setUserId(userId);
@@ -129,6 +110,9 @@ public class MemoryManager {
         entity.setUpdatedAt(now);
         entity.setLastAccessedAt(now);
         entity.setDeleted(false);
+
+        // Write VectorStore first — if it fails, JPA won't commit
+        upsertVectorDocument(entity);
         memoryRepository.save(entity);
 
         try {
@@ -169,6 +153,18 @@ public class MemoryManager {
             entity.setUpdatedAt(Instant.now());
             memoryRepository.save(entity);
         }
+        Instant now = Instant.now();
+        double reinforcedImportance = Math.min(
+                1.0,
+                Math.max(entity.getImportance(), importance) + 0.05
+        );
+
+        entity.setImportance(reinforcedImportance);
+        entity.setUpdatedAt(now);
+        entity.setLastAccessedAt(now);
+        upsertVectorDocument(entity);
+        memoryRepository.save(entity);
+
         return entity.getId().toString();
     }
 
@@ -352,20 +348,7 @@ public class MemoryManager {
         memoryRepository.save(entity);
 
         try {
-            Document doc = new Document(
-                    entity.getId().toString(),
-                    newContent,
-                    Map.of(
-                            "type", entity.getMemoryType().name().toLowerCase(),
-                            "userId", entity.getUserId(),
-                            "sessionId", entity.getSessionId() != null ? entity.getSessionId() : "",
-                            "importance", entity.getImportance(),
-                            "hash", newHash,
-                            "createdAt", entity.getCreatedAt().toEpochMilli(),
-                            "lastAccessedAt", entity.getLastAccessedAt().toEpochMilli()
-                    )
-            );
-            vectorStore.add(List.of(doc));
+            upsertVectorDocument(entity);
         } catch (Exception e) {
             log.warn("[MemoryManager] VectorStore update failed for memory={}: {}", memoryId, e.getMessage());
         }
@@ -428,6 +411,26 @@ public class MemoryManager {
         history.setEvent(event);
         history.setCreatedAt(Instant.now());
         historyRepository.save(history);
+    }
+
+    private void upsertVectorDocument(MemoryEntity entity) {
+        vectorStore.add(List.of(toVectorDocument(entity)));
+    }
+
+    private Document toVectorDocument(MemoryEntity entity) {
+        return new Document(
+                entity.getId().toString(),
+                entity.getContent(),
+                Map.of(
+                        "type", entity.getMemoryType().name().toLowerCase(),
+                        "userId", entity.getUserId(),
+                        "sessionId", entity.getSessionId() != null ? entity.getSessionId() : "",
+                        "importance", entity.getImportance(),
+                        "hash", entity.getHash(),
+                        "createdAt", entity.getCreatedAt().toEpochMilli(),
+                        "lastAccessedAt", entity.getLastAccessedAt().toEpochMilli()
+                )
+        );
     }
 
     private void updateAccessTime(List<Document> docs) {

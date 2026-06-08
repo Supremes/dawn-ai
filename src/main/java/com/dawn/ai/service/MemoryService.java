@@ -10,7 +10,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -20,7 +19,6 @@ public class MemoryService {
 
     private static final String SESSION_PREFIX = "ai:session:";
     private static final String PENDING_SUFFIX = ":pending";
-    private static final Duration SESSION_TTL = Duration.ofHours(2);
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final MeterRegistry meterRegistry;
@@ -70,7 +68,6 @@ public class MemoryService {
                     enqueuePending(sessionId, userId, (Map<String, String>) poppedMsg);
                 }
             }
-            redisTemplate.expire(key, SESSION_TTL);
         } catch (Exception e) {
             log.warn("[MemoryService] Redis write failed session={}: {}", sessionId, e.getMessage());
             redisWriteFailureCounter.increment();
@@ -131,7 +128,6 @@ public class MemoryService {
         try {
             redisTemplate.opsForList().rightPush(pendingKey, message);
             Long pendingSize = redisTemplate.opsForList().size(pendingKey);
-            redisTemplate.expire(pendingKey, SESSION_TTL);
             if (pendingSize != null && pendingSize >= summaryBatchSize) {
                 List<Map<String, String>> batch = drainPending(sessionId);
                 if (!batch.isEmpty()) {
