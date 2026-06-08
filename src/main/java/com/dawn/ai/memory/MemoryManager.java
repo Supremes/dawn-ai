@@ -148,11 +148,6 @@ public class MemoryManager {
     }
 
     private String bumpImportance(MemoryEntity entity, double importance) {
-        if (Math.abs(entity.getImportance() - importance) > 0.01) {
-            entity.setImportance(Math.max(entity.getImportance(), importance));
-            entity.setUpdatedAt(Instant.now());
-            memoryRepository.save(entity);
-        }
         Instant now = Instant.now();
         double reinforcedImportance = Math.min(
                 1.0,

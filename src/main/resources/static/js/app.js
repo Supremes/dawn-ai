@@ -26,15 +26,19 @@ marked.use({
             }
             if (!code) return false;
 
-            const escaped = escapeHtml(code);
-            if (typeof hljs !== 'undefined' && lang && hljs.getLanguage(lang)) {
+            if (typeof hljs !== 'undefined') {
                 try {
-                    const result = hljs.highlight(code, { language: lang, ignoreIllegals: true });
-                    if (result.value) {
-                        return `<pre><code class="hljs language-${escapeHtml(lang)}">${result.value}</code></pre>`;
+                    if (lang && hljs.getLanguage(lang)) {
+                        const r = hljs.highlight(code, { language: lang, ignoreIllegals: true });
+                        return `<pre><code class="hljs language-${escapeHtml(lang)}">${r.value}</code></pre>`;
+                    }
+                    const auto = hljs.highlightAuto(code);
+                    if (auto.relevance > 4 && auto.value) {
+                        return `<pre><code class="hljs language-${escapeHtml(auto.language || '')}">${auto.value}</code></pre>`;
                     }
                 } catch { /* fall through */ }
             }
+            const escaped = escapeHtml(code);
             const cls = lang ? ` class="language-${escapeHtml(lang)}"` : '';
             return `<pre><code${cls}>${escaped}</code></pre>`;
         },
@@ -43,7 +47,8 @@ marked.use({
 
 function renderMarkdown(text) {
     if (text == null) return '';
-    const raw = String(text).replace(/\r\n?/g, '\n');
+    const raw = String(text).replace(/\r\n?/g, '\n')
+        .replace(/^(#{1,6})[^\S\n]*(?=\S)/gm, '$1 ');
     let html;
     try {
         html = marked.parse(raw);
@@ -91,12 +96,18 @@ const streamRender = (() => {
     let pendingBubble = null;
     let pendingText = '';
 
+    function isNearBottom(el) {
+        if (!el) return true;
+        return el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    }
+
     function flush() {
         scheduled = false;
         if (!pendingBubble) return;
-        pendingBubble.innerHTML = renderMarkdown(pendingText);
         const chatMessages = $('#chatMessages');
-        if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
+        const shouldScroll = isNearBottom(chatMessages);
+        pendingBubble.innerHTML = renderMarkdown(pendingText);
+        if (shouldScroll && chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
         pendingBubble = null;
         pendingText = '';
     }
@@ -436,9 +447,9 @@ function initChat() {
         input.style.height = Math.min(input.scrollHeight, 120) + 'px';
     });
 
-    // Send on Enter (Shift+Enter for newline)
+    // Send with Cmd/Ctrl+Enter; plain Enter keeps editing in the textarea.
     input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.isComposing) {
             e.preventDefault();
             sendMessage();
         }

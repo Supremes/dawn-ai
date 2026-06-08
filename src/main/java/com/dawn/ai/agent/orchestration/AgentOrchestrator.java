@@ -236,6 +236,7 @@ public class AgentOrchestrator {
         StringBuilder answer = new StringBuilder();
         StringBuilder thinkingBuffer = new StringBuilder();
         StringBuilder planThinkingBuffer = new StringBuilder();
+        String[] finalFinishReason = new String[1];
 
         Consumer<AgentStep> stepEventPublisher = step -> sink.accept(ChatStreamEvent.step(sessionId, step));
         StepCollector.init(maxSteps, stepEventPublisher);
@@ -275,17 +276,21 @@ public class AgentOrchestrator {
                     .contextCapture() // 在当前 pipeline 订阅点主动把所有已注册 ThreadLocal 快照进 Reactor Context
                     .takeWhile(chunk -> !isCancelled.getAsBoolean())
                     .doOnNext(chunk -> {
+                        String finishReason = extractFinishReason(chunk);
+                        if (finishReason != null && !finishReason.isBlank()) {
+                            finalFinishReason[0] = finishReason;
+                        }
                         String reasoning = extractReasoning(chunk);
                         if (reasoning != null && !reasoning.isBlank()) {
                             thinkingBuffer.append(reasoning);
                             sink.accept(ChatStreamEvent.thinking(sessionId, reasoning, thinkingBuffer.length()));
                         }
                         String delta = extractDelta(chunk);
-                        if (delta != null && !delta.isBlank()) {
+                        if (delta != null && !delta.isEmpty()) {
                             answer.append(delta);
                             sink.accept(ChatStreamEvent.token(sessionId, delta, answer.length()));
                         }
-                        if ((reasoning != null && !reasoning.isBlank()) || (delta != null && !delta.isBlank())) {
+                        if ((reasoning != null && !reasoning.isBlank()) || (delta != null && !delta.isEmpty())) {
                             log.trace("[AI STREAM] chunk session={}, reasoningChars={}, answerChars={}, deltaChars={}",
                                     sessionId,
                                     reasoning != null ? reasoning.length() : 0,
@@ -306,8 +311,8 @@ public class AgentOrchestrator {
             memoryService.addMessage(sessionId, defaultUserId, "user", userMessage);
             memoryService.addMessage(sessionId, defaultUserId, "assistant", answer.toString());
 
-            log.info("[AgentOrchestrator] stream session={}, planSteps={}, toolCalls={}, tokens={}",
-                    sessionId, plan.size(), steps.size(), answer.length());
+                log.info("[AgentOrchestrator] stream session={}, planSteps={}, toolCalls={}, finishReason={}, answerChars={}",
+                    sessionId, plan.size(), steps.size(), finalFinishReason[0], answer.length());
 
             sink.accept(ChatStreamEvent.done(
                     sessionId, answer.toString(), steps, plan,
@@ -336,6 +341,11 @@ public class AgentOrchestrator {
         var output = chunk.getResult().getOutput();
         if (output == null) return null;
         return output.getText();
+    }
+
+    private String extractFinishReason(ChatResponse chunk) {
+        if (chunk == null || chunk.getResult() == null || chunk.getResult().getMetadata() == null) return null;
+        return chunk.getResult().getMetadata().getFinishReason();
     }
 
     private String extractReasoning(ChatResponse chunk) {
