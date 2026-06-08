@@ -183,6 +183,65 @@ print(fibonacci(10))
 
 渲染测试完毕。如果你能看到上面的**标题、列表、代码块、表格、引用**均有正确排版，则说明 Markdown 渲染正常。`;
 
+// ===== Chat Storage (localStorage) =====
+const SESSIONS_KEY = 'dawn-chat-sessions';
+const MAX_SESSIONS = 50;
+
+const chatStore = {
+    _readIndex() {
+        try { return JSON.parse(localStorage.getItem(SESSIONS_KEY)) || []; }
+        catch { return []; }
+    },
+    _writeIndex(idx) {
+        try { localStorage.setItem(SESSIONS_KEY, JSON.stringify(idx)); }
+        catch { /* quota */ }
+    },
+    saveSession(sessionId, topicId) {
+        const idx = this._readIndex();
+        if (!idx.find(s => s.id === sessionId)) {
+            idx.unshift({ id: sessionId, topicId: topicId || '', createdAt: Date.now(), preview: '' });
+            while (idx.length > MAX_SESSIONS) {
+                const old = idx.pop();
+                try { localStorage.removeItem('dawn-chat-' + old.id); } catch {}
+            }
+            this._writeIndex(idx);
+        }
+    },
+    updateSessionPreview(sessionId, preview) {
+        const idx = this._readIndex();
+        const s = idx.find(s => s.id === sessionId);
+        if (s && !s.preview) {
+            s.preview = String(preview).substring(0, 40);
+            this._writeIndex(idx);
+        }
+    },
+    updateSessionTopic(sessionId, topicId) {
+        const idx = this._readIndex();
+        const s = idx.find(s => s.id === sessionId);
+        if (s) { s.topicId = topicId || ''; this._writeIndex(idx); }
+    },
+    pushMessage(sessionId, msg) {
+        const key = 'dawn-chat-' + sessionId;
+        try {
+            const arr = JSON.parse(localStorage.getItem(key)) || [];
+            arr.push({ ...msg, timestamp: Date.now() });
+            localStorage.setItem(key, JSON.stringify(arr));
+        } catch { /* quota */ }
+    },
+    getMessages(sessionId) {
+        try { return JSON.parse(localStorage.getItem('dawn-chat-' + sessionId)) || []; }
+        catch { return []; }
+    },
+    getSessions() {
+        return this._readIndex();
+    },
+    deleteSession(sessionId) {
+        const idx = this._readIndex().filter(s => s.id !== sessionId);
+        this._writeIndex(idx);
+        try { localStorage.removeItem('dawn-chat-' + sessionId); } catch {}
+    },
+};
+
 // ===== State =====
 const state = {
     sessionId: null,
@@ -200,6 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
     initTheme();
     initChat();
+    initSessionHistory();
     initKnowledge();
     initDashboard();
     initInteractionLogLink();
@@ -266,6 +326,105 @@ function syncHljsTheme() {
     if (darkSheet) darkSheet.disabled = !dark;
 }
 
+// ===== Session History =====
+function initSessionHistory() {
+    const clearBtn = $('#clearHistoryBtn');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            if (!confirm('清除全部历史对话？')) return;
+            chatStore.getSessions().forEach(s => chatStore.deleteSession(s.id));
+            renderSessionList();
+            toast('History cleared', 'info');
+        });
+    }
+    renderSessionList();
+}
+
+function renderSessionList() {
+    const list = $('#sessionHistoryList');
+    if (!list) return;
+    const sessions = chatStore.getSessions();
+    if (sessions.length === 0) {
+        list.innerHTML = '<div style="padding:8px 10px;font-size:12px;color:var(--text-tertiary)">No history yet</div>';
+        return;
+    }
+    list.innerHTML = sessions.map(s => {
+        const isActive = s.id === state.sessionId;
+        const preview = s.preview || s.topicId || s.id;
+        const timeStr = formatRelativeTime(s.createdAt);
+        return `<div class="session-item${isActive ? ' active' : ''}" data-sid="${escapeHtml(s.id)}">
+            <span class="session-item-preview">${escapeHtml(preview)}</span>
+            <span class="session-item-time">${escapeHtml(timeStr)}</span>
+            <button class="session-item-delete" data-delete="${escapeHtml(s.id)}" title="Delete">&times;</button>
+        </div>`;
+    }).join('');
+
+    list.querySelectorAll('.session-item').forEach(el => {
+        el.addEventListener('click', (e) => {
+            if (e.target.closest('.session-item-delete')) return;
+            loadSession(el.dataset.sid);
+        });
+    });
+    list.querySelectorAll('.session-item-delete').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const sid = btn.dataset.delete;
+            chatStore.deleteSession(sid);
+            if (sid === state.sessionId) newSession();
+            renderSessionList();
+        });
+    });
+}
+
+function loadSession(sessionId) {
+    const sessions = chatStore.getSessions();
+    const sessionMeta = sessions.find(s => s.id === sessionId);
+    state.sessionId = sessionId;
+    $('#sessionId').textContent = sessionId;
+
+    if (sessionMeta && sessionMeta.topicId) {
+        const topicEl = $('#chatTopic');
+        if (topicEl) topicEl.value = sessionMeta.topicId;
+    }
+
+    const container = $('#chatMessages');
+    container.innerHTML = '';
+
+    const messages = chatStore.getMessages(sessionId);
+    messages.forEach(msg => {
+        appendMessage(msg.role, msg.content, msg.meta || null);
+    });
+
+    if (messages.length === 0) {
+        container.innerHTML = `
+            <div class="welcome-message">
+                <h3>Dawn AI Agent Workbench</h3>
+                <p>发起对话，观察 Agent 的计划、工具调用、记忆与检索链路。</p>
+            </div>
+        `;
+    }
+
+    updateInteractionLogLink();
+    renderSessionList();
+
+    const navChat = document.querySelector('.nav-item[data-page="chat"]');
+    if (navChat && !navChat.classList.contains('active')) {
+        navChat.click();
+    }
+}
+
+function formatRelativeTime(ts) {
+    const diff = Date.now() - ts;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + ' min ago';
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return hours + 'h ago';
+    const days = Math.floor(hours / 24);
+    if (days < 30) return days + 'd ago';
+    return new Date(ts).toLocaleDateString();
+}
+
 // ===== Chat =====
 function initChat() {
     const input = $('#chatInput');
@@ -325,6 +484,8 @@ function newSession() {
         </div>
     `;
     updateInteractionLogLink();
+    chatStore.saveSession(state.sessionId, getChatTopicId());
+    renderSessionList();
 }
 
 async function sendMessage() {
@@ -341,6 +502,10 @@ async function sendMessage() {
 
     // Add user message
     appendMessage('user', message);
+    chatStore.pushMessage(state.sessionId, { role: 'user', content: message });
+    chatStore.updateSessionPreview(state.sessionId, message);
+    chatStore.updateSessionTopic(state.sessionId, getChatTopicId());
+    renderSessionList();
     input.value = '';
     input.style.height = 'auto';
 
@@ -538,6 +703,11 @@ function finaliseAssistantMessage(div, meta) {
     if (bubble && bubble.dataset.rawContent) {
         bubble.innerHTML = renderMarkdown(bubble.dataset.rawContent);
         enhanceCodeBlocks(bubble);
+        chatStore.pushMessage(state.sessionId, {
+            role: 'assistant',
+            content: bubble.dataset.rawContent,
+            meta: { model: meta.model, durationMs: meta.durationMs, totalSteps: meta.totalSteps },
+        });
     }
 
     const parts = [];
@@ -621,6 +791,11 @@ async function sendMessageSync(message) {
         }
 
         appendMessage('assistant', data.answer, data);
+        chatStore.pushMessage(state.sessionId, {
+            role: 'assistant',
+            content: data.answer,
+            meta: { model: data.model, durationMs: data.durationMs, totalSteps: data.totalSteps },
+        });
     } catch (err) {
         typingEl.remove();
         appendMessage('assistant', `Network error: ${err.message}`, null);
