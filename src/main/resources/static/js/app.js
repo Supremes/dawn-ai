@@ -681,6 +681,7 @@ function handleStreamEvent(type, envelope, assistantDiv) {
             break;
         }
         case 'thinking': {
+            finalizePlanThinking(assistantDiv);
             const thinkingPanel = getOrCreateThinkingPanel(
                 assistantDiv,
                 'answer-thinking-panel',
@@ -690,6 +691,7 @@ function handleStreamEvent(type, envelope, assistantDiv) {
             break;
         }
         case 'token': {
+            finalizePlanThinking(assistantDiv);
             const thinkingPanel = assistantDiv.querySelector('.answer-thinking-panel');
             if (thinkingPanel) {
                 thinkingPanel.querySelector('.thinking-label').textContent = '已思考';
@@ -703,6 +705,7 @@ function handleStreamEvent(type, envelope, assistantDiv) {
             break;
         }
         case 'step': {
+            finalizePlanThinking(assistantDiv);
             let tracePanel = assistantDiv.querySelector('.stream-trace');
             if (!tracePanel) {
                 tracePanel = document.createElement('div');
@@ -722,18 +725,36 @@ function handleStreamEvent(type, envelope, assistantDiv) {
             break;
         }
         case 'plan': {
-            const planThinkingPanel = assistantDiv.querySelector('.plan-thinking-panel');
-            if (planThinkingPanel) {
-                planThinkingPanel.querySelector('.thinking-label').textContent = '已完成规划';
-                planThinkingPanel.classList.add('done');
-            }
+            finalizePlanThinking(assistantDiv);
             let planEl = assistantDiv.querySelector('.stream-plan');
             if (!planEl) {
                 planEl = document.createElement('div');
                 planEl.className = 'stream-plan';
                 assistantDiv.insertBefore(planEl, assistantDiv.querySelector('.message-bubble'));
             }
-            planEl.textContent = data.summary || '';
+            const planSteps = data.steps || [];
+            if (planSteps.length > 0) {
+                const planId = nextStepsId();
+                planEl.innerHTML = `
+                    <button class="steps-toggle" onclick="toggleSteps('${planId}')">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        规划 ${planSteps.length} 步
+                    </button>
+                    <div class="steps-detail" id="${planId}">
+                        ${planSteps.map(s => `
+                            <div class="step-item">
+                                <div class="step-header">
+                                    <span class="step-number">${s.step}</span>
+                                    <span class="step-tool">${escapeHtml(s.action || '')}</span>
+                                </div>
+                                <div class="step-body">${escapeHtml(s.reason || '')}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } else {
+                planEl.textContent = data.summary || '';
+            }
             break;
         }
         case 'error': {
@@ -742,6 +763,14 @@ function handleStreamEvent(type, envelope, assistantDiv) {
             bubble.dataset.rawContent = `[${data.code}] ${data.message}`;
             break;
         }
+    }
+}
+
+function finalizePlanThinking(assistantDiv) {
+    const planThinkingPanel = assistantDiv.querySelector('.plan-thinking-panel');
+    if (planThinkingPanel && !planThinkingPanel.classList.contains('done')) {
+        planThinkingPanel.querySelector('.thinking-label').textContent = '已完成规划';
+        planThinkingPanel.classList.add('done');
     }
 }
 
