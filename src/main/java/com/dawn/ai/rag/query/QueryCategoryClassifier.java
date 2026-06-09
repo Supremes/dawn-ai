@@ -2,6 +2,7 @@ package com.dawn.ai.rag.query;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +25,7 @@ public class QueryCategoryClassifier {
     private final BeanOutputConverter<ClassifyResult> converter =
             new BeanOutputConverter<>(ClassifyResult.class);
 
-    private final String systemPrompt;
+    private String systemPrompt;
 
     @Setter
     @Value("${app.ai.rag.category-classify-enabled:false}")
@@ -36,6 +37,11 @@ public class QueryCategoryClassifier {
 
     public QueryCategoryClassifier(ChatClient chatClient) {
         this.chatClient = chatClient;
+    }
+
+    @PostConstruct
+    void init() {
+        // 字段注入@Value发生在构造函数之后
         this.systemPrompt = buildSystemPrompt();
     }
 

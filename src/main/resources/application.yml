@@ -87,11 +87,11 @@ app:
     react:
       max-steps: 10        # 单次对话最多工具调用次数（超出时 LLM 自行收敛）
       show-steps: true    # 响应体中是否包含 steps 详情
-      plan-enabled: false   # 是否启用执行前规划（关闭后跳过 TaskPlanner)
+      plan-enabled: true   # 是否启用执行前规划（关闭后跳过 TaskPlanner)
     stream:
       timeout-ms: 1200000   # SSE 单次请求最大等待时长（毫秒）
     rag:
-      tool-enabled: false          # 是否把 knowledgeSearchTool 暴露给 Agent；测试时可设为 false
+      tool-enabled: true          # 是否把 knowledgeSearchTool 暴露给 Agent；测试时可设为 false
       embedding:
         max-batch-size: 10        #
       chunk-size: 500                 # 单个 chunk 的 token 数

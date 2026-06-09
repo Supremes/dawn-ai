@@ -648,7 +648,7 @@ async function sendMessageStream(message, requestSessionId) {
                 chatStore.pushMessage(requestSessionId, {
                     role: 'assistant',
                     content: accumulatedContent,
-                    meta: { model: streamMeta.model, durationMs: streamMeta.durationMs, totalSteps: streamMeta.totalSteps },
+                    meta: { model: streamMeta.model, durationMs: streamMeta.durationMs, totalSteps: streamMeta.totalSteps, steps: streamMeta.steps },
                 });
             }
         }
@@ -773,6 +773,14 @@ function createAssistantPlaceholder() {
     return div;
 }
 
+// Monotonic counter for unique steps-panel ids. Date.now() collides when
+// loadSession() re-renders multiple messages synchronously in the same ms,
+// which made getElementById() target the wrong (first) panel.
+let stepsPanelSeq = 0;
+function nextStepsId() {
+    return 'steps-' + (++stepsPanelSeq);
+}
+
 function finaliseAssistantMessage(div, meta, requestSessionId) {
     const sid = requestSessionId || state.sessionId;
     const bubble = div.querySelector('.message-bubble');
@@ -782,7 +790,7 @@ function finaliseAssistantMessage(div, meta, requestSessionId) {
         chatStore.pushMessage(sid, {
             role: 'assistant',
             content: bubble.dataset.rawContent,
-            meta: { model: meta.model, durationMs: meta.durationMs, totalSteps: meta.totalSteps },
+            meta: { model: meta.model, durationMs: meta.durationMs, totalSteps: meta.totalSteps, steps: meta.steps },
         });
     }
 
@@ -805,7 +813,7 @@ function finaliseAssistantMessage(div, meta, requestSessionId) {
         const oldTrace = div.querySelector('.stream-trace');
         if (oldTrace) oldTrace.remove();
 
-        const stepsId = 'steps-' + Date.now();
+        const stepsId = nextStepsId();
         const stepsHtml = `
             <button class="steps-toggle" onclick="toggleSteps('${stepsId}')">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
@@ -868,7 +876,7 @@ async function sendMessageSync(message, requestSessionId) {
         chatStore.pushMessage(requestSessionId, {
             role: 'assistant',
             content: data.answer,
-            meta: { model: data.model, durationMs: data.durationMs, totalSteps: data.totalSteps },
+            meta: { model: data.model, durationMs: data.durationMs, totalSteps: data.totalSteps, steps: data.steps },
         });
     } catch (err) {
         if (typingEl.isConnected) typingEl.remove();
@@ -896,7 +904,7 @@ function appendMessage(role, content, meta) {
         metaHtml = `<div class="message-meta">${parts.map(p => `<span>${escapeHtml(p)}</span>`).join('')}</div>`;
 
         if (meta.steps && meta.steps.length > 0) {
-            const stepsId = 'steps-' + Date.now();
+            const stepsId = nextStepsId();
             stepsHtml = `
                 <button class="steps-toggle" onclick="toggleSteps('${stepsId}')">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
