@@ -4,6 +4,7 @@ import com.dawn.ai.config.AiAvailabilityChecker;
 import com.dawn.ai.memory.MemoryAccessUpdater;
 import com.dawn.ai.rag.ingestion.OverlapTextSplitter;
 import com.dawn.ai.rag.query.HydeQueryGenerator;
+import com.dawn.ai.rag.query.QueryCategoryClassifier;
 import com.dawn.ai.rag.query.QueryRewriter;
 import com.dawn.ai.rag.retrieval.rerank.CrossEncoderRetrievalReranker;
 import com.dawn.ai.rag.retrieval.rerank.HeuristicRetrievalReranker;
@@ -64,7 +65,8 @@ class RagServiceTest {
                 ragRetrievalExecutor,
                 mock(MemoryAccessUpdater.class),
                 hydeNoop(),
-                rewriteNoop());
+                rewriteNoop(),
+                classifierNoop());
         // 注入配置值（与 application.yml 一致）
         ragService.setSimilarityThreshold(0.7);
         ragService.setHybridEnabled(false);
@@ -90,13 +92,19 @@ class RagServiceTest {
         return rewriter;
     }
 
+    private static QueryCategoryClassifier classifierNoop() {
+        QueryCategoryClassifier classifier = mock(QueryCategoryClassifier.class);
+        org.mockito.Mockito.lenient().when(classifier.classify(any())).thenReturn(null);
+        return classifier;
+    }
+
     // ── ingest 测试 ────────────────────────────────────────────
 
     @Test
     @DisplayName("ingest: 短文本(<=500 tokens)应存为单个 chunk")
     void ingest_shortContent_storesSingleChunk() {
         String shortContent = "Dawn AI is an intelligent assistant.";
-        ragService.ingest(shortContent, "test", "general");
+        ragService.ingest(shortContent, "test", "general", null);
 
         ArgumentCaptor<List<Document>> captor = ArgumentCaptor.forClass(List.class);
         verify(vectorStore).add(captor.capture());
@@ -109,7 +117,7 @@ class RagServiceTest {
     void ingest_longContent_storesMultipleChunks() {
         // 生成约 1000 tokens 的文本（英文约 1 word/token）
         String longContent = "word ".repeat(600);
-        ragService.ingest(longContent, "doc", "manual");
+        ragService.ingest(longContent, "doc", "manual", null);
 
         ArgumentCaptor<List<Document>> captor = ArgumentCaptor.forClass(List.class);
         verify(vectorStore).add(captor.capture());
@@ -121,7 +129,7 @@ class RagServiceTest {
     void ingest_chunksInheritMetadata() {
         // Use long text to ensure multiple chunks are produced
         String content = "word ".repeat(600);
-        ragService.ingest(content, "pricing-doc", "billing");
+        ragService.ingest(content, "pricing-doc", "billing", null);
 
         ArgumentCaptor<List<Document>> captor = ArgumentCaptor.forClass(List.class);
         verify(vectorStore).add(captor.capture());
@@ -147,12 +155,13 @@ class RagServiceTest {
                 ragRetrievalExecutor,
                 mock(MemoryAccessUpdater.class),
                 hydeNoop(),
-                rewriteNoop());
+                rewriteNoop(),
+                classifierNoop());
         localRagService.setSimilarityThreshold(0.7);
         localRagService.setHybridEnabled(false);
         localRagService.initMetrics();
 
-        localRagService.ingest("one two three four five six seven", "doc", "manual");
+        localRagService.ingest("one two three four five six seven", "doc", "manual", null);
 
         ArgumentCaptor<List<Document>> captor = ArgumentCaptor.forClass(List.class);
         verify(vectorStore).add(captor.capture());
@@ -172,7 +181,7 @@ class RagServiceTest {
         when(vectorStore.similaritySearch(any(SearchRequest.class)))
                 .thenReturn(List.of());
 
-        ragService.retrieve("test query", 5);
+        ragService.retrieve(RetrievalRequest.builder().query("test query").topK(5).build());
 
         ArgumentCaptor<SearchRequest> captor = ArgumentCaptor.forClass(SearchRequest.class);
         verify(vectorStore).similaritySearch(captor.capture());
@@ -191,7 +200,7 @@ class RagServiceTest {
         );
         when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(eightDocs);
 
-        List<Document> result = ragService.retrieve("query", 5);
+        List<Document> result = ragService.retrieve(RetrievalRequest.builder().query("query").topK(5).build());
 
         assertThat(result).hasSize(5);
     }
@@ -201,7 +210,7 @@ class RagServiceTest {
     void retrieve_emptyResult_incrementsMissCounter() {
         when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
 
-        ragService.retrieve("query", 5);
+        ragService.retrieve(RetrievalRequest.builder().query("query").topK(5).build());
 
         double missCount = meterRegistry.counter("ai.rag.retrieval.total", "result", "miss").count();
         assertThat(missCount).isEqualTo(1.0);
@@ -213,7 +222,7 @@ class RagServiceTest {
         when(vectorStore.similaritySearch(any(SearchRequest.class)))
                 .thenReturn(List.of(new Document("content")));
 
-        ragService.retrieve("query", 5);
+        ragService.retrieve(RetrievalRequest.builder().query("query").topK(5).build());
 
         double hitCount = meterRegistry.counter("ai.rag.retrieval.total", "result", "hit").count();
         assertThat(hitCount).isEqualTo(1.0);
@@ -228,7 +237,7 @@ class RagServiceTest {
         );
         when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(threeDocs);
 
-        ragService.retrieve("query", 5);
+        ragService.retrieve(RetrievalRequest.builder().query("query").topK(5).build());
 
         // filtered_count = 候选数(10) - 实际返回(3) = 7
         double filteredSum = meterRegistry.summary("ai.rag.retrieval.filtered_count").totalAmount();
@@ -361,13 +370,13 @@ class RagServiceTest {
                 new HeuristicRetrievalReranker(), sparseRetriever,
                 new ReciprocalRankFusion(), new RetrievalRouter(),
                 overlapTextSplitter, ragRetrievalExecutor,
-                mock(MemoryAccessUpdater.class), hyde, rewriteNoop());
+                mock(MemoryAccessUpdater.class), hyde, rewriteNoop(), classifierNoop());
         svc.setSimilarityThreshold(0.7);
         svc.setHybridEnabled(false);
         svc.initMetrics();
         when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
 
-        svc.retrieve("登录失败", 5);
+        svc.retrieve(RetrievalRequest.builder().query("登录失败").topK(5).build());
 
         verifyNoInteractions(hyde);
     }
@@ -382,13 +391,13 @@ class RagServiceTest {
                 new HeuristicRetrievalReranker(), sparseRetriever,
                 new ReciprocalRankFusion(), new RetrievalRouter(),
                 overlapTextSplitter, ragRetrievalExecutor,
-                mock(MemoryAccessUpdater.class), hyde, rewriteNoop());
+                mock(MemoryAccessUpdater.class), hyde, rewriteNoop(), classifierNoop());
         svc.setSimilarityThreshold(0.7);
         svc.setHybridEnabled(false);
         svc.initMetrics();
         when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
 
-        svc.retrieve("请详细解释 Dawn AI 的退款政策以及申请流程", 5);
+        svc.retrieve(RetrievalRequest.builder().query("请详细解释 Dawn AI 的退款政策以及申请流程").topK(5).build());
 
         verify(hyde).generate("请详细解释 Dawn AI 的退款政策以及申请流程");
         ArgumentCaptor<SearchRequest> captor = ArgumentCaptor.forClass(SearchRequest.class);
@@ -405,7 +414,7 @@ class RagServiceTest {
                 new HeuristicRetrievalReranker(), sparseRetriever,
                 new ReciprocalRankFusion(), new RetrievalRouter(),
                 overlapTextSplitter, ragRetrievalExecutor,
-                mock(MemoryAccessUpdater.class), hyde, rewriteNoop());
+                mock(MemoryAccessUpdater.class), hyde, rewriteNoop(), classifierNoop());
         svc.setSimilarityThreshold(0.7);
         svc.setHybridEnabled(false);
         svc.initMetrics();

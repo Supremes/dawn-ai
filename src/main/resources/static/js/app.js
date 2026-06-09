@@ -6,6 +6,7 @@ const API = {
     chatSimple: '/api/v1/chat/simple',
     ragIngest: '/api/v1/rag/ingest',
     ragSearch: '/api/v1/rag/search',
+    ragCategories: '/api/v1/rag/categories',
     topics: '/api/v1/topics',
     health: '/actuator/health',
     metrics: '/actuator/metrics',
@@ -277,6 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initInteractionLogLink();
     restoreOrNewSession();
     refreshTopics();
+    refreshCategories();
 });
 
 // ===== Topics =====
@@ -293,6 +295,23 @@ async function refreshTopics() {
             .join('');
     } catch (err) {
         // Non-blocking: topic suggestions are optional
+    }
+}
+
+// ===== Categories =====
+async function refreshCategories() {
+    try {
+        const res = await fetch(API.ragCategories);
+        if (!res.ok) return;
+        const categories = await res.json();
+        if (!Array.isArray(categories)) return;
+        const datalist = $('#ragCategories');
+        if (!datalist) return;
+        datalist.innerHTML = categories
+            .map(c => `<option value="${escapeHtml(c)}"></option>`)
+            .join('');
+    } catch (err) {
+        // Non-blocking: category suggestions are optional
     }
 }
 

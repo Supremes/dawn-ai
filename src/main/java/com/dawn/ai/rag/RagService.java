@@ -4,6 +4,7 @@ import com.dawn.ai.config.AiAvailabilityChecker;
 import com.dawn.ai.memory.MemoryAccessUpdater;
 import com.dawn.ai.rag.ingestion.OverlapTextSplitter;
 import com.dawn.ai.rag.query.HydeQueryGenerator;
+import com.dawn.ai.rag.query.QueryCategoryClassifier;
 import com.dawn.ai.rag.query.QueryRewriter;
 import com.dawn.ai.rag.retrieval.fusion.ReciprocalRankFusion;
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
@@ -61,6 +62,7 @@ public class RagService {
     private final MemoryAccessUpdater memoryAccessUpdater;
     private final HydeQueryGenerator hydeQueryGenerator;
     private final QueryRewriter queryRewriter;
+    private final QueryCategoryClassifier queryCategoryClassifier;
 
     public RagService(VectorStore vectorStore,
                       MeterRegistry meterRegistry,
@@ -73,7 +75,8 @@ public class RagService {
                       @Qualifier("ragRetrievalExecutor") ExecutorService ragRetrievalExecutor,
                       MemoryAccessUpdater memoryAccessUpdater,
                       HydeQueryGenerator hydeQueryGenerator,
-                      QueryRewriter queryRewriter) {
+                      QueryRewriter queryRewriter,
+                      QueryCategoryClassifier queryCategoryClassifier) {
         this.vectorStore = vectorStore;
         this.meterRegistry = meterRegistry;
         this.aiAvailabilityChecker = aiAvailabilityChecker;
@@ -86,6 +89,7 @@ public class RagService {
         this.memoryAccessUpdater = memoryAccessUpdater;
         this.hydeQueryGenerator = hydeQueryGenerator;
         this.queryRewriter = queryRewriter;
+        this.queryCategoryClassifier = queryCategoryClassifier;
     }
 
     @Setter
@@ -133,13 +137,6 @@ public class RagService {
                 .register(meterRegistry);
     }
 
-    /**
-     * Ingest a document. Delegates to {@link #ingest(String, String, String, String)} with no topicId.
-     */
-    public String ingest(String content, String source, String category) {
-        return ingest(content, source, category, null);
-    }
-
     public String ingest(String content, String source, String category, String topicId) {
         aiAvailabilityChecker.ensureConfigured();
 
@@ -170,13 +167,6 @@ public class RagService {
      *  2. Record how many candidates were filtered out (candidates - returned).
      *  3. Limit final result to topK.
      */
-    public List<Document> retrieve(String query, int topK) {
-        return retrieve(RetrievalRequest.builder()
-                .query(query)
-                .topK(topK)
-                .build());
-    }
-
     public List<Document> retrieve(RetrievalRequest retrievalRequest) {
         aiAvailabilityChecker.ensureConfigured();
 
@@ -189,12 +179,31 @@ public class RagService {
         //    短句 / 精确查找 / 带 metadata 过滤的场景一律跳过 HyDE，
         //    避免 embedding 空间漂移。
         String originalQuery = retrievalRequest.getQuery();
+        // 可配置- LLM rewrite：关键词归一化，去掉口语助词。
         String rewrittenQuery = queryRewriter.rewrite(originalQuery);
-        RetrievalRequest effectiveRequest = rewrittenQuery.equals(originalQuery)
+        RetrievalRequest rewrittenRequest = rewrittenQuery.equals(originalQuery)
                 ? retrievalRequest
                 : retrievalRequest.toBuilder().query(rewrittenQuery).build();
 
+        RetrievalRequest effectiveRequest;
+        // 可配置 - LLM 语义分类 category
+        if (!rewrittenRequest.getMetadataFilters().containsKey("category")) {
+            String classifiedCategory = queryCategoryClassifier.classify(rewrittenQuery);
+            if (classifiedCategory != null) {
+                Map<String, List<String>> enrichedFilters = new HashMap<>(rewrittenRequest.getMetadataFilters());
+                enrichedFilters.put("category", List.of(classifiedCategory));
+                effectiveRequest = rewrittenRequest.toBuilder().metadataFilters(enrichedFilters).build();
+                log.info("[RagService] Auto-classified category='{}' for query='{}'", classifiedCategory, rewrittenQuery);
+            } else {
+                effectiveRequest = rewrittenRequest;
+            }
+        } else {
+            effectiveRequest = rewrittenRequest;
+        }
+
         RetrievalStrategy strategy = resolveStrategy(effectiveRequest);
+
+        // 可配置- LLM HyDE 扩写
         String denseQuery = shouldUseHyde(strategy, effectiveRequest)
                 ? hydeQueryGenerator.generate(rewrittenQuery)
                 : rewrittenQuery;

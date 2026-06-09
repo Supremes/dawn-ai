@@ -4,6 +4,7 @@ import com.dawn.ai.dto.RagRequest;
 import com.dawn.ai.rag.RagService;
 import com.dawn.ai.rag.constants.DocumentType;
 import com.dawn.ai.rag.ingestion.DocumentTextExtractor;
+import com.dawn.ai.rag.query.QueryCategoryClassifier;
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import com.dawn.ai.rag.retrieval.RetrievalStrategy;
 import jakarta.validation.Valid;
@@ -32,6 +33,7 @@ public class RagController {
 
     private final RagService ragService;
     private final DocumentTextExtractor documentTextExtractor;
+    private final QueryCategoryClassifier queryCategoryClassifier;
 
     /**
      * Ingest a document into the vector knowledge base.
@@ -87,6 +89,11 @@ public class RagController {
                 .build();
         List<Document> results = ragService.retrieve(request);
         return ResponseEntity.ok(results);
+    }
+
+    @GetMapping("/categories")
+    public ResponseEntity<List<String>> getCategories() {
+        return ResponseEntity.ok(queryCategoryClassifier.getCategories());
     }
 
     private Map<String, List<String>> buildMetadataFilters(
