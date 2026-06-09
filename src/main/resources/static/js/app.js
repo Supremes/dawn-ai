@@ -104,6 +104,7 @@ const streamRender = (() => {
     function flush() {
         scheduled = false;
         if (!pendingBubble) return;
+        if (!pendingBubble.isConnected) { pendingBubble = null; pendingText = ''; return; }
         const chatMessages = $('#chatMessages');
         const shouldScroll = isNearBottom(chatMessages);
         pendingBubble.innerHTML = renderMarkdown(pendingText);
@@ -274,7 +275,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initKnowledge();
     initDashboard();
     initInteractionLogLink();
-    newSession();
+    restoreOrNewSession();
     refreshTopics();
 });
 
@@ -344,7 +345,7 @@ function initSessionHistory() {
         clearBtn.addEventListener('click', () => {
             if (!confirm('清除全部历史对话？')) return;
             chatStore.getSessions().forEach(s => chatStore.deleteSession(s.id));
-            renderSessionList();
+            newSession();
             toast('History cleared', 'info');
         });
     }
@@ -381,13 +382,23 @@ function renderSessionList() {
             e.stopPropagation();
             const sid = btn.dataset.delete;
             chatStore.deleteSession(sid);
-            if (sid === state.sessionId) newSession();
-            renderSessionList();
+            if (sid === state.sessionId) {
+                const remaining = chatStore.getSessions();
+                if (remaining.length > 0) {
+                    loadSession(remaining[0].id);
+                } else {
+                    newSession();
+                }
+            } else {
+                renderSessionList();
+            }
         });
     });
 }
 
 function loadSession(sessionId) {
+    state.isLoading = false;
+    $('#sendBtn').disabled = false;
     const sessions = chatStore.getSessions();
     const sessionMeta = sessions.find(s => s.id === sessionId);
     state.sessionId = sessionId;
@@ -483,9 +494,22 @@ function getChatTopicId() {
     return value || undefined;
 }
 
+function restoreOrNewSession() {
+    const sessions = chatStore.getSessions();
+    if (sessions.length > 0) {
+        loadSession(sessions[0].id);
+    } else {
+        newSession();
+    }
+}
+
 function newSession() {
+    state.isLoading = false;
+    $('#sendBtn').disabled = false;
     state.sessionId = 'session-' + Date.now().toString(36);
     $('#sessionId').textContent = state.sessionId;
+    const topicEl = $('#chatTopic');
+    if (topicEl) topicEl.value = '';
 
     const messages = $('#chatMessages');
     messages.innerHTML = `
@@ -495,7 +519,6 @@ function newSession() {
         </div>
     `;
     updateInteractionLogLink();
-    chatStore.saveSession(state.sessionId, getChatTopicId());
     renderSessionList();
 }
 
@@ -507,33 +530,38 @@ async function sendMessage() {
     state.isLoading = true;
     $('#sendBtn').disabled = true;
 
+    const requestSessionId = state.sessionId;
+
     // Remove welcome message
     const welcome = $('#chatMessages .welcome-message');
     if (welcome) welcome.remove();
 
     // Add user message
     appendMessage('user', message);
-    chatStore.pushMessage(state.sessionId, { role: 'user', content: message });
-    chatStore.updateSessionPreview(state.sessionId, message);
-    chatStore.updateSessionTopic(state.sessionId, getChatTopicId());
+    chatStore.saveSession(requestSessionId, getChatTopicId());
+    chatStore.pushMessage(requestSessionId, { role: 'user', content: message });
+    chatStore.updateSessionPreview(requestSessionId, message);
     renderSessionList();
     input.value = '';
     input.style.height = 'auto';
 
     if (state.streamMode) {
-        await sendMessageStream(message);
+        await sendMessageStream(message, requestSessionId);
     } else {
-        await sendMessageSync(message);
+        await sendMessageSync(message, requestSessionId);
     }
 
-    state.isLoading = false;
-    $('#sendBtn').disabled = false;
-    $('#chatInput').focus();
+    if (state.sessionId === requestSessionId) {
+        state.isLoading = false;
+        $('#sendBtn').disabled = false;
+        $('#chatInput').focus();
+    }
 }
 
-async function sendMessageStream(message) {
+async function sendMessageStream(message, requestSessionId) {
     const typingEl = showTyping();
     const assistantDiv = createAssistantPlaceholder();
+    let accumulatedContent = '';
 
     try {
         const res = await fetch(API.chatStream, {
@@ -541,16 +569,18 @@ async function sendMessageStream(message) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 message,
-                sessionId: state.sessionId,
+                sessionId: requestSessionId,
                 topicId: getChatTopicId(),
             }),
         });
 
-        typingEl.remove();
+        if (typingEl.isConnected) typingEl.remove();
 
         if (!res.ok) {
             const err = await res.json().catch(() => ({ message: res.statusText }));
-            assistantDiv.querySelector('.message-bubble').textContent = `Error: ${err.message || res.statusText}`;
+            if (assistantDiv.isConnected) {
+                assistantDiv.querySelector('.message-bubble').textContent = `Error: ${err.message || res.statusText}`;
+            }
             toast('Request failed: ' + (err.message || res.statusText), 'error');
             return;
         }
@@ -567,7 +597,7 @@ async function sendMessageStream(message) {
 
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
-            buffer = lines.pop(); // keep incomplete last line
+            buffer = lines.pop();
 
             for (const line of lines) {
                 if (line.startsWith('event:')) {
@@ -577,15 +607,14 @@ async function sendMessageStream(message) {
                     if (!raw) continue;
                     try {
                         const envelope = JSON.parse(raw);
-                        handleStreamEvent(eventName || envelope.event, envelope, assistantDiv);
-                        if (envelope.event === 'done') streamMeta = envelope.data;
-                        if (envelope.event === 'connected' && envelope.data && envelope.data.sessionId) {
-                            state.sessionId = envelope.data.sessionId;
-                            $('#sessionId').textContent = envelope.data.sessionId;
+                        if (envelope.event === 'token') {
+                            accumulatedContent += (envelope.data && envelope.data.content) || '';
                         }
-                    } catch (e) {
-                        // skip malformed lines
-                    }
+                        if (assistantDiv.isConnected) {
+                            handleStreamEvent(eventName || envelope.event, envelope, assistantDiv);
+                        }
+                        if (envelope.event === 'done') streamMeta = envelope.data;
+                    } catch (e) { /* skip */ }
                     eventName = '';
                 } else if (line === '') {
                     eventName = '';
@@ -594,12 +623,28 @@ async function sendMessageStream(message) {
         }
 
         if (streamMeta) {
-            finaliseAssistantMessage(assistantDiv, streamMeta);
+            if (assistantDiv.isConnected) {
+                finaliseAssistantMessage(assistantDiv, streamMeta, requestSessionId);
+            } else {
+                chatStore.pushMessage(requestSessionId, {
+                    role: 'assistant',
+                    content: accumulatedContent,
+                    meta: { model: streamMeta.model, durationMs: streamMeta.durationMs, totalSteps: streamMeta.totalSteps },
+                });
+            }
         }
 
     } catch (err) {
-        typingEl.remove();
-        assistantDiv.querySelector('.message-bubble').textContent = `Network error: ${err.message}`;
+        if (typingEl.isConnected) typingEl.remove();
+        if (err.name === 'AbortError') return;
+        if (assistantDiv.isConnected) {
+            assistantDiv.querySelector('.message-bubble').textContent = `Network error: ${err.message}`;
+        }
+        if (accumulatedContent) {
+            chatStore.pushMessage(requestSessionId, {
+                role: 'assistant', content: accumulatedContent, meta: { error: err.message },
+            });
+        }
         toast('Network error', 'error');
     }
 }
@@ -709,12 +754,13 @@ function createAssistantPlaceholder() {
     return div;
 }
 
-function finaliseAssistantMessage(div, meta) {
+function finaliseAssistantMessage(div, meta, requestSessionId) {
+    const sid = requestSessionId || state.sessionId;
     const bubble = div.querySelector('.message-bubble');
     if (bubble && bubble.dataset.rawContent) {
         bubble.innerHTML = renderMarkdown(bubble.dataset.rawContent);
         enhanceCodeBlocks(bubble);
-        chatStore.pushMessage(state.sessionId, {
+        chatStore.pushMessage(sid, {
             role: 'assistant',
             content: bubble.dataset.rawContent,
             meta: { model: meta.model, durationMs: meta.durationMs, totalSteps: meta.totalSteps },
@@ -770,8 +816,7 @@ function finaliseAssistantMessage(div, meta) {
     $('#chatMessages').scrollTop = $('#chatMessages').scrollHeight;
 }
 
-async function sendMessageSync(message) {
-    // Show typing indicator
+async function sendMessageSync(message, requestSessionId) {
     const typingEl = showTyping();
 
     try {
@@ -780,36 +825,37 @@ async function sendMessageSync(message) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 message: message,
-                sessionId: state.sessionId,
+                sessionId: requestSessionId,
                 topicId: getChatTopicId(),
             }),
         });
 
-        typingEl.remove();
+        if (typingEl.isConnected) typingEl.remove();
 
         if (!res.ok) {
             const err = await res.json().catch(() => ({ message: res.statusText }));
-            appendMessage('assistant', `Error: ${err.message || res.statusText}`, null);
+            if (state.sessionId === requestSessionId) {
+                appendMessage('assistant', `Error: ${err.message || res.statusText}`, null);
+            }
             toast('Request failed: ' + (err.message || res.statusText), 'error');
             return;
         }
 
         const data = await res.json();
 
-        if (data.sessionId) {
-            state.sessionId = data.sessionId;
-            $('#sessionId').textContent = data.sessionId;
+        if (state.sessionId === requestSessionId) {
+            appendMessage('assistant', data.answer, data);
         }
-
-        appendMessage('assistant', data.answer, data);
-        chatStore.pushMessage(state.sessionId, {
+        chatStore.pushMessage(requestSessionId, {
             role: 'assistant',
             content: data.answer,
             meta: { model: data.model, durationMs: data.durationMs, totalSteps: data.totalSteps },
         });
     } catch (err) {
-        typingEl.remove();
-        appendMessage('assistant', `Network error: ${err.message}`, null);
+        if (typingEl.isConnected) typingEl.remove();
+        if (state.sessionId === requestSessionId) {
+            appendMessage('assistant', `Network error: ${err.message}`, null);
+        }
         toast('Network error', 'error');
     }
 }
