@@ -140,6 +140,45 @@ public class RagService {
     public String ingest(String content, String source, String category, String topicId) {
         aiAvailabilityChecker.ensureConfigured();
 
+        Document parentDoc = buildParentDoc(content, source, category, topicId);
+        List<Document> chunks = splitter.apply(List.of(parentDoc));
+
+        vectorStore.add(chunks);
+        ingestionCounter.increment(chunks.size());
+
+        log.info("[RagService] Ingested {} chunk(s), source={}, topicId={}", chunks.size(), source, topicId);
+        return parentDoc.getId();
+    }
+
+    /**
+     * Ingest multiple independent documents in one batch, sharing the same source/category/topicId.
+     *
+     * <p>Each entry becomes its own parent document (its own docId and chunk set), mirroring
+     * {@link #ingest} per record. All chunks are split and written to the vector store in a single
+     * pass so a large dataset costs only one {@code vectorStore.add} call.
+     *
+     * @return the generated docId of every ingested record, in input order
+     */
+    public List<String> ingestBatch(List<String> contents, String source, String category, String topicId) {
+        aiAvailabilityChecker.ensureConfigured();
+
+        List<Document> parentDocs = new ArrayList<>(contents.size());
+        for (String content : contents) {
+            parentDocs.add(buildParentDoc(content, source, category, topicId));
+        }
+
+        List<Document> chunks = splitter.apply(parentDocs);
+
+        vectorStore.add(chunks);
+        ingestionCounter.increment(chunks.size());
+
+        List<String> docIds = parentDocs.stream().map(Document::getId).toList();
+        log.info("[RagService] Batch ingested {} record(s), {} chunk(s), source={}, topicId={}",
+                docIds.size(), chunks.size(), source, topicId);
+        return docIds;
+    }
+
+    private Document buildParentDoc(String content, String source, String category, String topicId) {
         String docId = UUID.randomUUID().toString();
         Map<String, Object> metadata = new HashMap<>();
         metadata.put("source", source != null ? source : "manual");
@@ -148,15 +187,7 @@ public class RagService {
         if (topicId != null && !topicId.isBlank()) {
             metadata.put("topicId", topicId);
         }
-        Document parentDoc = new Document(docId, content, metadata);
-
-        List<Document> chunks = splitter.apply(List.of(parentDoc));
-
-        vectorStore.add(chunks);
-        ingestionCounter.increment(chunks.size());
-
-        log.info("[RagService] Ingested {} chunk(s), source={}, topicId={}", chunks.size(), source, topicId);
-        return docId;
+        return new Document(docId, content, metadata);
     }
 
     /**

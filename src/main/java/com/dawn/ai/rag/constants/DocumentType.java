@@ -4,5 +4,6 @@ public enum DocumentType {
     TEXT,
     PDF,
     WORD,
-    EXCEL
+    EXCEL,
+    JSONL
 }

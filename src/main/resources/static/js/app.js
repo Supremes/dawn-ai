@@ -1026,7 +1026,21 @@ function initFileUpload() {
         setSelectedKnowledgeFile((e.dataTransfer && e.dataTransfer.files[0]) || null);
     });
 
+    $('#fileDocumentType').addEventListener('change', updateJsonlFieldVisibility);
+
     uploadBtn.addEventListener('click', ingestFile);
+}
+
+// Show the JSONL text-field input only when the upload will be treated as JSONL:
+// either explicitly chosen, or auto-detected from a .jsonl/.ndjson filename.
+function updateJsonlFieldVisibility() {
+    const group = $('#jsonlFieldGroup');
+    if (!group) return;
+    const docType = $('#fileDocumentType').value;
+    const file = state.knowledgeUploadFile;
+    const nameIsJsonl = file && /\.(jsonl|ndjson)$/i.test(file.name);
+    const isJsonl = docType === 'JSONL' || (docType === '' && nameIsJsonl);
+    group.style.display = isJsonl ? '' : 'none';
 }
 
 function setSelectedKnowledgeFile(file) {
@@ -1045,6 +1059,8 @@ function setSelectedKnowledgeFile(file) {
         uploadBtn.disabled = true;
         $('#fileInput').value = '';
     }
+
+    updateJsonlFieldVisibility();
 }
 
 function formatFileSize(bytes) {
@@ -1078,6 +1094,10 @@ async function ingestFile() {
 
     const topicId = $('#fileTopic').value.trim();
     if (topicId) formData.append('topicId', topicId);
+
+    // Only meaningful for JSONL uploads; backend ignores it for other types.
+    const textField = $('#fileTextField').value.trim();
+    if (textField) formData.append('textField', textField);
 
     const result = $('#uploadResult');
     result.classList.add('show');
