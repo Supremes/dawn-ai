@@ -40,6 +40,52 @@ updated: 2026-06-07 17:20
 学习要点：
 - ReAct 适合用在局部决策场景，而不是整个系统。**大多数场景，整体流程是确定的**，适合用 workflow 来保证稳定性。针对某些局部节点（如果需要根据当前上下文动态决定是否调用工具、调用哪个工具、是否进行多轮推理，这时候可以引入 ReAct 来增强灵活性），使用 ReAct 来处理不确定性，保证稳定性和灵活性之间取得平衡。
 
+## RAG
+**技术栈**：Spring AI + PgVector（PostgreSQL 向量存储）+ Java
+
+### 1. Ingestion（文档摄入）
+- **多格式支持**：Text / PDF / Word / Excel / JSONL（含批量摄入）
+- **分块策略**：`OverlapTextSplitter`，500 tokens，overlap=50
+- **Metadata 标记**：每个文档带 `source`、`category`、`topicId`、`docId`
+- JSONL 支持每行独立成文档，一次 batch 写入
+
+### 2. Query Pipeline（查询流水线）— 四段式
+1. **QueryRewriter** — LLM 改写：关键词归一化，去口语助词
+2. **QueryCategoryClassifier** — LLM 自动分类 category（无显式 filter 时自动推断）
+3. **RetrievalRouter** — 策略路由：短句/关键词 → HYBRID，长自然语言 → DENSE
+4. **HyDE** — 仅 DENSE + 长查询时启用，生成假设性回答作为 embedding 查询
+
+### 3. Retrieval（检索）— Hybrid Search
+- **Dense**：PgVector 语义相似度搜索，similarity threshold 过滤
+- **Sparse**：PostgreSQL BM25 全文检索（`PostgresBm25Retriever`）
+- **融合**：`ReciprocalRankFusion` (RRF) 合并两路结果
+- Dense 和 Sparse **并行执行**（专用线程池 `ragRetrievalExecutor`）
+
+### 4. Rerank（重排序）
+- **双引擎**：`CrossEncoderRetrievalReranker`（模型级）+ `HeuristicRetrievalReranker`（规则级）
+- `RoutingRetrievalReranker` 按配置路由选择
+- 可配置 rerank min-score 阈值过滤低分文档
+
+### 5. 亮点特性
+- **全链路可观测**：Micrometer metrics（ingestion 总数、retrieval hit/miss、filtered count）
+- **Metadata Filter**：支持 source / category / docId / topicId 多维过滤组合
+- **Memory 联动**：检索命中的 memory 类文档自动刷新 `lastAccessedAt`
+- **Retrieval Evaluation**：内建 `RetrievalEvaluator` + 评估用例体系
+- **Topic 管理**：通过 JDBC 查询 vector_store 元数据实现 topic 列表
+
+### 6. 架构分层
+```
+controller/RagController
+  → rag/RagService (核心编排)
+    → query/   (QueryRewriter, HydeQueryGenerator, QueryCategoryClassifier)
+    → retrieval/  (RetrievalRouter, SparseRetriever, RRF)
+    → retrieval/rerank/ (Cross-Encoder, Heuristic, Routing)
+    → ingestion/  (OverlapTextSplitter, DocumentTextExtractor)
+    → evaluation/ (RetrievalEvaluator)
+```
+
+一句话概括：**一套完整的生产级 Hybrid RAG 系统——Query 改写 → 语义分类 → HyDE → Dense+Sparse 并行检索 → RRF 融合 → Cross-Encoder Rerank → 多维 Metadata Filter，全链路 metrics 可观测。**
+
 ## Spring 
 
 ### [SSE] - ThreadLocal 跨线程传播模式

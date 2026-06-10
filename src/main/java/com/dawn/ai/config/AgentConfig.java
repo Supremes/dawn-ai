@@ -4,13 +4,18 @@ import com.dawn.ai.agent.trace.StepCollectorContextAccessor;
 import com.dawn.ai.exception.MaxStepsExceededException;
 import io.micrometer.context.ContextRegistry;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.document.Document;
+import org.springframework.ai.embedding.BatchingStrategy;
+import org.springframework.ai.embedding.TokenCountBatchingStrategy;
 import org.springframework.ai.tool.execution.DefaultToolExecutionExceptionProcessor;
 import org.springframework.ai.tool.execution.ToolExecutionExceptionProcessor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import reactor.core.publisher.Hooks;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -98,6 +103,32 @@ public class AgentConfig {
             // 告诉 Reactor：每次切换线程前自动调用所有 Accessor 的 set/restore
             Hooks.enableAutomaticContextPropagation();
             log.info("[AgentConfig] Reactor automatic context propagation enabled (StepCollector, AiInteractionContext)");
+        };
+    }
+
+
+    /**
+     * Embedding 批处理策略。覆盖 Spring AI pgvector 自动配置提供的默认
+     * {@link TokenCountBatchingStrategy}（默认仅按 token 总量分批，不限制条数）。
+     *
+     * <p>DashScope 的 {@code text-embedding-v4} 接口对单次 embeddings 请求有
+     * "input.contents 最多 10 条" 的硬限制，超过会直接返回 HTTP 400。短文本场景下
+     * 多个 chunk 的 token 总量很容易低于 token 上限却超过 10 条，因此这里先用 token
+     * 策略保证不超 token 上限，再把每个子批进一步按条数切到 {@code maxBatchSize}。
+     */
+    @Bean
+    public BatchingStrategy embeddingBatchingStrategy(
+            @Value("${app.ai.embedding.max-batch-size:10}") int maxBatchSize) {
+        TokenCountBatchingStrategy tokenStrategy = new TokenCountBatchingStrategy();
+        return documents -> {
+            List<List<Document>> result = new ArrayList<>();
+            for (List<Document> tokenBatch : tokenStrategy.batch(documents)) {
+                for (int i = 0; i < tokenBatch.size(); i += maxBatchSize) {
+                    int end = Math.min(i + maxBatchSize, tokenBatch.size());
+                    result.add(new ArrayList<>(tokenBatch.subList(i, end)));
+                }
+            }
+            return result;
         };
     }
 }

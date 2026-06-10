@@ -4,6 +4,7 @@ import com.dawn.ai.config.AiAvailabilityChecker;
 import com.dawn.ai.memory.MemoryAccessUpdater;
 import com.dawn.ai.rag.ingestion.OverlapTextSplitter;
 import com.dawn.ai.rag.query.HydeQueryGenerator;
+import com.dawn.ai.rag.query.QueryCategoryClassifier;
 import com.dawn.ai.rag.retrieval.RetrievalRouter;
 import com.dawn.ai.rag.retrieval.fusion.ReciprocalRankFusion;
 import com.dawn.ai.rag.retrieval.rerank.HeuristicRetrievalReranker;
@@ -59,7 +60,8 @@ class RagServiceIngestUuidTest {
                 ragRetrievalExecutor,
                 mock(MemoryAccessUpdater.class),
                 mock(HydeQueryGenerator.class),
-                mock(com.dawn.ai.rag.query.QueryRewriter.class));
+                mock(com.dawn.ai.rag.query.QueryRewriter.class),
+                mock(QueryCategoryClassifier.class));
         ragService.initMetrics();
     }
 
@@ -71,7 +73,7 @@ class RagServiceIngestUuidTest {
     @Test
     @DisplayName("ingest: 多 chunk 写入时应使用 UUID 兼容的 chunk id，并保留 docId metadata")
     void ingest_usesUuidCompatibleChunkIdsAndPreservesDocIdMetadata() {
-        String docId = ragService.ingest("one two three four five six seven", "pricing-doc", "billing");
+        String docId = ragService.ingest("one two three four five six seven", "pricing-doc", "billing", null);
 
         ArgumentCaptor<List<Document>> captor = ArgumentCaptor.forClass(List.class);
         verify(vectorStore).add(captor.capture());

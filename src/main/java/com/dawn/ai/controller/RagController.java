@@ -4,6 +4,7 @@ import com.dawn.ai.dto.RagRequest;
 import com.dawn.ai.rag.RagService;
 import com.dawn.ai.rag.constants.DocumentType;
 import com.dawn.ai.rag.ingestion.DocumentTextExtractor;
+import com.dawn.ai.rag.query.QueryCategoryClassifier;
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import com.dawn.ai.rag.retrieval.RetrievalStrategy;
 import jakarta.validation.Valid;
@@ -32,6 +33,7 @@ public class RagController {
 
     private final RagService ragService;
     private final DocumentTextExtractor documentTextExtractor;
+    private final QueryCategoryClassifier queryCategoryClassifier;
 
     /**
      * Ingest a document into the vector knowledge base.
@@ -51,14 +53,27 @@ public class RagController {
             @RequestParam(required = false) DocumentType documentType,
             @RequestParam(required = false) String source,
             @RequestParam(required = false) String category,
-            @RequestParam(required = false) String topicId) {
+            @RequestParam(required = false) String topicId,
+            @RequestParam(required = false) String textField) {
         if (file.isEmpty()) {
             throw new IllegalArgumentException("Uploaded file is empty");
         }
 
         DocumentType resolvedType = documentType != null ? documentType : inferDocumentType(file);
-        String content = documentTextExtractor.extract(file, resolvedType);
         String effectiveSource = (source != null && !source.isBlank()) ? source : file.getOriginalFilename();
+
+        // JSONL is record-oriented: one independent document per line, each with its own docId.
+        if (resolvedType == DocumentType.JSONL) {
+            List<String> records = documentTextExtractor.extractJsonlRecords(file, textField);
+            List<String> docIds = ragService.ingestBatch(records, effectiveSource, category, topicId);
+            return ResponseEntity.ok(Map.of(
+                    "status", "ingested",
+                    "documentType", resolvedType.name(),
+                    "recordCount", String.valueOf(docIds.size())
+            ));
+        }
+
+        String content = documentTextExtractor.extract(file, resolvedType);
         String docId = ragService.ingest(content, effectiveSource, category, topicId);
         return ResponseEntity.ok(Map.of(
                 "docId", docId,
@@ -89,6 +104,11 @@ public class RagController {
         return ResponseEntity.ok(results);
     }
 
+    @GetMapping("/categories")
+    public ResponseEntity<List<String>> getCategories() {
+        return ResponseEntity.ok(queryCategoryClassifier.getCategories());
+    }
+
     private Map<String, List<String>> buildMetadataFilters(
             List<String> source,
             List<String> category,
@@ -116,6 +136,11 @@ public class RagController {
                 ? file.getContentType().toLowerCase(Locale.ROOT)
                 : "";
 
+        // JSONL must be checked before TEXT: a .jsonl upload often carries a text/* content
+        // type, which would otherwise be misclassified as a single TEXT document.
+        if (isJsonlDocument(filename, contentType)) {
+            return DocumentType.JSONL;
+        }
         if (isTextDocument(filename, contentType)) {
             return DocumentType.TEXT;
         }
@@ -129,7 +154,15 @@ public class RagController {
             return DocumentType.EXCEL;
         }
 
-        throw new IllegalArgumentException("Unsupported file format. Supported: text/pdf/word/excel");
+        throw new IllegalArgumentException("Unsupported file format. Supported: text/pdf/word/excel/jsonl");
+    }
+
+    private boolean isJsonlDocument(String filename, String contentType) {
+        return filename.endsWith(".jsonl")
+                || filename.endsWith(".ndjson")
+                || "application/jsonl".equals(contentType)
+                || "application/x-ndjson".equals(contentType)
+                || "application/x-jsonlines".equals(contentType);
     }
 
     private boolean isTextDocument(String filename, String contentType) {

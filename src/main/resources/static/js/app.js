@@ -6,6 +6,7 @@ const API = {
     chatSimple: '/api/v1/chat/simple',
     ragIngest: '/api/v1/rag/ingest',
     ragSearch: '/api/v1/rag/search',
+    ragCategories: '/api/v1/rag/categories',
     topics: '/api/v1/topics',
     health: '/actuator/health',
     metrics: '/actuator/metrics',
@@ -277,6 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initInteractionLogLink();
     restoreOrNewSession();
     refreshTopics();
+    refreshCategories();
 });
 
 // ===== Topics =====
@@ -293,6 +295,23 @@ async function refreshTopics() {
             .join('');
     } catch (err) {
         // Non-blocking: topic suggestions are optional
+    }
+}
+
+// ===== Categories =====
+async function refreshCategories() {
+    try {
+        const res = await fetch(API.ragCategories);
+        if (!res.ok) return;
+        const categories = await res.json();
+        if (!Array.isArray(categories)) return;
+        const datalist = $('#ragCategories');
+        if (!datalist) return;
+        datalist.innerHTML = categories
+            .map(c => `<option value="${escapeHtml(c)}"></option>`)
+            .join('');
+    } catch (err) {
+        // Non-blocking: category suggestions are optional
     }
 }
 
@@ -629,7 +648,7 @@ async function sendMessageStream(message, requestSessionId) {
                 chatStore.pushMessage(requestSessionId, {
                     role: 'assistant',
                     content: accumulatedContent,
-                    meta: { model: streamMeta.model, durationMs: streamMeta.durationMs, totalSteps: streamMeta.totalSteps },
+                    meta: { model: streamMeta.model, durationMs: streamMeta.durationMs, totalSteps: streamMeta.totalSteps, steps: streamMeta.steps },
                 });
             }
         }
@@ -662,6 +681,7 @@ function handleStreamEvent(type, envelope, assistantDiv) {
             break;
         }
         case 'thinking': {
+            finalizePlanThinking(assistantDiv);
             const thinkingPanel = getOrCreateThinkingPanel(
                 assistantDiv,
                 'answer-thinking-panel',
@@ -671,6 +691,7 @@ function handleStreamEvent(type, envelope, assistantDiv) {
             break;
         }
         case 'token': {
+            finalizePlanThinking(assistantDiv);
             const thinkingPanel = assistantDiv.querySelector('.answer-thinking-panel');
             if (thinkingPanel) {
                 thinkingPanel.querySelector('.thinking-label').textContent = '已思考';
@@ -684,6 +705,7 @@ function handleStreamEvent(type, envelope, assistantDiv) {
             break;
         }
         case 'step': {
+            finalizePlanThinking(assistantDiv);
             let tracePanel = assistantDiv.querySelector('.stream-trace');
             if (!tracePanel) {
                 tracePanel = document.createElement('div');
@@ -703,18 +725,36 @@ function handleStreamEvent(type, envelope, assistantDiv) {
             break;
         }
         case 'plan': {
-            const planThinkingPanel = assistantDiv.querySelector('.plan-thinking-panel');
-            if (planThinkingPanel) {
-                planThinkingPanel.querySelector('.thinking-label').textContent = '已完成规划';
-                planThinkingPanel.classList.add('done');
-            }
+            finalizePlanThinking(assistantDiv);
             let planEl = assistantDiv.querySelector('.stream-plan');
             if (!planEl) {
                 planEl = document.createElement('div');
                 planEl.className = 'stream-plan';
                 assistantDiv.insertBefore(planEl, assistantDiv.querySelector('.message-bubble'));
             }
-            planEl.textContent = data.summary || '';
+            const planSteps = data.steps || [];
+            if (planSteps.length > 0) {
+                const planId = nextStepsId();
+                planEl.innerHTML = `
+                    <button class="steps-toggle" onclick="toggleSteps('${planId}')">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        规划 ${planSteps.length} 步
+                    </button>
+                    <div class="steps-detail" id="${planId}">
+                        ${planSteps.map(s => `
+                            <div class="step-item">
+                                <div class="step-header">
+                                    <span class="step-number">${s.step}</span>
+                                    <span class="step-tool">${escapeHtml(s.action || '')}</span>
+                                </div>
+                                <div class="step-body">${escapeHtml(s.reason || '')}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } else {
+                planEl.textContent = data.summary || '';
+            }
             break;
         }
         case 'error': {
@@ -723,6 +763,14 @@ function handleStreamEvent(type, envelope, assistantDiv) {
             bubble.dataset.rawContent = `[${data.code}] ${data.message}`;
             break;
         }
+    }
+}
+
+function finalizePlanThinking(assistantDiv) {
+    const planThinkingPanel = assistantDiv.querySelector('.plan-thinking-panel');
+    if (planThinkingPanel && !planThinkingPanel.classList.contains('done')) {
+        planThinkingPanel.querySelector('.thinking-label').textContent = '已完成规划';
+        planThinkingPanel.classList.add('done');
     }
 }
 
@@ -754,6 +802,14 @@ function createAssistantPlaceholder() {
     return div;
 }
 
+// Monotonic counter for unique steps-panel ids. Date.now() collides when
+// loadSession() re-renders multiple messages synchronously in the same ms,
+// which made getElementById() target the wrong (first) panel.
+let stepsPanelSeq = 0;
+function nextStepsId() {
+    return 'steps-' + (++stepsPanelSeq);
+}
+
 function finaliseAssistantMessage(div, meta, requestSessionId) {
     const sid = requestSessionId || state.sessionId;
     const bubble = div.querySelector('.message-bubble');
@@ -763,7 +819,7 @@ function finaliseAssistantMessage(div, meta, requestSessionId) {
         chatStore.pushMessage(sid, {
             role: 'assistant',
             content: bubble.dataset.rawContent,
-            meta: { model: meta.model, durationMs: meta.durationMs, totalSteps: meta.totalSteps },
+            meta: { model: meta.model, durationMs: meta.durationMs, totalSteps: meta.totalSteps, steps: meta.steps },
         });
     }
 
@@ -786,7 +842,7 @@ function finaliseAssistantMessage(div, meta, requestSessionId) {
         const oldTrace = div.querySelector('.stream-trace');
         if (oldTrace) oldTrace.remove();
 
-        const stepsId = 'steps-' + Date.now();
+        const stepsId = nextStepsId();
         const stepsHtml = `
             <button class="steps-toggle" onclick="toggleSteps('${stepsId}')">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
@@ -849,7 +905,7 @@ async function sendMessageSync(message, requestSessionId) {
         chatStore.pushMessage(requestSessionId, {
             role: 'assistant',
             content: data.answer,
-            meta: { model: data.model, durationMs: data.durationMs, totalSteps: data.totalSteps },
+            meta: { model: data.model, durationMs: data.durationMs, totalSteps: data.totalSteps, steps: data.steps },
         });
     } catch (err) {
         if (typingEl.isConnected) typingEl.remove();
@@ -877,7 +933,7 @@ function appendMessage(role, content, meta) {
         metaHtml = `<div class="message-meta">${parts.map(p => `<span>${escapeHtml(p)}</span>`).join('')}</div>`;
 
         if (meta.steps && meta.steps.length > 0) {
-            const stepsId = 'steps-' + Date.now();
+            const stepsId = nextStepsId();
             stepsHtml = `
                 <button class="steps-toggle" onclick="toggleSteps('${stepsId}')">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
@@ -1007,7 +1063,21 @@ function initFileUpload() {
         setSelectedKnowledgeFile((e.dataTransfer && e.dataTransfer.files[0]) || null);
     });
 
+    $('#fileDocumentType').addEventListener('change', updateJsonlFieldVisibility);
+
     uploadBtn.addEventListener('click', ingestFile);
+}
+
+// Show the JSONL text-field input only when the upload will be treated as JSONL:
+// either explicitly chosen, or auto-detected from a .jsonl/.ndjson filename.
+function updateJsonlFieldVisibility() {
+    const group = $('#jsonlFieldGroup');
+    if (!group) return;
+    const docType = $('#fileDocumentType').value;
+    const file = state.knowledgeUploadFile;
+    const nameIsJsonl = file && /\.(jsonl|ndjson)$/i.test(file.name);
+    const isJsonl = docType === 'JSONL' || (docType === '' && nameIsJsonl);
+    group.style.display = isJsonl ? '' : 'none';
 }
 
 function setSelectedKnowledgeFile(file) {
@@ -1026,6 +1096,8 @@ function setSelectedKnowledgeFile(file) {
         uploadBtn.disabled = true;
         $('#fileInput').value = '';
     }
+
+    updateJsonlFieldVisibility();
 }
 
 function formatFileSize(bytes) {
@@ -1059,6 +1131,10 @@ async function ingestFile() {
 
     const topicId = $('#fileTopic').value.trim();
     if (topicId) formData.append('topicId', topicId);
+
+    // Only meaningful for JSONL uploads; backend ignores it for other types.
+    const textField = $('#fileTextField').value.trim();
+    if (textField) formData.append('textField', textField);
 
     const result = $('#uploadResult');
     result.classList.add('show');

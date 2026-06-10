@@ -79,7 +79,7 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
             @JsonPropertyDescription("Only set when the user explicitly provides a document ID. Do NOT guess or invent a value.")
             String docId,
             @JsonProperty(required = false)
-            @JsonPropertyDescription("Research topic ID from the system prompt context. Always use the topicId value provided in the system prompt when one is present.")
+            @JsonPropertyDescription("Research topic ID. Use the value from the system prompt context when present; otherwise only set when the user explicitly provides one. Do NOT invent a value.")
             String topicId
     ) {
         public Request(String query) {

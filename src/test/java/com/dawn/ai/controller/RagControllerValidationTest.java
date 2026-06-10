@@ -4,6 +4,7 @@ import com.dawn.ai.exception.ApiExceptionHandler;
 import com.dawn.ai.rag.RagService;
 import com.dawn.ai.rag.constants.DocumentType;
 import com.dawn.ai.rag.ingestion.DocumentTextExtractor;
+import com.dawn.ai.rag.query.QueryCategoryClassifier;
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -46,6 +47,9 @@ class RagControllerValidationTest {
 
     @MockBean
     private DocumentTextExtractor documentTextExtractor;
+
+    @MockBean
+    private QueryCategoryClassifier queryCategoryClassifier;
 
     @Test
     void shouldRejectTopKGreaterThanTwenty() throws Exception {

@@ -87,11 +87,13 @@ app:
     react:
       max-steps: 10        # 单次对话最多工具调用次数（超出时 LLM 自行收敛）
       show-steps: true    # 响应体中是否包含 steps 详情
-      plan-enabled: false   # 是否启用执行前规划（关闭后跳过 TaskPlanner)
+      plan-enabled: true   # 是否启用执行前规划（关闭后跳过 TaskPlanner)
     stream:
       timeout-ms: 1200000   # SSE 单次请求最大等待时长（毫秒）
     rag:
-      tool-enabled: false          # 是否把 knowledgeSearchTool 暴露给 Agent；测试时可设为 false
+      tool-enabled: true          # 是否把 knowledgeSearchTool 暴露给 Agent；测试时可设为 false
+      embedding:
+        max-batch-size: 10        #
       chunk-size: 500                 # 单个 chunk 的 token 数
       chunk-overlap: 50              # 相邻 chunk 的重叠 token 数
       similarity-threshold: 0.6  # 向量相似度过滤阈值，低于此值的文档被丢弃 (bge-m3 cosine scores are typically 0.4-0.65)
@@ -111,6 +113,8 @@ app:
         api-key-header: Authorization
         api-key-prefix: "Bearer "
         max-document-chars: 4000  # 发送到 reranker 的单文档最大字符数
+      category-classify-enabled: true  # 检索前是否用 LLM 自动分类 query 所属 category，false 时不加 category filter
+      categories: 历史,法律,技术,医疗,金融,教育,general  # 逗号分隔字符串，@Value 自动切成 List；勿用 [..] 列表语法
       query-rewrite-enabled: true  # 检索前是否用 LLM 改写查询，false 时原样传入
       hyde-enabled: true          # 检索前是否用 HyDE 生成假设文档作为查询，默认关闭（每次调用 +1 次 LLM）
       max-calls-per-session: 3    # 每次请求最多 RAG 工具调用次数，独立于 maxSteps
