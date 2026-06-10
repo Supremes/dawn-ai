@@ -416,15 +416,16 @@ public class AgentOrchestrator {
     }
 
     private String formatPlan(List<PlanStep> plan) {
-        if (plan.isEmpty()) {
+        // 过滤掉 "finish" 步骤 - 这只是规划器的内部标记，不应暴露给执行阶段的LLM
+        List<PlanStep> actionableSteps = plan.stream()
+                .filter(step -> !"finish".equals(step.action()))
+                .toList();
+        // 纯 [finish] 计划 = 规划器判定凭自身知识即可作答，不注入【执行计划】
+        if (actionableSteps.isEmpty()) {
             return "";
         }
         StringBuilder sb = new StringBuilder("\n\n【执行计划】\n");
-        for (PlanStep step : plan) {
-            // 过滤掉 "finish" 步骤 - 这只是规划器的内部标记，不应暴露给执行阶段的LLM
-            if ("finish".equals(step.action())) {
-                continue;
-            }
+        for (PlanStep step : actionableSteps) {
             sb.append(step.step())
                     .append(". [").append(step.action()).append("] ")
                     .append(step.reason()).append("\n");
@@ -432,10 +433,6 @@ public class AgentOrchestrator {
         return sb.toString();
     }
 
-    /**
-     * Returns a mandatory enforcement directive when a non-empty plan exists.
-     * Without this, the LLM may answer from training knowledge and skip tool calls entirely.
-     */
     /**
      * Builds the system prompt shared by both sync and stream paths.
      * Includes the execution plan, plan-enforcement directive, and max-steps constraint.
@@ -471,7 +468,8 @@ public class AgentOrchestrator {
                 .append("调用 `dispatchSubAgentTool(subagentType, taskDescription)` 把深度调研/长文档分析这类'重活'派给隔离上下文的子 Agent。\n")
                 .append("\n判断准则：\n")
                 .append("- ✅ 适合派：需要多轮检索 / 多角度分析 / 长文档综合，单 Agent 上下文会被噪声淹没\n")
-                .append("- ❌ 不要派：单次 knowledge_search 1-2 次能搞定的简单问题；用 weather/calculator 等专用工具就够的\n")
+                .append("- ❌ 不要派：单次 knowledge_search 1-2 次能搞定的简单问题；用专用工具就够的\n")
+                .append("- ❌ 不要派：凭自身知识就能准确回答的常识问题，或已多次检索知识库均无结果（库中无此内容，再派也是空转）\n")
                 .append("\n约束：单次对话最多派 ").append(maxSubAgentDispatches).append(" 次；")
                 .append("taskDescription 必须自包含（子 Agent 看不到对话历史）；子 Agent 返回 status=PARTIAL_SUCCESS 时基于已有信息判断是否够用。\n\n")
                 .append("可用类型：\n");
@@ -527,10 +525,13 @@ public class AgentOrchestrator {
     }
 
     private String formatPlanEnforcement(List<PlanStep> plan) {
-        if (plan.isEmpty()) {
+        boolean hasActionableStep = plan.stream()
+                .anyMatch(step -> !"finish".equals(step.action()));
+        // 纯 finish（无实际工具步骤）时不加约束，让模型直接凭自身知识作答
+        if (!hasActionableStep) {
             return "";
         }
-        return "\n\n【强制约束】你必须严格按照上方【执行计划】依次调用对应工具，" +
-               "不得依赖自身训练知识直接回答。完成所有工具调用后，再基于结果生成最终答案。";
+        return "\n\n【执行约束】请优先按上方【执行计划】调用对应工具，并以工具结果为主要依据作答。" +
+               "当工具无结果或信息不足时，结合你自身的知识把答案补全，并简要说明依据来源。";
     }
 }

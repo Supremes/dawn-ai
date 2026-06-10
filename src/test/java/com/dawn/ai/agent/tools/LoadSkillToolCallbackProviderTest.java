@@ -3,6 +3,8 @@ package com.dawn.ai.agent.tools;
 import com.dawn.ai.agent.skill.Skill;
 import com.dawn.ai.agent.skill.SkillManifest;
 import com.dawn.ai.agent.skill.SkillRegistry;
+import com.dawn.ai.agent.tools.skill.LoadSkillTool;
+import com.dawn.ai.agent.tools.skill.LoadSkillToolCallbackProvider;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;

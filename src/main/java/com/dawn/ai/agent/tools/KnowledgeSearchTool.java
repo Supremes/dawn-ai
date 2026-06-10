@@ -163,7 +163,9 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
     }
 
     private String formatContext(List<Document> docs) {
-        if (docs.isEmpty()) return "未找到相关知识库内容。";
+        if (docs.isEmpty()) {
+            return "知识库中未找到相关内容。若该问题可凭自身知识准确回答，请直接作答，不必反复检索或派发子 Agent。";
+        }
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < docs.size(); i++) {
             sb.append(String.format("[%d] %s\n", i + 1, docs.get(i).getText()));

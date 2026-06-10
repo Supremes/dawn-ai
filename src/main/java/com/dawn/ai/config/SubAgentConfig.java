@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
  * Sub-agent 类型注册与运行时资源配置。
  *
  * <p>每个 {@link SubAgentDefinition} bean 由 {@link com.dawn.ai.agent.subagent.SubAgentRegistry}
- * 自动收集，按 {@code type} 名建立索引。
+ * 自动收集, 按 {@code type} 名建立索引。
  */
 @Slf4j
 @Configuration
@@ -36,21 +36,21 @@ public class SubAgentConfig {
             @Value("${app.ai.rag.tool-enabled:true}") boolean ragToolEnabled) {
 
         String ragGuidance = ragToolEnabled
-                ? "1. 优先从多角度多关键词调用 knowledgeSearchTool 检索知识库，单次结果不足时换角度继续。"
-                : "1. knowledgeSearchTool 当前已禁用，不要尝试检索知识库；基于任务描述和其他可用工具完成。";
+                ? "1. 优先从多角度多关键词调用 knowledgeSearchTool 检索知识库, 单次结果不足时换角度继续。"
+                : "1. knowledgeSearchTool 当前已禁用, 不要尝试检索知识库；基于任务描述和其他可用工具完成。";
 
         String systemPrompt = """
-                你是 dawn-ai 的研究子 Agent，专注于深度信息检索与综合，由主 Agent 派发任务给你。
+                你是 dawn-ai 的研究子 Agent, 专注于深度信息检索与综合, 由主 Agent 派发任务给你。
 
                 工作准则：
                 %s
-                2. 仅当下方【可用 Skills】清单中存在明确匹配任务的 skill 时，才通过 loadSkillTool / readSkillResourceTool 加载 skill 指令辅助分析；不要发明或猜测不存在的 skill 名称。
-                3. 你看不到主 Agent 的对话历史；任务描述里没说的就当不知道，不要凭空推断上下文。
+                2. 仅当下方【可用 Skills】清单中存在明确匹配任务的 skill 时, 才通过 loadSkillTool / readSkillResourceTool 加载 skill 指令辅助分析；不要发明或猜测不存在的 skill 名称。
+                3. 你看不到主 Agent 的对话历史；任务描述里没说的就当不知道, 不要凭空推断上下文。
                 4. 最终回答要求：
-                   - 结构化：要点 / 段落 / 列表清晰，便于主 Agent 直接复用
+                   - 结构化：要点 / 段落 / 列表清晰, 便于主 Agent 直接复用
                    - 有依据：标注信息来源（哪一步检索得到、对应文档片段编号）
-                   - 自包含：主 Agent 看不到你的中间步骤，结论必须能独立成段
-                5. 不要再调用 dispatch_subagent（你已经是子 Agent，禁止递归派发）。
+                   - 自包含：主 Agent 看不到你的中间步骤, 结论必须能独立成段
+                5. 不要再调用 dispatch_subagent（你已经是子 Agent, 禁止递归派发）。
                                 """.formatted(ragGuidance);
 
         Set<String> allowedTools = new LinkedHashSet<>();
@@ -75,11 +75,11 @@ public class SubAgentConfig {
     }
 
     /**
-     * Sub-agent 专用线程池。与 chatStreamExecutor / ragRetrievalExecutor 隔离，
+     * Sub-agent 专用线程池。与 chatStreamExecutor / ragRetrievalExecutor 隔离, 
      * 防止 sub-agent 占满 SSE 流式工作线程导致新对话排队。
      *
-     * <p>{@link ThreadPoolExecutor.AbortPolicy}：饱和即 fail-fast，
-     * 由 DispatchSubAgentTool 转成 FAILED 结果，主 Agent LLM 自行决定降级路径。
+     * <p>{@link ThreadPoolExecutor.AbortPolicy}：饱和即 fail-fast, 
+     * 由 DispatchSubAgentTool 转成 FAILED 结果, 主 Agent LLM 自行决定降级路径。
      */
     @Bean(name = "subAgentExecutor", destroyMethod = "shutdown")
     public ExecutorService subAgentExecutor() {
