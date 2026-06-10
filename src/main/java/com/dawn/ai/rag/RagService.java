@@ -216,8 +216,17 @@ public class RagService {
                 ? retrievalRequest
                 : retrievalRequest.toBuilder().query(rewrittenQuery).build();
 
-        RetrievalRequest effectiveRequest;
+        // 策略路由和 HyDE 判断基于 rewrittenRequest（用户显式 filter），
+        // 不受后续 auto-classify 注入的 category filter 影响。
+        RetrievalStrategy strategy = resolveStrategy(rewrittenRequest);
+
+        // 可配置- LLM HyDE 扩写
+        String denseQuery = shouldUseHyde(strategy, rewrittenRequest)
+                ? hydeQueryGenerator.generate(rewrittenQuery)
+                : rewrittenQuery;
+
         // 可配置 - LLM 语义分类 category
+        RetrievalRequest effectiveRequest;
         if (!rewrittenRequest.getMetadataFilters().containsKey("category")) {
             String classifiedCategory = queryCategoryClassifier.classify(rewrittenQuery);
             if (classifiedCategory != null) {
@@ -231,13 +240,6 @@ public class RagService {
         } else {
             effectiveRequest = rewrittenRequest;
         }
-
-        RetrievalStrategy strategy = resolveStrategy(effectiveRequest);
-
-        // 可配置- LLM HyDE 扩写
-        String denseQuery = shouldUseHyde(strategy, effectiveRequest)
-                ? hydeQueryGenerator.generate(rewrittenQuery)
-                : rewrittenQuery;
 
         SearchRequest.Builder builder = SearchRequest.builder()
                 .query(denseQuery)

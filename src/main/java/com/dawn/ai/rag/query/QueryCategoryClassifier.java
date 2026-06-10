@@ -1,7 +1,5 @@
 package com.dawn.ai.rag.query;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.Setter;
@@ -10,11 +8,8 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.List;
 
 @Slf4j
@@ -84,7 +79,7 @@ public class QueryCategoryClassifier {
 
     private String buildSystemPrompt() {
         return "你是一个查询分类器。根据用户的查询内容，从以下候选分类中选择最匹配的一个：" +
-                categories +
+                String.join("、", categories) +
                 "。如果没有任何分类匹配，请返回 null。只返回分类名称，不要解释。";
     }
 }
