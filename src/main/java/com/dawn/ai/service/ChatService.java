@@ -1,45 +1,35 @@
 package com.dawn.ai.service;
 
 import com.dawn.ai.agent.orchestration.AgentOrchestrator;
-import com.dawn.ai.agent.orchestration.AgentResult;
-import com.dawn.ai.agent.planning.PlanStep;
 import com.dawn.ai.config.AiAvailabilityChecker;
 import com.dawn.ai.config.AiInteractionContext;
 import com.dawn.ai.config.AiInteractionLogger;
 import com.dawn.ai.dto.ChatRequest;
-import com.dawn.ai.dto.ChatResponse;
 import com.dawn.ai.sse.ChatStreamEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 public class ChatService {
 
     private final AgentOrchestrator agentOrchestrator;
-    private final ChatClient chatClient;
     private final AiAvailabilityChecker aiAvailabilityChecker;
     private final ExecutorService chatStreamExecutor;
     private final ObjectMapper objectMapper;
     private final AiInteractionLogger aiInteractionLogger;
-
-    @Value("${app.ai.react.show-steps:false}")
-    private boolean showSteps;
 
     @Value("${spring.ai.openai.chat.options.model:qwen-plus}")
     private String model;
@@ -48,50 +38,15 @@ public class ChatService {
     private long streamTimeoutMs;
 
     public ChatService(AgentOrchestrator agentOrchestrator,
-                       ChatClient chatClient,
                        AiAvailabilityChecker aiAvailabilityChecker,
                        @Qualifier("chatStreamExecutor") ExecutorService chatStreamExecutor,
                        ObjectMapper objectMapper,
                        AiInteractionLogger aiInteractionLogger) {
         this.agentOrchestrator = agentOrchestrator;
-        this.chatClient = chatClient;
         this.aiAvailabilityChecker = aiAvailabilityChecker;
         this.chatStreamExecutor = chatStreamExecutor;
         this.objectMapper = objectMapper;
         this.aiInteractionLogger = aiInteractionLogger;
-    }
-
-    public ChatResponse chat(ChatRequest request) {
-        long start = System.currentTimeMillis();
-
-        aiAvailabilityChecker.ensureConfigured();
-
-        String sessionId = (request.getSessionId() != null && !request.getSessionId().isBlank())
-                ? request.getSessionId()
-                : UUID.randomUUID().toString();
-
-        String userMessage = request.getMessage();
-
-        AiInteractionContext.setSessionId(sessionId);
-        writeLogicalChatRequest(sessionId, request, false);
-        try {
-            AgentResult result = agentOrchestrator.chat(sessionId, userMessage, request.getTopicId());
-
-            ChatResponse response = ChatResponse.builder()
-                    .sessionId(sessionId)
-                    .answer(result.finalAnswer())
-                    .steps(showSteps ? result.steps() : null)
-                    .planSummary(formatPlanSummary(result.plan()))
-                    .totalSteps(result.steps().size())
-                    .durationMs(System.currentTimeMillis() - start)
-                    .model(model)
-                    .build();
-
-            writeLogicalSyncChatResponse(sessionId, result, response);
-            return response;
-        } finally {
-            AiInteractionContext.clear();
-        }
     }
 
     private void writeLogicalChatRequest(String sessionId, ChatRequest request, boolean stream) {
@@ -103,7 +58,7 @@ public class ChatService {
                     "topicId", request.getTopicId() == null ? "" : request.getTopicId(),
                     "sessionId", sessionId
             ));
-            String label = (stream ? "Stream chat → " : "Sync chat → ") + truncate(request.getMessage(), 80);
+            String label = "Stream chat → " + truncate(request.getMessage(), 80);
             aiInteractionLogger.logLogical(sessionId, "request", label, body, null);
         } catch (Exception e) {
             log.warn("[ChatService] failed to write logical request: {}", e.getMessage());
@@ -130,21 +85,6 @@ public class ChatService {
         }
     }
 
-    private void writeLogicalSyncChatResponse(String sessionId, AgentResult result, ChatResponse response) {
-        try {
-            String body = objectMapper.writeValueAsString(java.util.Map.of(
-                    "model", response.getModel() == null ? model : response.getModel(),
-                    "answer", result.finalAnswer() == null ? "" : result.finalAnswer(),
-                    "totalSteps", response.getTotalSteps(),
-                    "planSummary", response.getPlanSummary() == null ? "" : response.getPlanSummary(),
-                    "durationMs", response.getDurationMs()
-            ));
-            aiInteractionLogger.logLogical(sessionId, "response", "Sync chat answer", body, response.getDurationMs());
-        } catch (Exception e) {
-            log.warn("[ChatService] failed to write sync logical response: {}", e.getMessage());
-        }
-    }
-
     @SuppressWarnings("unchecked")
     private void writeLogicalChatError(String sessionId, Object errorData) {
         try {
@@ -164,16 +104,6 @@ public class ChatService {
     private String truncate(String s, int max) {
         if (s == null) return "";
         return s.length() <= max ? s : s.substring(0, max) + "…";
-    }
-
-    /** Simple one-shot chat without memory or tools */
-    public String simpleChat(String message) {
-        aiAvailabilityChecker.ensureConfigured();
-
-        return chatClient.prompt()
-                .user(message)
-                .call()
-                .content();
     }
 
     /**
@@ -260,11 +190,4 @@ public class ChatService {
         }
     }
 
-    /** Formats the plan as a concise human-readable summary, e.g. "步骤1: weatherTool → 步骤2: 完成". */
-    private String formatPlanSummary(List<PlanStep> plan) {
-        if (plan == null || plan.isEmpty()) return "";
-        return plan.stream()
-                .map(s -> "步骤" + s.step() + ": " + s.action())
-                .collect(Collectors.joining(" → "));
-    }
 }

@@ -1,7 +1,5 @@
 package com.dawn.ai.evaluation.dimensions;
 
-import com.dawn.ai.agent.orchestration.AgentOrchestrator;
-import com.dawn.ai.agent.orchestration.AgentResult;
 import com.dawn.ai.agent.trace.AgentStep;
 import com.dawn.ai.evaluation.base.AbstractEvaluationTest;
 import com.dawn.ai.evaluation.base.EvaluationCase;
@@ -9,7 +7,6 @@ import com.dawn.ai.evaluation.judge.JudgeDimension;
 import com.dawn.ai.evaluation.judge.JudgeResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
 import java.util.Map;
@@ -17,9 +14,6 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ToolSelectionEvaluationTest extends AbstractEvaluationTest {
-
-    @Autowired
-    private AgentOrchestrator agentOrchestrator;
 
     @Override
     protected JudgeDimension dimension() {
@@ -36,7 +30,7 @@ class ToolSelectionEvaluationTest extends AbstractEvaluationTest {
             sleepBetweenCases();
             String sessionId = "eval-tool-" + evalCase.id();
 
-            AgentResult result = agentOrchestrator.chat(sessionId, evalCase.query(), null);
+            StreamedAgentResult result = streamAgent(sessionId, evalCase.query());
 
             List<String> actualTools = result.steps().stream()
                     .filter(step -> step.toolName() != null)

@@ -62,9 +62,9 @@ EMBEDDING_MODEL=bge-m3-mlx-fp16
 
 ## 📡 API Usage
 
-### Chat (with agentic RAG + memory + tools)
+### Streaming Chat (with agentic RAG + memory + tools)
 ```bash
-curl -X POST http://localhost:8080/api/v1/chat \
+curl -N -X POST http://localhost:8080/api/v1/chat/stream \
   -H "Content-Type: application/json" \
   -d '{
     "message": "What is the weather in Beijing?",

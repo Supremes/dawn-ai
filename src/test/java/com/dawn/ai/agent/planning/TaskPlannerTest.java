@@ -51,7 +51,7 @@ class TaskPlannerTest {
         ]
         """));
 
-      var plan = taskPlanner.plan("帮我看天气", Map.of("weatherTool", "查询天气"));
+      var plan = taskPlanner.plan("帮我看天气", Map.of("weatherTool", "查询天气"), "");
 
       assertThat(plan.steps()).hasSize(2);
       assertThat(plan.steps().get(0).step()).isEqualTo(1);
@@ -68,7 +68,7 @@ class TaskPlannerTest {
     void shouldThrowWhenPlannerOutputIsNotStructuredJson() {
       when(callResponseSpec.chatResponse()).thenReturn(chatResponse("我建议先查天气，再完成任务。"));
 
-        assertThatThrownBy(() -> taskPlanner.plan("帮我看天气", Map.of("weatherTool", "查询天气")))
+        assertThatThrownBy(() -> taskPlanner.plan("帮我看天气", Map.of("weatherTool", "查询天气"), ""))
                 .isInstanceOf(PlanGenerationException.class)
                 .hasMessage("Planner returned invalid structured output.");
     }
@@ -82,7 +82,7 @@ class TaskPlannerTest {
         ]
         """));
 
-        assertThatThrownBy(() -> taskPlanner.plan("帮我看天气", Map.of("weatherTool", "查询天气")))
+        assertThatThrownBy(() -> taskPlanner.plan("帮我看天气", Map.of("weatherTool", "查询天气"), ""))
                 .isInstanceOf(PlanGenerationException.class)
                 .hasMessage("Planner returned invalid structured output.");
     }

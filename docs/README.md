@@ -35,12 +35,28 @@ updated: 2026-06-07 17:20
 项目要点：
 
 - ReAct：边思考边执行，项目利用了SpringAI实现的ReAct方案，非自实现的
-- Plan and solve：自实现，依据用户输入+LLM call，编排后续的流程，避免长任务跑偏
+- Plan and solve：
+  - 自实现，依据用户输入+LLM call，编排后续的流程，避免长任务跑偏。
+  - MIMO code 引入了 max code 模式， 在每轮并行生成 N个候选方案，由模型作为 Judge 选出最优解。这也是长任务避免跑偏的一种方式，但是额外带来了成倍 token 的开销
+
 
 学习要点：
 - ReAct 适合用在局部决策场景，而不是整个系统。**大多数场景，整体流程是确定的**，适合用 workflow 来保证稳定性。针对某些局部节点（如果需要根据当前上下文动态决定是否调用工具、调用哪个工具、是否进行多轮推理，这时候可以引入 ReAct 来增强灵活性），使用 ReAct 来处理不确定性，保证稳定性和灵活性之间取得平衡。
 
+
+
+## Prompt
+
+项目中使用的 Prompt 结构化输出方案：
+
+- **Zero-shot + JSON Schema 约束**：查询改写、分类、任务规划等场景，将 JSON Schema 拼入 prompt 强制结构化输出。
+- **Few-shot**：Memory 去重场景，提供 3 组示例（同义改写/主题相近/混合候选）引导语义判重。
+- **System Prompt 分段组装**：基底人设 + 用户画像 + 相关记忆 + 技能 + 子Agent + 执行计划 + 工具约束，动态拼接。
+
+
+
 ## RAG
+
 **技术栈**：Spring AI + PgVector（PostgreSQL 向量存储）+ Java
 
 ### 1. Ingestion（文档摄入）

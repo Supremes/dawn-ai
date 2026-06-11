@@ -1,4 +1,4 @@
-package com.dawn.ai.agent.tools;
+package com.dawn.ai.agent.tools.skill;
 
 import com.dawn.ai.agent.skill.Skill;
 import com.dawn.ai.agent.skill.SkillRegistry;

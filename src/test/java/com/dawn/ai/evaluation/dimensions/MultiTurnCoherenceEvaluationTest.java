@@ -1,7 +1,5 @@
 package com.dawn.ai.evaluation.dimensions;
 
-import com.dawn.ai.agent.orchestration.AgentOrchestrator;
-import com.dawn.ai.agent.orchestration.AgentResult;
 import com.dawn.ai.evaluation.base.AbstractEvaluationTest;
 import com.dawn.ai.evaluation.base.EvaluationCase;
 import com.dawn.ai.evaluation.judge.JudgeDimension;
@@ -17,9 +15,6 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class MultiTurnCoherenceEvaluationTest extends AbstractEvaluationTest {
-
-    @Autowired
-    private AgentOrchestrator agentOrchestrator;
 
     @Autowired
     private MemoryService memoryService;
@@ -48,7 +43,7 @@ class MultiTurnCoherenceEvaluationTest extends AbstractEvaluationTest {
             }
 
             // 发送当前查询
-            AgentResult result = agentOrchestrator.chat(sessionId, evalCase.query(), null);
+            StreamedAgentResult result = streamAgent(sessionId, evalCase.query());
 
             String memorySnapshotStr = snapshot != null
                     ? snapshot.stream()

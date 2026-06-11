@@ -136,7 +136,9 @@ public class StepCollector {
         int next = ctx.counter.incrementAndGet();
         if (next > ctx.maxSteps) {
             log.error("[StepCollector] Exceeded max steps: {} > {}", next, ctx.maxSteps);
-            throw new MaxStepsExceededException("Exceeded Max Steps: " + ctx.maxSteps);
+            throw new MaxStepsExceededException("已达到工具调用上限（" + ctx.maxSteps +
+                    " 次）。不要再调用任何工具；请基于已有工具观察总结回答，" +
+                    "如果仍无法确认事实，请明确说明无法确认。");
         }
         return next;
     }
@@ -166,6 +168,22 @@ public class StepCollector {
         if (ctx != null) {
             ctx.retrievedQueries.add(query);
         }
+    }
+
+    /**
+     * Tracks consecutive BashTool observations that are either failed or empty.
+     * Returns {@code true} when the current observation reaches the stop threshold.
+     */
+    public static boolean recordBashObservation(boolean failedOrEmpty, int stopThreshold) {
+        StepCollectorContext ctx = CONTEXT.get();
+        if (ctx == null || stopThreshold <= 0) {
+            return false;
+        }
+        if (!failedOrEmpty) {
+            ctx.bashFailureStreak.set(0);
+            return false;
+        }
+        return ctx.bashFailureStreak.incrementAndGet() >= stopThreshold;
     }
 
     /** Must be called in a {@code finally} block to prevent ThreadLocal memory leaks. */

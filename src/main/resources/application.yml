@@ -85,7 +85,7 @@ management:
 app:
   ai:
     react:
-      max-steps: 10        # 单次对话最多工具调用次数（超出时 LLM 自行收敛）
+      max-steps: 10        # 单次对话最多工具调用次数（超出时作为工具观察返回，要求 LLM 停止工具调用并总结）
       show-steps: true    # 响应体中是否包含 steps 详情
       plan-enabled: true   # 是否启用执行前规划（关闭后跳过 TaskPlanner)
     stream:
@@ -120,6 +120,7 @@ app:
       max-calls-per-session: 3    # 每次请求最多 RAG 工具调用次数，独立于 maxSteps
     subagent:
       max-dispatches-per-session: 3   # 单次主对话最多派发 sub-agent 次数（与 rag.max-calls-per-session 对称）
+      block-after-empty-searches: 2   # 连续空结果 N 次后阻止继续派发
       research:
         max-steps: 15                  # research sub-agent 内部 ReAct 步数上限（高于主 Agent 因为干重活）
         timeout-seconds: 60            # research sub-agent 总超时（秒），触发软失败返回 partial
@@ -130,6 +131,22 @@ app:
       You can help with calculations, weather queries, and answer questions based on your knowledge base.
       Always be concise, accurate, and helpful.
       Before calling a tool, briefly explain your reasoning in one sentence.
+  tools:
+    web-search:
+      api-url: ""                        # 搜索 API 端点，留空则该工具不可用
+      api-key: ""                        # 搜索 API 密钥
+      provider: serpapi                  # 提供商：serpapi / bing / custom
+      max-results: 5                     # 单次搜索最大结果数
+    web-fetch:
+      max-bytes: 512000                  # 抓取网页最大字节数（500KB）
+      timeout-seconds: 15               # 抓取超时秒数
+    bash:
+      timeout-seconds: 30               # Bash 命令执行超时秒数
+      max-output-bytes: 51200           # 命令输出最大字节数（50KB）
+      max-consecutive-failures: 3       # 连续失败或空输出达到阈值后，返回停止继续调用 BashTool 的观察结果
+    file:
+      base-dir: ./                       # 文件操作基准目录
+
   skills:
     enabled: true
     path: ${APP_SKILLS_PATH:./skills}   # 外挂 skill 目录；classpath skills-builtin/ 永远作为兜底
@@ -169,7 +186,7 @@ logging:
     org.springframework.ai: INFO
     # 打印 Hibernate 实际执行的 SQL 及参数绑定（走 logback，落盘到 app.log）
     org.hibernate.SQL: DEBUG
-    org.hibernate.orm.jdbc.bind: TRACE
+#    org.hibernate.orm.jdbc.bind: TRACE
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36}:%line - %msg%n"
 

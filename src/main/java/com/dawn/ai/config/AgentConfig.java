@@ -28,9 +28,14 @@ public class AgentConfig {
 
     @Bean
     public ToolExecutionExceptionProcessor toolExecutionExceptionProcessor() {
-        return DefaultToolExecutionExceptionProcessor.builder()
-                .rethrowExceptions(List.of(MaxStepsExceededException.class))
-                .build();
+        ToolExecutionExceptionProcessor defaultProcessor = DefaultToolExecutionExceptionProcessor.builder().build();
+        return exception -> {
+            Throwable cause = exception.getCause();
+            if (cause instanceof MaxStepsExceededException) {
+                return cause.getMessage();
+            }
+            return defaultProcessor.process(exception);
+        };
     }
 
     /**

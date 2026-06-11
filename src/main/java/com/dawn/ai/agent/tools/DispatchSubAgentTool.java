@@ -53,6 +53,13 @@ public class DispatchSubAgentTool implements Function<DispatchSubAgentTool.Reque
     @Value("${app.ai.subagent.max-dispatches-per-session:3}")
     private int maxDispatchesPerSession;
 
+    /**
+     * 检索型子 Agent 止损阈值：本会话内知识库空检索（docsFound=0）累计达到此值后，
+     * 拒绝再派发以 {@code knowledgeSearchTool} 为主力的子 Agent。
+     */
+    @Value("${app.ai.subagent.block-after-empty-searches:2}")
+    private int blockAfterEmptySearches;
+
     public record Request(
             @JsonProperty(required = true)
             @JsonPropertyDescription("子 Agent 类型。当前仅支持 'research'（深度知识库检索 + 综合）。")
@@ -100,9 +107,26 @@ public class DispatchSubAgentTool implements Function<DispatchSubAgentTool.Reque
         if (request.taskDescription() == null || request.taskDescription().isBlank()) {
             return Response.refused("缺少必填参数 taskDescription");
         }
-        if (registry.get(request.subagentType()).isEmpty()) {
+        var definition = registry.get(request.subagentType());
+        if (definition.isEmpty()) {
             return Response.refused("未知 sub-agent type: " + request.subagentType()
                     + "（当前可用: " + registry.list().stream().map(d -> d.type()).toList() + "）");
+        }
+
+        // P1 止损：检索型子 Agent（白名单含 knowledgeSearchTool）在本会话已多次空检索时拒绝派发。
+        // 库中确无相关内容时，再派一轮以检索为主力的 ReAct 也是空转，应让主 Agent 回退到自身知识。
+        // 注：依赖 KnowledgeSearchTool.Response 的 toString 含 "docsFound=0"，二者耦合需同步维护。
+        if (definition.get().allowedTools().contains("knowledgeSearchTool")) {
+            long emptySearches = StepCollector.collect().stream()
+                    .filter(s -> KnowledgeSearchTool.class.getSimpleName().equals(s.toolName()))
+                    .filter(s -> s.toolOutput() != null && s.toolOutput().contains("docsFound=0"))
+                    .count();
+            if (emptySearches >= blockAfterEmptySearches) {
+                log.info("[DispatchSubAgentTool] 拒绝派发 type={}：本会话已有 {} 次知识库空检索，库中应无相关内容",
+                        request.subagentType(), emptySearches);
+                return Response.refused("知识库已检索 " + emptySearches
+                        + " 次均无结果，说明库中没有相关内容。请直接基于自身知识作答，不要派发检索型子 Agent。");
+            }
         }
 
         long alreadyDispatched = StepCollector.collect().stream()
