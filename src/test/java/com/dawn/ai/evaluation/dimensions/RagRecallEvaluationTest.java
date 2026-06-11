@@ -1,7 +1,5 @@
 package com.dawn.ai.evaluation.dimensions;
 
-import com.dawn.ai.agent.orchestration.AgentOrchestrator;
-import com.dawn.ai.agent.orchestration.AgentResult;
 import com.dawn.ai.agent.trace.AgentStep;
 import com.dawn.ai.evaluation.base.AbstractEvaluationTest;
 import com.dawn.ai.evaluation.base.EvaluationCase;
@@ -20,9 +18,6 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class RagRecallEvaluationTest extends AbstractEvaluationTest {
-
-    @Autowired
-    private AgentOrchestrator agentOrchestrator;
 
     @Autowired
     private VectorStore vectorStore;
@@ -45,7 +40,7 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
             // 预索引测试文档到向量库
             indexTestDocuments(evalCase);
 
-            AgentResult result = agentOrchestrator.chat(sessionId, evalCase.query(), null);
+            StreamedAgentResult result = streamAgent(sessionId, evalCase.query());
 
             // 提取实际检索到的文档 ID
             List<String> retrievedDocIds = result.steps().stream()

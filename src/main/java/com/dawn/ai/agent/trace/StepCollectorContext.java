@@ -20,6 +20,7 @@ import java.util.function.Consumer;
  * <ul>
  *   <li>{@code steps}     — {@link Collections#synchronizedList} for safe concurrent appends</li>
  *   <li>{@code counter}   — {@link AtomicInteger}, inherently thread-safe</li>
+ *   <li>{@code bashFailureStreak} — {@link AtomicInteger}, tracks consecutive empty/failed Bash observations</li>
  *   <li>{@code retrievedQueries} — {@link ConcurrentHashMap}-backed set</li>
  *   <li>{@code maxSteps}  — final, immutable</li>
  *   <li>{@code stepListener} — volatile; written once during init, read-only afterwards</li>
@@ -29,6 +30,7 @@ public final class StepCollectorContext {
 
     final List<AgentStep> steps = Collections.synchronizedList(new ArrayList<>());
     final AtomicInteger counter = new AtomicInteger(0);
+    final AtomicInteger bashFailureStreak = new AtomicInteger(0);
     final int maxSteps;
     final Set<String> retrievedQueries = ConcurrentHashMap.newKeySet();
     volatile Consumer<AgentStep> stepListener;

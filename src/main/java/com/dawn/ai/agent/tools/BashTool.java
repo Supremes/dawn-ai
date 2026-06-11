@@ -1,5 +1,6 @@
 package com.dawn.ai.agent.tools;
 
+import com.dawn.ai.agent.trace.StepCollector;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import lombok.extern.slf4j.Slf4j;
@@ -63,6 +64,9 @@ public class BashTool implements Function<BashTool.Request, BashTool.Response> {
     @Value("${app.tools.bash.max-output-bytes:" + DEFAULT_MAX_OUTPUT_BYTES + "}")
     private int maxOutputBytes;
 
+    @Value("${app.tools.bash.max-consecutive-failures:3}")
+    private int maxConsecutiveFailures;
+
     public record Request(
             @JsonProperty(required = true)
             @JsonPropertyDescription("要执行的 bash 命令")
@@ -82,7 +86,7 @@ public class BashTool implements Function<BashTool.Request, BashTool.Response> {
     @Override
     public Response apply(Request req) {
         if (req.command() == null || req.command().isBlank()) {
-            return new Response(null, -1, "命令不能为空");
+            return withStopObservationIfNeeded(new Response(null, -1, "命令不能为空"));
         }
 
         String command = req.command().trim();
@@ -91,7 +95,7 @@ public class BashTool implements Function<BashTool.Request, BashTool.Response> {
         String securityError = checkSecurity(command);
         if (securityError != null) {
             log.warn("[BashTool] 命令被拦截: {} — 原因: {}", command, securityError);
-            return new Response(null, -1, securityError);
+            return withStopObservationIfNeeded(new Response(null, -1, securityError));
         }
 
         int effectiveTimeout = resolveTimeout(req.timeout());
@@ -133,11 +137,11 @@ public class BashTool implements Function<BashTool.Request, BashTool.Response> {
                 process.destroyForcibly();
                 log.warn("[BashTool] 命令超时 ({}s): {}", effectiveTimeout, command);
                 String partial = output.toString();
-                return new Response(
+                return withStopObservationIfNeeded(new Response(
                         partial.isEmpty() ? null : partial,
                         -1,
                         String.format("命令执行超时（%d 秒）。已强制终止。", effectiveTimeout)
-                );
+                ));
             }
 
             int exitCode = process.exitValue();
@@ -151,12 +155,27 @@ public class BashTool implements Function<BashTool.Request, BashTool.Response> {
                     command.length() > 80 ? command.substring(0, 80) + "..." : command,
                     exitCode, stdout.length(), durationMs);
 
-            return new Response(stdout, exitCode, exitCode != 0 ? "命令退出码: " + exitCode : null);
+            return withStopObservationIfNeeded(new Response(stdout, exitCode, exitCode != 0 ? "命令退出码: " + exitCode : null));
 
         } catch (Exception e) {
             log.error("[BashTool] 执行失败: {} — {}", command, e.getMessage());
-            return new Response(null, -1, "执行失败: " + e.getMessage());
+            return withStopObservationIfNeeded(new Response(null, -1, "执行失败: " + e.getMessage()));
         }
+    }
+
+    private Response withStopObservationIfNeeded(Response response) {
+        boolean failedOrEmpty = response.exitCode() != 0
+                || (response.stdout() == null || response.stdout().isBlank());
+        if (!StepCollector.recordBashObservation(failedOrEmpty, maxConsecutiveFailures)) {
+            return response;
+        }
+        String stopMessage = "BashTool 连续 " + maxConsecutiveFailures +
+                " 次失败或无输出。本轮不要再调用 BashTool；请基于已有观察总结，" +
+                "如果仍无法确认事实，请明确说明无法确认。";
+        String error = response.error() == null || response.error().isBlank()
+                ? stopMessage
+                : stopMessage + " 最后一次错误: " + response.error();
+        return new Response(response.stdout(), response.exitCode(), error);
     }
 
     private String checkSecurity(String command) {

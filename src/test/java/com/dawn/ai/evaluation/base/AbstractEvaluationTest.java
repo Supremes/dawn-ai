@@ -1,8 +1,11 @@
 package com.dawn.ai.evaluation.base;
 
+import com.dawn.ai.agent.orchestration.AgentOrchestrator;
+import com.dawn.ai.agent.trace.AgentStep;
 import com.dawn.ai.evaluation.judge.JudgeDimension;
 import com.dawn.ai.evaluation.judge.JudgeResult;
 import com.dawn.ai.evaluation.judge.JudgeService;
+import com.dawn.ai.sse.ChatStreamEvent;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
@@ -42,6 +45,9 @@ public abstract class AbstractEvaluationTest {
     @Autowired
     protected JudgeService judgeService;
 
+    @Autowired
+    protected AgentOrchestrator agentOrchestrator;
+
     @Autowired(required = false)
     protected LangfuseScoringClient langfuseClient;
 
@@ -69,6 +75,32 @@ public abstract class AbstractEvaluationTest {
 
         return result;
     }
+
+    protected StreamedAgentResult streamAgent(String sessionId, String query) {
+        List<ChatStreamEvent> events = new ArrayList<>();
+        agentOrchestrator.streamChat(sessionId, query, null, events::add, () -> false);
+
+        return events.stream()
+                .filter(event -> "done".equals(event.getEvent()))
+                .map(event -> toStreamedResult(event.getData()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("Agent stream did not produce done event"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private StreamedAgentResult toStreamedResult(Object data) {
+        Map<String, Object> payload = data instanceof Map<?, ?> map
+                ? (Map<String, Object>) map
+                : Map.of();
+        Object answer = payload.get("answer");
+        Object steps = payload.get("steps");
+        return new StreamedAgentResult(
+                answer instanceof String text ? text : null,
+                steps instanceof List<?> list ? (List<AgentStep>) list : List.of()
+        );
+    }
+
+    protected record StreamedAgentResult(String finalAnswer, List<AgentStep> steps) {}
 
     protected void writeScoreToLangfuse(String traceId, JudgeResult result) {
         if (langfuseClient != null) {

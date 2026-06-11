@@ -40,7 +40,7 @@ import java.util.function.Function;
 @Slf4j
 @Component
 @ConditionalOnProperty(name = "app.ai.rag.tool-enabled", havingValue = "true", matchIfMissing = true)
-@Description("搜索内部知识库，获取与问题相关的背景信息。需要查询产品信息、技术文档或领域知识时调用。")
+@Description("搜索内部知识库、项目文档或已导入资料。仅当用户明确询问本项目、内部文档、已上传资料、知识库内容，或需要基于私有语料回答时调用。不要用于查询公共互联网的最新事实、版本号、发布日期、新闻或外部官方资料。")
 @RequiredArgsConstructor
 public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request, KnowledgeSearchTool.Response> {
 
@@ -164,7 +164,9 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
 
     private String formatContext(List<Document> docs) {
         if (docs.isEmpty()) {
-            return "知识库中未找到相关内容。若该问题可凭自身知识准确回答，请直接作答，不必反复检索或派发子 Agent。";
+            return "知识库中未找到相关内容。不要换关键词反复检索同类知识库问题；" +
+                   "若该问题涉及最新、当前、版本号、发布日期、官方资料或外部公开事实，请改用 webTool；" +
+                   "若可凭自身知识准确回答，请直接作答，不必派发子 Agent。";
         }
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < docs.size(); i++) {

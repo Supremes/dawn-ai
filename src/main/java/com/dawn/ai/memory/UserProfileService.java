@@ -43,6 +43,7 @@ public class UserProfileService {
     }
 
     public String formatForSystemPrompt(String userId) {
+        log.debug("查询用户画像 - userID: {}", userId);
         Map<String, String> profile = getProfile(userId);
         if (profile.isEmpty()) return "";
         StringBuilder sb = new StringBuilder("\n\n【用户画像】\n");

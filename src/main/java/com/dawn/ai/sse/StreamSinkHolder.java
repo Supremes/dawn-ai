@@ -9,10 +9,6 @@ import java.util.function.Consumer;
  * 在 finally 中 {@link #clear}。供 {@code DispatchSubAgentTool} 在 sub-agent 派发时
  * 读取，进而为 sub-agent 构造 sub-step 进度心跳监听器。
  *
- * <p>非流式（{@code AgentOrchestrator.chat}）请求不 set sink，
- * {@link #get} 返回 {@code null}，sub-agent 此时不发 sub_progress 事件——退化为
- * 沉默执行，主 Agent 拿到聚合 AgentStep 时已含 subSteps 字段，调试信息仍齐。
- *
  * <p>跨线程：sub-agent 在 worker 线程读取 sink 时，本类的 ThreadLocal 在 worker
  * 上无值——但 sink 引用已通过 closure 传给 progress listener，listener 调用 sink
  * 时直接命中已捕获引用，与 ThreadLocal 是否传播无关。

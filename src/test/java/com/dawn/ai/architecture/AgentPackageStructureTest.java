@@ -12,7 +12,6 @@ class AgentPackageStructureTest {
     @DisplayName("agent 内核类应按职责拆到子包")
     void agentCoreShouldLiveInDedicatedSubpackages() {
         assertThatCode(() -> Class.forName("com.dawn.ai.agent.orchestration.AgentOrchestrator")).doesNotThrowAnyException();
-        assertThatCode(() -> Class.forName("com.dawn.ai.agent.orchestration.AgentResult")).doesNotThrowAnyException();
         assertThatCode(() -> Class.forName("com.dawn.ai.agent.planning.PlanStep")).doesNotThrowAnyException();
         assertThatCode(() -> Class.forName("com.dawn.ai.agent.planning.TaskPlanner")).doesNotThrowAnyException();
         assertThatCode(() -> Class.forName("com.dawn.ai.agent.trace.StepCollector")).doesNotThrowAnyException();

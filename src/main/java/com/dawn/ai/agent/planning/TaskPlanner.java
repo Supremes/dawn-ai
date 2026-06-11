@@ -67,17 +67,18 @@ public class TaskPlanner {
     /**
      * Plans the steps required to complete {@code task} given the available tools.
      *
-     * @param task             the user's request
-     * @param toolDescriptions map of tool name → description
+     * @param task                the user's request
+     * @param toolDescriptions    map of tool name → description
+     * @param conversationContext compact recent-conversation snippet for reference resolution; may be empty
      * @return ordered plan steps
      * @throws PlanGenerationException when the model output is not valid structured planner output
      */
-        public PlannerResult plan(String task, Map<String, String> toolDescriptions) {
+        public PlannerResult plan(String task, Map<String, String> toolDescriptions, String conversationContext) {
         try {
             BeanOutputConverter<List<PlanStep>> converter =
                     new BeanOutputConverter<>(new ParameterizedTypeReference<>() {}, objectMapper);
 
-            String prompt = buildPlanPrompt(task, toolDescriptions, converter.getFormat());
+            String prompt = buildPlanPrompt(task, toolDescriptions, converter.getFormat(), conversationContext);
             ChatResponse chatResponse = chatClient.prompt()
                     .user(prompt)
                     .options(OpenAiChatOptions.builder().temperature(0.3).build())
@@ -110,12 +111,17 @@ public class TaskPlanner {
 
     private String buildPlanPrompt(String task,
                                    Map<String, String> toolDescriptions,
-                                   String formatInstructions) {
+                                   String formatInstructions,
+                                   String conversationContext) {
+        String contextSection = (conversationContext == null || conversationContext.isBlank())
+                ? ""
+                : "最近对话（仅用于理解用户的指代/省略，例如\"它 / 再试试 / 那个 / key\"，不要复述）：\n"
+                  + conversationContext + "\n";
         String toolList = toolDescriptions.entrySet().stream()
                 .map(e -> "- " + e.getKey() + ": " + e.getValue())
                 .collect(Collectors.joining("\n"));
         String ragInstruction = toolDescriptions.containsKey("knowledgeSearchTool")
-            ? "- 若单次检索信息不足，可多次调用 knowledgeSearchTool 从不同角度补充，\n                  直到信息充分再生成最终答案。每次请求最多检索 %d 次。".formatted(maxRagCalls)
+            ? "- knowledgeSearchTool 仅用于内部知识库 / 项目文档 / 已导入资料 / 私有语料。\n                  若内部资料单次检索不足，可从不同角度补充检索，每次请求最多检索 %d 次。".formatted(maxRagCalls)
             : "- knowledgeSearchTool 当前不可用，不要规划知识库检索步骤。";
 
         return """
@@ -129,12 +135,15 @@ public class TaskPlanner {
                 - reason 使用中文，简短说明为什么要执行该步骤
                 - 任务凭常识或你自身知识就能准确回答时（如解释广为人知的库 / 注解 / 概念 / 术语），
                   不要规划任何工具调用，直接输出单步 "finish"；工具仅用于自身知识不足、需查外部信息时。
+                                - 用户询问“最新 / 当前 / current / recent / 官方 / 网上查询 / 发布日期 / 版本号 / 新闻 / 价格 / 状态”等公共外部信息时，优先规划 webTool。
+                                - 用户询问本项目、内部文档、已上传资料、知识库内容、私有业务背景时，才规划 knowledgeSearchTool。
+                                - 不要因为问题属于技术领域就默认规划 knowledgeSearchTool；公共技术事实、开源项目最新版本、官方文档优先使用 webTool。
                                 %s
 
-                用户任务：%s
+                %s用户任务：%s
 
                 %s
-                                """.formatted(toolList, ragInstruction, task, formatInstructions);
+                                """.formatted(toolList, ragInstruction, contextSection, task, formatInstructions);
     }
 
     /**

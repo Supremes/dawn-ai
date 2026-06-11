@@ -264,11 +264,8 @@ public class MemoryManager {
         return text.substring(start, end + 1);
     }
 
-    public List<MemorySearchResult> search(String userId, String query, int topK) {
-        return search(userId, query, topK, null);
-    }
-
     public List<MemorySearchResult> search(String userId, String query, int topK, MemoryType type) {
+        log.debug("记忆查询 - userId: {}, query: {}, topK: {}, type: {}", userId, query, topK, type);
         FilterExpressionBuilder fb = new FilterExpressionBuilder();
         var filter = fb.eq("userId", userId);
         if (type != null) {
@@ -288,7 +285,13 @@ public class MemoryManager {
             return List.of();
         }
 
+        if (results.isEmpty()) {
+            log.debug("记忆查询 - 向量查询结果为空, 没必要使用JPA查询验证了");
+            return List.of();
+        }
+
         // Post-filter: verify documents still exist in JPA and are not soft-deleted
+        log.debug("记忆查询 - JPA 查询");
         List<String> ids = results.stream().map(Document::getId).toList();
         Set<UUID> existingIds = memoryRepository.findAllById(ids.stream().map(id -> parseUuidSafe(id)).filter(Objects::nonNull).toList())
                 .stream().filter(e -> !e.isDeleted()).map(MemoryEntity::getId).collect(Collectors.toSet());
@@ -317,6 +320,7 @@ public class MemoryManager {
         Set<String> finalIds = ranked.stream().map(MemorySearchResult::id).collect(Collectors.toSet());
         updateAccessTime(filtered.stream().filter(doc -> finalIds.contains(doc.getId())).toList());
 
+        log.debug("记忆查询 - 命中{}条", ranked);
         return ranked;
     }
 

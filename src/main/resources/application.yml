@@ -85,7 +85,7 @@ management:
 app:
   ai:
     react:
-      max-steps: 10        # 单次对话最多工具调用次数（超出时 LLM 自行收敛）
+      max-steps: 10        # 单次对话最多工具调用次数（超出时作为工具观察返回，要求 LLM 停止工具调用并总结）
       show-steps: true    # 响应体中是否包含 steps 详情
       plan-enabled: true   # 是否启用执行前规划（关闭后跳过 TaskPlanner)
     stream:
@@ -143,6 +143,7 @@ app:
     bash:
       timeout-seconds: 30               # Bash 命令执行超时秒数
       max-output-bytes: 51200           # 命令输出最大字节数（50KB）
+      max-consecutive-failures: 3       # 连续失败或空输出达到阈值后，返回停止继续调用 BashTool 的观察结果
     file:
       base-dir: ./                       # 文件操作基准目录
 
@@ -185,7 +186,7 @@ logging:
     org.springframework.ai: INFO
     # 打印 Hibernate 实际执行的 SQL 及参数绑定（走 logback，落盘到 app.log）
     org.hibernate.SQL: DEBUG
-    org.hibernate.orm.jdbc.bind: TRACE
+#    org.hibernate.orm.jdbc.bind: TRACE
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36}:%line - %msg%n"
 

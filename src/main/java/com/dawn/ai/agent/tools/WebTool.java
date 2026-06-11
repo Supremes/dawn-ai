@@ -29,7 +29,7 @@ import java.util.function.Function;
  */
 @Slf4j
 @Component
-@Description("搜索互联网或提取网页内容。mode='search' 时输入关键词搜索网页；mode='extract' 时输入 URL 提取网页正文。基于 Tavily API。")
+@Description("搜索互联网或提取网页内容。适用于最新/current/recent 信息、外部公开事实、官方文档、版本号、发布日期、新闻、价格、状态，以及用户明确要求网上查询或官方来源的问题。mode='search' 搜索网页；mode='extract' 提取指定 URL 正文。基于 Tavily API。")
 public class WebTool implements Function<WebTool.Request, WebTool.Response> {
 
     private static final String SEARCH_URL = "https://api.tavily.com/search";

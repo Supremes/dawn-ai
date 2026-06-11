@@ -1,9 +1,7 @@
 /* ===== Dawn AI Frontend ===== */
 
 const API = {
-    chat: '/api/v1/chat',
     chatStream: '/api/v1/chat/stream',
-    chatSimple: '/api/v1/chat/simple',
     ragIngest: '/api/v1/rag/ingest',
     ragSearch: '/api/v1/rag/search',
     ragCategories: '/api/v1/rag/categories',

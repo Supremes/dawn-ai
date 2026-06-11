@@ -1,7 +1,5 @@
 package com.dawn.ai.evaluation.dimensions;
 
-import com.dawn.ai.agent.orchestration.AgentOrchestrator;
-import com.dawn.ai.agent.orchestration.AgentResult;
 import com.dawn.ai.evaluation.base.AbstractEvaluationTest;
 import com.dawn.ai.evaluation.base.EvaluationCase;
 import com.dawn.ai.evaluation.judge.JudgeDimension;
@@ -19,9 +17,6 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AnswerCompletenessEvaluationTest extends AbstractEvaluationTest {
-
-    @Autowired
-    private AgentOrchestrator agentOrchestrator;
 
     @Autowired
     private VectorStore vectorStore;
@@ -44,7 +39,7 @@ class AnswerCompletenessEvaluationTest extends AbstractEvaluationTest {
             // 预索引测试文档到向量库
             indexTestDocuments(evalCase);
 
-            AgentResult result = agentOrchestrator.chat(sessionId, evalCase.query(), null);
+            StreamedAgentResult result = streamAgent(sessionId, evalCase.query());
 
             String answerCriteria = evalCase.expected().answerCriteria();
             Map<String, String> variables = Map.of(
