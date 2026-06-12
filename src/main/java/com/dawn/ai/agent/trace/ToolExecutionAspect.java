@@ -1,5 +1,6 @@
 package com.dawn.ai.agent.trace;
 
+import com.dawn.ai.agent.token.TokenWindowManager;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 public class ToolExecutionAspect {
 
     private final MeterRegistry meterRegistry;
+    private final TokenWindowManager tokenWindowManager;
 
     @Around("execution(* com.dawn.ai.agent.tools.*.apply(..))")
     public Object captureStep(ProceedingJoinPoint pjp) throws Throwable {
@@ -41,6 +43,16 @@ public class ToolExecutionAspect {
 
             Object result = pjp.proceed();
             long durationMs = System.currentTimeMillis() - start;
+
+            // Token-aware truncation of tool output
+            if (result instanceof String text) {
+                String truncated = tokenWindowManager.truncateToolOutput(text);
+                if (truncated.length() < text.length()) {
+                    log.info("[ToolExecutionAspect] Tool output truncated from {} to {} chars (tool={})",
+                            text.length(), truncated.length(), toolName);
+                }
+                result = truncated;
+            }
 
             List<AgentStep> subSteps = (result instanceof SubStepProvider provider)
                     ? provider.getSubSteps()

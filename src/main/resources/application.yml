@@ -88,6 +88,11 @@ app:
       max-steps: 10        # 单次对话最多工具调用次数（超出时作为工具观察返回，要求 LLM 停止工具调用并总结）
       show-steps: true    # 响应体中是否包含 steps 详情
       plan-enabled: true   # 是否启用执行前规划（关闭后跳过 TaskPlanner)
+    token:
+      max-tool-output-tokens: 3000    # 工具输出超过此 token 数时自动截断
+      max-history-tokens: 8000        # 对话历史 token 预算（从最新往回截取）
+      max-memory-tokens: 1000         # system prompt 中记忆部分 token 上限
+      max-skills-tokens: 500          # system prompt 中 skill/subagent 描述 token 上限
     stream:
       timeout-ms: 1200000   # SSE 单次请求最大等待时长（毫秒）
     rag:

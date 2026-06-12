@@ -7,6 +7,7 @@ import com.dawn.ai.agent.skill.Skill;
 import com.dawn.ai.agent.skill.SkillRegistry;
 import com.dawn.ai.agent.subagent.SubAgentDefinition;
 import com.dawn.ai.agent.subagent.SubAgentRegistry;
+import com.dawn.ai.agent.token.TokenWindowManager;
 import com.dawn.ai.agent.trace.AgentStep;
 import com.dawn.ai.agent.trace.StepCollector;
 import com.dawn.ai.agent.tools.KnowledgeSearchTool;
@@ -66,6 +67,7 @@ public class AgentOrchestrator {
     private final UserProfileService userProfileService;
     private final SkillRegistry skillRegistry;
     private final SubAgentRegistry subAgentRegistry;
+    private final TokenWindowManager tokenWindowManager;
 
     public AgentOrchestrator(ChatClient chatClient,
                               MemoryService memoryService,
@@ -75,7 +77,8 @@ public class AgentOrchestrator {
                               MeterRegistry meterRegistry,
                               UserProfileService userProfileService,
                               SkillRegistry skillRegistry,
-                              SubAgentRegistry subAgentRegistry) {
+                              SubAgentRegistry subAgentRegistry,
+                              TokenWindowManager tokenWindowManager) {
         this.chatClient = chatClient;
         this.memoryService = memoryService;
         this.memoryManager = memoryManager;
@@ -85,6 +88,7 @@ public class AgentOrchestrator {
         this.userProfileService = userProfileService;
         this.skillRegistry = skillRegistry;
         this.subAgentRegistry = subAgentRegistry;
+        this.tokenWindowManager = tokenWindowManager;
     }
 
     @Value("${app.ai.system-prompt:You are a helpful AI assistant.}")
@@ -333,15 +337,24 @@ public class AgentOrchestrator {
     private List<Message> buildHistory(String sessionId) {
         List<Map<String, String>> rawHistory = memoryService.getHistory(sessionId);
         List<Message> messages = new ArrayList<>();
-        for (Map<String, String> entry : rawHistory) {
-            String role = entry.get("role");
-            String content = entry.get("content");
+        int usedTokens = 0;
+        int maxTokens = tokenWindowManager.getMaxHistoryTokens();
+
+        // From newest to oldest, keep messages that fit the token budget
+        for (int i = rawHistory.size() - 1; i >= 0; i--) {
+            String content = rawHistory.get(i).get("content");
+            int msgTokens = tokenWindowManager.estimateTokens(content);
+            if (usedTokens + msgTokens > maxTokens) break;
+            usedTokens += msgTokens;
+            String role = rawHistory.get(i).get("role");
             if ("user".equals(role)) {
-                messages.add(new UserMessage(content));
+                messages.add(0, new UserMessage(content));
             } else if ("assistant".equals(role)) {
-                messages.add(new AssistantMessage(content));
+                messages.add(0, new AssistantMessage(content));
             }
         }
+        log.debug("[AgentOrchestrator] History: {} messages, ~{} tokens (budget {})",
+                messages.size(), usedTokens, maxTokens);
         return messages;
     }
 
@@ -351,17 +364,23 @@ public class AgentOrchestrator {
      */
     private String buildSystemPrompt(List<PlanStep> plan, String topicId, String userQuery) {
         String profileSection = userProfileService.formatForSystemPrompt(defaultUserId); // 用户画像
-        String memorySection = formatMemories(defaultUserId, userQuery); // 相关记忆，top-k
+        String memorySection = tokenWindowManager.truncateToTokenBudget(
+                formatMemories(defaultUserId, userQuery),
+                tokenWindowManager.getMaxMemoryTokens()); // 相关记忆，token 预算截取
         String topicSection = (topicId != null && !topicId.isBlank())
                 ? String.format("%n%n【研究主题】你当前在帮助用户研究主题：%s。" +
                   "调用 KnowledgeSearchTool 时，topicId 参数必须使用 \"%s\"。", topicId, topicId)
                 : "";
+        String skillsSection = tokenWindowManager.truncateToTokenBudget(
+                formatSkills(), tokenWindowManager.getMaxSkillsTokens());
+        String subAgentsSection = tokenWindowManager.truncateToTokenBudget(
+                formatSubAgents(), tokenWindowManager.getMaxSkillsTokens());
         return baseSystemPrompt
                 + profileSection
                 + memorySection
                 + topicSection
-                + formatSkills()
-                + formatSubAgents()
+                + skillsSection
+                + subAgentsSection
                 + formatPlanGuidance(plan)
                 + String.format("%n请在回复中简短说明每次工具调用的原因。最多调用工具 %d 次。", maxSteps);
     }
