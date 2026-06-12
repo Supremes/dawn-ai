@@ -104,6 +104,50 @@ public class RagController {
         return ResponseEntity.ok(results);
     }
 
+    /**
+     * Delete all chunks belonging to a parent document.
+     */
+    @DeleteMapping("/documents/{docId}")
+    public ResponseEntity<Map<String, Object>> deleteDocument(@PathVariable String docId) {
+        int deleted = ragService.deleteByDocId(docId);
+        if (deleted == 0) {
+            return ResponseEntity.status(404).body(Map.of(
+                    "error", "not_found",
+                    "message", "No chunks found for docId: " + docId));
+        }
+        return ResponseEntity.ok(Map.of("docId", docId, "deletedChunks", deleted));
+    }
+
+    /**
+     * Update a document by replacing all its chunks with new content.
+     */
+    @PutMapping("/documents/{docId}")
+    public ResponseEntity<Map<String, Object>> updateDocument(
+            @PathVariable String docId,
+            @Valid @RequestBody RagRequest request) {
+        String newDocId = ragService.updateDocument(
+                docId, request.getContent(), request.getSource(),
+                request.getCategory(), request.getTopicId());
+        return ResponseEntity.ok(Map.of(
+                "oldDocId", docId,
+                "newDocId", newDocId,
+                "status", "updated"));
+    }
+
+    /**
+     * List ingested documents grouped by docId, with optional filters.
+     */
+    @GetMapping("/documents")
+    public ResponseEntity<List<Map<String, Object>>> listDocuments(
+            @RequestParam(required = false) String source,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String topicId,
+            @RequestParam(defaultValue = "50") @Min(1) @Max(200) int limit,
+            @RequestParam(defaultValue = "0") @Min(0) int offset) {
+        List<Map<String, Object>> docs = ragService.listDocuments(source, category, topicId, limit, offset);
+        return ResponseEntity.ok(docs);
+    }
+
     @GetMapping("/categories")
     public ResponseEntity<List<String>> getCategories() {
         return ResponseEntity.ok(queryCategoryClassifier.getCategories());
