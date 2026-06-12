@@ -1,10 +1,12 @@
 package com.dawn.ai.agent.trace;
 
+import com.dawn.ai.agent.planning.PlanStep;
 import com.dawn.ai.exception.MaxStepsExceededException;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -184,6 +186,59 @@ public class StepCollector {
             return false;
         }
         return ctx.bashFailureStreak.incrementAndGet() >= stopThreshold;
+    }
+
+    // -------------------------------------------------------------------------
+    // Re-plan context management
+    // -------------------------------------------------------------------------
+
+    /** Sets the re-plan context (plan, user message, tool descriptions) for the current request. */
+    public static void setRePlanContext(List<PlanStep> plan, String userMessage, Set<String> toolDescriptions) {
+        StepCollectorContext ctx = CONTEXT.get();
+        if (ctx != null) {
+            ctx.setCurrentPlan(plan);
+            ctx.setUserMessage(userMessage);
+            ctx.setToolDescriptions(toolDescriptions);
+        }
+    }
+
+    public static List<PlanStep> getCurrentPlan() {
+        StepCollectorContext ctx = CONTEXT.get();
+        return ctx != null ? ctx.getCurrentPlan() : null;
+    }
+
+    public static String getUserMessage() {
+        StepCollectorContext ctx = CONTEXT.get();
+        return ctx != null ? ctx.getUserMessage() : null;
+    }
+
+    public static Set<String> getToolDescriptions() {
+        StepCollectorContext ctx = CONTEXT.get();
+        return ctx != null ? ctx.getToolDescriptions() : null;
+    }
+
+    public static int incrementConsecutiveEmpty() {
+        StepCollectorContext ctx = CONTEXT.get();
+        return ctx != null ? ctx.incrementConsecutiveEmpty() : 0;
+    }
+
+    public static void resetConsecutiveEmpty() {
+        StepCollectorContext ctx = CONTEXT.get();
+        if (ctx != null) {
+            ctx.resetConsecutiveEmpty();
+        }
+    }
+
+    public static boolean isRePlanTriggered() {
+        StepCollectorContext ctx = CONTEXT.get();
+        return ctx != null && ctx.isRePlanTriggered();
+    }
+
+    public static void markRePlanTriggered() {
+        StepCollectorContext ctx = CONTEXT.get();
+        if (ctx != null) {
+            ctx.markRePlanTriggered();
+        }
     }
 
     /** Must be called in a {@code finally} block to prevent ThreadLocal memory leaks. */

@@ -1,5 +1,6 @@
 package com.dawn.ai.agent.planning;
 
+import com.dawn.ai.agent.trace.AgentStep;
 import com.dawn.ai.config.AiSyncResponseCapture;
 import com.dawn.ai.exception.PlanGenerationException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -238,6 +239,56 @@ public class TaskPlanner {
         PlanStep lastStep = plan.get(plan.size() - 1);
         if (!"finish".equals(lastStep.action())) {
             throw new PlanGenerationException("Planner plan must end with finish.");
+        }
+    }
+
+    /**
+     * Generates an adjusted execution plan based on completed steps and their results.
+     * Called when consecutive tool calls return empty/failed results, indicating the
+     * original plan is not working as expected.
+     *
+     * @param userMessage      the user's original question
+     * @param completedSteps   steps executed so far with their results
+     * @param toolDescriptions names of available tools
+     * @return re-plan guidance text, or null if re-planning itself fails
+     */
+    public String rePlan(String userMessage, List<AgentStep> completedSteps, Set<String> toolDescriptions) {
+        String stepsHistory = completedSteps.stream()
+                .map(s -> String.format("步骤%d: [%s] → %s",
+                        s.stepNumber(),
+                        s.toolName(),
+                        "success".equals(s.status()) && s.toolOutput() != null && !s.toolOutput().isBlank()
+                                ? "成功（摘要：" + s.toolOutput().substring(0, Math.min(100, s.toolOutput().length())) + "...）"
+                                : "无有效结果"))
+                .collect(Collectors.joining("\n"));
+
+        String prompt = String.format("""
+                你是执行计划调整器。用户的原始问题是：%s
+
+                已执行的步骤及结果：
+                %s
+
+                前几步工具调用未获得有效结果，需要调整后续策略。
+                可用工具：%s
+
+                请输出调整后的执行建议（1-3步），格式为：
+                步骤N: [工具名] 原因
+                最后一步必须是: [finish] 综合信息回答
+
+                如果已有足够信息回答，直接建议 finish。""",
+                userMessage, stepsHistory, String.join(", ", toolDescriptions));
+
+        try {
+            String response = chatClient.prompt()
+                    .user(prompt)
+                    .options(OpenAiChatOptions.builder().temperature(0.3).build())
+                    .call()
+                    .content();
+            log.info("[TaskPlanner] Re-plan generated: {}", response);
+            return response;
+        } catch (Exception e) {
+            log.warn("[TaskPlanner] Re-plan failed: {}", e.getMessage());
+            return null;
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.dawn.ai.agent.trace;
 
+import com.dawn.ai.agent.planning.PlanStep;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -31,14 +33,36 @@ public final class StepCollectorContext {
     final List<AgentStep> steps = Collections.synchronizedList(new ArrayList<>());
     final AtomicInteger counter = new AtomicInteger(0);
     final AtomicInteger bashFailureStreak = new AtomicInteger(0);
+    final AtomicInteger consecutiveEmptyResults = new AtomicInteger(0);
     final int maxSteps;
     final Set<String> retrievedQueries = ConcurrentHashMap.newKeySet();
     volatile Consumer<AgentStep> stepListener;
+    volatile List<PlanStep> currentPlan;
+    volatile String userMessage;
+    volatile Set<String> toolDescriptions;
+    volatile boolean rePlanTriggered = false;
 
     StepCollectorContext(int maxSteps, Consumer<AgentStep> stepListener) {
         this.maxSteps = maxSteps;
         this.stepListener = stepListener;
     }
+
+    // ── Re-plan context accessors ──
+
+    public List<PlanStep> getCurrentPlan() { return currentPlan; }
+    public void setCurrentPlan(List<PlanStep> plan) { this.currentPlan = plan; }
+
+    public String getUserMessage() { return userMessage; }
+    public void setUserMessage(String userMessage) { this.userMessage = userMessage; }
+
+    public Set<String> getToolDescriptions() { return toolDescriptions; }
+    public void setToolDescriptions(Set<String> toolDescriptions) { this.toolDescriptions = toolDescriptions; }
+
+    public boolean isRePlanTriggered() { return rePlanTriggered; }
+    public void markRePlanTriggered() { this.rePlanTriggered = true; }
+
+    public int incrementConsecutiveEmpty() { return consecutiveEmptyResults.incrementAndGet(); }
+    public void resetConsecutiveEmpty() { consecutiveEmptyResults.set(0); }
 
     /**
      * 公开的步骤快照。供 sub-agent 执行器在 worker 线程结束后跨线程读取自己持有的

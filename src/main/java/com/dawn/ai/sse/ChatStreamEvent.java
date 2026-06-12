@@ -136,6 +136,19 @@ public class ChatStreamEvent {
                 .build();
     }
 
+    public static ChatStreamEvent replan(String sessionId, String guidance) {
+        return ChatStreamEvent.builder()
+                .event("replan")
+                .sessionId(sessionId)
+                .timestamp(Instant.now().toString())
+                .data(Map.of("guidance", guidance))
+                .build();
+    }
+
+    public static ChatStreamEvent replan(String guidance) {
+        return replan(null, guidance);
+    }
+
     public static ChatStreamEvent error(String sessionId, String code, String message) {
         return ChatStreamEvent.builder()
                 .event("error")

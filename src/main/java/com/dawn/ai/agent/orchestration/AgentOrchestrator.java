@@ -34,8 +34,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.Map;
@@ -195,6 +198,10 @@ public class AgentOrchestrator {
         try {
             TaskPlanner.PlannerResult plannerResult = resolvePlan(sessionId, userMessage);
             List<PlanStep> plan = plannerResult.steps();
+
+            // Set re-plan context so ToolExecutionAspect can trigger dynamic re-planning
+            StepCollector.setRePlanContext(plan, userMessage,
+                    new HashSet<>(Arrays.asList(toolRegistry.getNames())));
 
             String planReasoning = plannerResult.reasoningContent();
             if (planReasoning != null && !planReasoning.isBlank()) {
@@ -403,7 +410,11 @@ public class AgentOrchestrator {
         sb.append("\n【执行约束】请优先按上方【执行计划】调用对应工具，并以工具结果为主要依据作答。")
                     .append("knowledgeSearchTool 返回 docsFound=0 时，不要重复检索同类问题；")
                     .append("若问题需要最新、当前、版本号、发布日期、官方资料或外部公开事实，请改用 webTool。")
-                    .append("当工具无结果或信息不足时，结合你自身的知识把答案补全，并简要说明依据来源。");
+                    .append("当工具无结果或信息不足时，结合你自身的知识把答案补全，并简要说明依据来源。")
+                    .append("\n当某个计划步骤的工具返回空结果或报错时，请勿机械执行下一步。根据已获得的信息灵活调整：")
+                    .append("\n- 如果信息已足够回答用户问题，直接跳到 finish，不要浪费工具调用次数")
+                    .append("\n- 如果需要换工具或换查询角度（如 knowledgeSearchTool 无结果则改用 webTool），自行决策")
+                    .append("\n- 简要说明你偏离原计划的原因");
         return sb.toString();
     }
 
