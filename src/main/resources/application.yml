@@ -150,6 +150,7 @@ app:
       timeout-seconds: 30               # Bash 命令执行超时秒数
       max-output-bytes: 51200           # 命令输出最大字节数（50KB）
       max-consecutive-failures: 3       # 连续失败或空输出达到阈值后，返回停止继续调用 BashTool 的观察结果
+      allow-write: false                # 是否允许写/删除类操作（rm/mv/cp/重定向写入等）。默认 false = 只读安全模式，写/删除类操作会被代码层拒绝；需要时由用户在受信任的配置中显式设为 true 开启。系统级破坏命令（shutdown/mkfs 等）始终被硬红线拦截，不受此开关影响
     file:
       base-dir: ./                       # 文件操作基准目录
 

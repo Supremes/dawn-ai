@@ -25,15 +25,17 @@ import java.util.regex.Pattern;
  * 通过 /bin/bash -c 在宿主机执行 shell 命令，替代 FileReadTool / GrepTool /
  * GlobTool / ListDirectoryTool，同时支持 git、wc、curl 等任意非交互命令。
  *
- * 安全约束：
- * - 命令黑名单拦截高危操作（rm -rf /、mkfs、shutdown 等）
- * - 工作目录锁定在 baseDir
- * - 执行超时（默认 30 秒）
- * - 输出截断（默认 50KB，防止撑爆 LLM 上下文）
+ * 安全约束（三档分级）：
+ * - 硬红线：系统级不可逆破坏命令（shutdown/mkfs/dd、rm -rf / 等）永远拒绝，配置开关无法解除
+ * - 写操作（rm/mv/cp/chmod/重定向写入等）由 app.tools.bash.allow-write 控制，默认 false（只读安全模式），需在配置中显式开启
+ * - 只读 / 网络命令默认放行
+ * - 安全检查会拆解整条命令串逐子命令判定，防止 `a; mkfs` 这类组合绕过
+ * - 工作目录锁定在 baseDir；执行超时（默认 30 秒）；输出截断（默认 50KB）
+ * - 写/删除等高风险操作的语义提示由 system prompt 安全准则 + 对话确认承担（软性纵深防御；真正的执行门控是上面 allow-write 的只读安全模式）
  */
 @Slf4j
 @Component
-@Description("执行 bash 命令并返回输出。可用于文件读取(cat/head/tail)、内容搜索(grep)、文件查找(find)、目录浏览(ls/tree)、git 操作等。输入要执行的命令字符串，返回 stdout 和 stderr。仅支持非交互式命令。")
+@Description("执行 bash 命令并返回输出。可用于文件读取(cat/head/tail)、内容搜索(grep)、文件查找(find)、目录浏览(ls/tree)、git 操作等。输入要执行的命令字符串，返回 stdout 和 stderr。仅支持非交互式命令。执行写入、删除、移动文件或其他有副作用的操作前，必须先向用户说明并取得明确同意。")
 public class BashTool implements Function<BashTool.Request, BashTool.Response> {
 
     private static final int DEFAULT_TIMEOUT_SECONDS = 30;
@@ -55,6 +57,23 @@ public class BashTool implements Function<BashTool.Request, BashTool.Response> {
             Pattern.compile(">\\.?\\s*/dev/[sh]da")                // overwrite disk device
     );
 
+    /** 写/删除类命令：受 app.tools.bash.allow-write 控制（默认放行）。 */
+    private static final Set<String> WRITE_COMMANDS = Set.of(
+            "rm", "rmdir", "mv", "cp", "tee", "truncate", "shred",
+            "chmod", "chown", "chgrp", "ln", "install", "mkdir", "touch"
+    );
+
+    /** 透明包装器：跳过后取其后的真实命令做判定（如 sudo shutdown）。 */
+    private static final Set<String> WRAPPER_COMMANDS = Set.of(
+            "sudo", "env", "nohup", "time", "nice", "ionice"
+    );
+
+    /** 子命令分隔符：; | & && ||、换行，用于拆解组合命令逐段判定。 */
+    private static final String SUBCOMMAND_DELIMITERS = "\\|\\||&&|[;|&\\n]";
+
+    /** 写重定向：> 或 >>（排除 2>&1 这类 fd 复制）。 */
+    private static final Pattern REDIRECT_WRITE = Pattern.compile(">>?\\s*(?![&])\\S");
+
     @Value("${app.tools.file.base-dir:./}")
     private String baseDir;
 
@@ -66,6 +85,9 @@ public class BashTool implements Function<BashTool.Request, BashTool.Response> {
 
     @Value("${app.tools.bash.max-consecutive-failures:3}")
     private int maxConsecutiveFailures;
+
+    @Value("${app.tools.bash.allow-write:false}")
+    private boolean allowWrite;
 
     public record Request(
             @JsonProperty(required = true)
@@ -179,19 +201,59 @@ public class BashTool implements Function<BashTool.Request, BashTool.Response> {
     }
 
     private String checkSecurity(String command) {
-        String baseCommand = command.split("\\s+")[0];
-
-        if (BLOCKED_COMMANDS.contains(baseCommand)) {
-            return "禁止执行危险命令: " + baseCommand;
-        }
-
+        // ① 硬红线：整串危险模式（不可逆系统破坏），任何配置都不能解除
         for (Pattern p : BLOCKED_PATTERNS) {
             if (p.matcher(command).find()) {
                 return "命令匹配危险模式，已拦截";
             }
         }
 
+        // ② 拆解整条命令串，逐子命令取 base command 判定（防 `a; mkfs` 组合绕过）
+        boolean hasWriteOp = REDIRECT_WRITE.matcher(command).find();
+        for (String sub : command.split(SUBCOMMAND_DELIMITERS)) {
+            String base = baseCommandOf(sub);
+            if (base.isEmpty()) {
+                continue;
+            }
+            if (BLOCKED_COMMANDS.contains(base)) {
+                return "禁止执行危险命令: " + base;
+            }
+            if (WRITE_COMMANDS.contains(base)) {
+                hasWriteOp = true;
+            }
+        }
+
+        // ③ 写操作门控：默认只读安全；仅当显式开启 allow-write 时才放行
+        if (hasWriteOp && !allowWrite) {
+            return "检测到写/删除类操作，当前为只读安全模式（app.tools.bash.allow-write=false），已拒绝执行。"
+                    + "如确需执行该写操作，请由用户在受信任的配置中显式开启 app.tools.bash.allow-write；否则请改用只读命令完成任务。";
+        }
+
         return null;
+    }
+
+    /** 取子命令的 base command：剥离路径、跳过 env 赋值前缀、透明包装器与 flag。 */
+    private String baseCommandOf(String sub) {
+        for (String token : sub.trim().split("\\s+")) {
+            if (token.isEmpty()) {
+                continue;
+            }
+            if (token.matches("[A-Za-z_][A-Za-z0-9_]*=.*")) {
+                continue; // 环境变量赋值前缀，如 LC_ALL=C
+            }
+            String base = stripPath(token);
+            if (WRAPPER_COMMANDS.contains(base) || base.startsWith("-")) {
+                continue; // 包装器或 flag，继续看下一个 token
+            }
+            return base;
+        }
+        return "";
+    }
+
+    /** /sbin/shutdown -> shutdown，挡掉绝对路径绕过。 */
+    private String stripPath(String token) {
+        int idx = token.lastIndexOf('/');
+        return idx >= 0 ? token.substring(idx + 1) : token;
     }
 
     private int resolveTimeout(Integer requested) {
