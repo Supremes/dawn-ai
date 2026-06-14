@@ -1,26 +1,6 @@
 ---
-updated: 2026-06-07 17:20
+updated: 2026-06-13 15:51
 ---
-# Dawn-AI 文档索引
-
-按 Agent 开发关注面组织，每个主题目录内可含 `*-design.md`（架构设计）、`plans/`（阶段性落地计划）及备忘。
-
-| 目录                                       | 关注面                                    |
-| ---------------------------------------- | -------------------------------------- |
-| [`agent-paradigms/`](./agent-paradigms/) | Agent 范式：ReAct、Multi-Agent             |
-| [`rag/`](./rag/)                         | 检索增强：查询改写、混合检索、重排、Agentic RAG          |
-| [`memory/`](./memory/)                   | 3 层记忆体系（Working / Summary / Long-term） |
-| [`skill/`](./skill/)                     | Skill 加载与 MCP 协议支持                     |
-| [`second-brain/`](./second-brain/)       | Topic 元数据与知识盲点分析                       |
-| [`evaluation/`](./evaluation/)           | Agent 评估框架与测试结果                        |
-| [`observability/`](./observability/)     | Telemetry、Grafana、Langfuse             |
-| `SSE`                                    | SSE 流式响应与跨线程上下文传播                      |
-| [`notes/`](./notes/)                     | 学习笔记、调研、面试要点                           |
-| [`assets/`](./assets/)                   | 共享图片资源                                 |
-| [`roadmap.md`](./roadmap.md)             | 待办与 Agent 范式落地优先级                      |
-
----
-
 # Tech
 ## Tech points
 
@@ -39,11 +19,8 @@ updated: 2026-06-07 17:20
   - 自实现，依据用户输入+LLM call，编排后续的流程，避免长任务跑偏。
   - MIMO code 引入了 max code 模式， 在每轮并行生成 N个候选方案，由模型作为 Judge 选出最优解。这也是长任务避免跑偏的一种方式，但是额外带来了成倍 token 的开销
 
-
 学习要点：
 - ReAct 适合用在局部决策场景，而不是整个系统。**大多数场景，整体流程是确定的**，适合用 workflow 来保证稳定性。针对某些局部节点（如果需要根据当前上下文动态决定是否调用工具、调用哪个工具、是否进行多轮推理，这时候可以引入 ReAct 来增强灵活性），使用 ReAct 来处理不确定性，保证稳定性和灵活性之间取得平衡。
-
-
 
 ## Prompt
 
@@ -52,8 +29,6 @@ updated: 2026-06-07 17:20
 - **Zero-shot + JSON Schema 约束**：查询改写、分类、任务规划等场景，将 JSON Schema 拼入 prompt 强制结构化输出。
 - **Few-shot**：Memory 去重场景，提供 3 组示例（同义改写/主题相近/混合候选）引导语义判重。
 - **System Prompt 分段组装**：基底人设 + 用户画像 + 相关记忆 + 技能 + 子Agent + 执行计划 + 工具约束，动态拼接。
-
-
 
 ## RAG
 
@@ -157,7 +132,25 @@ Spring AI 自定义 Tool：
 LLM 产出 tool call → `ToolCallbackResolver` 按 name 找工具 → 校验/解析 input → `call()` 执行 → 结果回填给 LLM → 生成最终回复。
 ```
 
+## 项目难点
+
+### prompt 调优
+
+在 plan + react 范式的结合场景下，容易出现 plan 与 react 两个 agent 不对齐，导致结果走偏的情况。
+- plan agent的 prompt 和 react agent（主 agent） 的 prompt 没有对齐，导致行为出现偏差。
+- plan agent 在规划时，基于静态的初始输入；而 react agent 在执行时，环境是动态变化的，比如工具返回了错误，或者发现了新的信息。如果严格执行已经过时的 plan，或者脱离 plan 自行其是，便导致了整体行为上的漂移。
+
+**调优方案：**
+- 优化 prompt：react agent 的 prompt 会预设，若遇到异常情况，比如 tool 连续调用失败时，选择及时停下，总结原因。
+- 动态重规划：不完依赖 plan 的规划，会在连续失败或命中某些预设条件时，会触发 re-plan流程。
+
+**陈述：**
+在‘Plan + ReAct’的多 Agent 协同场景下，针对上下游 Agent 因 Prompt 语义漂移导致执行走偏的痛点，主持了 Prompt 的对齐调优。通过**引入结构化契约（Schema-based Protocol）**明确指令边界，并在架构上实现基于执行反馈的**动态再规划（Dynamic Re-Planning）机制**，将复杂任务的端到端执行成功率提升。
+
 # 应用方向
+
+
+基于高热
 
 个人学习追踪助手：上传技术书/笔记/论文等   → 问问题 → AI 追踪"你学了什么、还不会什么"
 

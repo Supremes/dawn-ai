@@ -37,3 +37,6 @@ logs/
 
 # Claude Code /export 导出的会话文件（一次性产物，不入库）
 *-command-message*.txt
+
+docs/resume
+.codegraph/
