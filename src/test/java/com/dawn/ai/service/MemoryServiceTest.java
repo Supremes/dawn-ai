@@ -8,6 +8,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.ListOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 
+import org.springframework.test.util.ReflectionTestUtils;
+
 import java.util.List;
 import java.util.Map;
 
@@ -30,6 +32,7 @@ class MemoryServiceTest {
         when(redisTemplate.opsForList()).thenReturn(listOps);
         memoryService = new MemoryService(redisTemplate, new SimpleMeterRegistry(), eventPublisher);
         memoryService.initMetrics();
+        ReflectionTestUtils.setField(memoryService, "maxHistory", 10);
     }
 
     @Test

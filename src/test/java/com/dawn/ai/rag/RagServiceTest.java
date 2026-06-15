@@ -13,6 +13,7 @@ import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import com.dawn.ai.rag.retrieval.RetrievalRouter;
 import com.dawn.ai.rag.retrieval.sparse.SparseRetriever;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,6 +41,7 @@ import static org.mockito.Mockito.*;
 class RagServiceTest {
 
     @Mock private VectorStore vectorStore;
+    @Mock private JdbcTemplate jdbcTemplate;
     @Mock private AiAvailabilityChecker aiAvailabilityChecker;
     @Mock private SparseRetriever sparseRetriever;
     private OverlapTextSplitter overlapTextSplitter;
@@ -55,6 +57,7 @@ class RagServiceTest {
         overlapTextSplitter = new OverlapTextSplitter(500, 50);
         ragService = new RagService(
                 vectorStore,
+                jdbcTemplate,
                 meterRegistry,
                 aiAvailabilityChecker,
                 new HeuristicRetrievalReranker(),
@@ -146,7 +149,7 @@ class RagServiceTest {
         // chunkSize=4, overlap=2 → step=2; "one two three four five six seven" (7 tokens)
         // expected chunks: [0..3], [2..5], [4..6]
         RagService localRagService = new RagService(
-                vectorStore, meterRegistry, aiAvailabilityChecker,
+                vectorStore, jdbcTemplate, meterRegistry, aiAvailabilityChecker,
                 new HeuristicRetrievalReranker(),
                 sparseRetriever,
                 new ReciprocalRankFusion(),
@@ -366,7 +369,7 @@ class RagServiceTest {
     void retrieve_shortQuery_skipsHyDE() {
         HydeQueryGenerator hyde = mock(HydeQueryGenerator.class);
         RagService svc = new RagService(
-                vectorStore, meterRegistry, aiAvailabilityChecker,
+                vectorStore, jdbcTemplate, meterRegistry, aiAvailabilityChecker,
                 new HeuristicRetrievalReranker(), sparseRetriever,
                 new ReciprocalRankFusion(), new RetrievalRouter(),
                 overlapTextSplitter, ragRetrievalExecutor,
@@ -387,7 +390,7 @@ class RagServiceTest {
         HydeQueryGenerator hyde = mock(HydeQueryGenerator.class);
         when(hyde.generate(any())).thenReturn("hypothetical answer paragraph");
         RagService svc = new RagService(
-                vectorStore, meterRegistry, aiAvailabilityChecker,
+                vectorStore, jdbcTemplate, meterRegistry, aiAvailabilityChecker,
                 new HeuristicRetrievalReranker(), sparseRetriever,
                 new ReciprocalRankFusion(), new RetrievalRouter(),
                 overlapTextSplitter, ragRetrievalExecutor,
@@ -410,7 +413,7 @@ class RagServiceTest {
     void retrieve_withMetadataFilter_skipsHyDE() {
         HydeQueryGenerator hyde = mock(HydeQueryGenerator.class);
         RagService svc = new RagService(
-                vectorStore, meterRegistry, aiAvailabilityChecker,
+                vectorStore, jdbcTemplate, meterRegistry, aiAvailabilityChecker,
                 new HeuristicRetrievalReranker(), sparseRetriever,
                 new ReciprocalRankFusion(), new RetrievalRouter(),
                 overlapTextSplitter, ragRetrievalExecutor,
