@@ -8,6 +8,7 @@ import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
@@ -73,6 +74,7 @@ public class AiConfig {
     public ChatClient chatClient(ChatModel chatModel) {
         return ChatClient.builder(chatModel)
                 .defaultSystem(defaultSystemPrompt)
+                .defaultAdvisors(new SimpleLoggerAdvisor())
                 .build();
     }
 
@@ -83,7 +85,7 @@ public class AiConfig {
             String reqBodyText = new String(body, StandardCharsets.UTF_8);
             String sessionId = AiInteractionContext.getSessionId();
 
-            log.info("[AI HTTP] --> {} {} | {}", request.getMethod(), request.getURI(), summarizeRequestBody(reqBodyText));
+            log.debug("[AI HTTP] --> {} {} | {}", request.getMethod(), request.getURI(), summarizeRequestBody(reqBodyText));
             aiInteractionLogger.logRequest(sessionId, request.getMethod().name(), request.getURI().toString(), reqBodyText);
 
             long start = System.currentTimeMillis();
@@ -105,7 +107,7 @@ public class AiConfig {
                         reqBodyText,
                         responseBodyText);
             } else {
-                log.info("[AI HTTP] <-- status={} | {}", response.getStatusCode(), summarizeResponseBody(responseBodyText));
+                log.debug("[AI HTTP] <-- status={} | {}", response.getStatusCode(), summarizeResponseBody(responseBodyText));
                 if (log.isDebugEnabled()) {
                     log.debug("[AI HTTP] <-- response body detail:\n{}", formatDebugResponseBody(responseBodyText));
                 }
@@ -253,7 +255,7 @@ public class AiConfig {
     @SuppressWarnings({"unchecked", "rawtypes"})
     private ExchangeFilterFunction logStreamingRequest(AiInteractionLogger aiInteractionLogger) {
         return ExchangeFilterFunction.ofRequestProcessor(request -> {
-            log.info("[AI STREAM HTTP] --> {} {} | headers={}",
+            log.debug("[AI STREAM HTTP] --> {} {} | headers={}",
                     request.method(), request.url(), sanitizeHeaders(request));
             String sessionId = AiInteractionContext.getSessionId();
             String url = request.url().toString();
@@ -278,7 +280,7 @@ public class AiConfig {
 
     private ExchangeFilterFunction logStreamingResponse(AiInteractionLogger aiInteractionLogger) {
         return ExchangeFilterFunction.ofResponseProcessor(response -> {
-            log.info("[AI STREAM HTTP] <-- status={} | contentType={}",
+            log.debug("[AI STREAM HTTP] <-- status={} | contentType={}",
                     response.statusCode(), response.headers().contentType().orElse(null));
             // SSE response body is too large/streamy to capture fully here.
             // ChatService writes a LOGICAL response with the aggregated answer when streaming completes.

@@ -190,7 +190,9 @@ app:
 logging:
   level:
     com.dawn.ai: DEBUG
+    com.dawn.ai.config.AiConfig: INFO
     org.springframework.ai: INFO
+    org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor: DEBUG
     # 打印 Hibernate 实际执行的 SQL 及参数绑定（走 logback，落盘到 app.log）
     org.hibernate.SQL: DEBUG
 #    org.hibernate.orm.jdbc.bind: TRACE
