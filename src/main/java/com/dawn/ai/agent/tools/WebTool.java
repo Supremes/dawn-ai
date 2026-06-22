@@ -165,7 +165,7 @@ public class WebTool implements Function<WebTool.Request, WebTool.Response> {
                     list.add(new SearchResult(
                             item.path("title").asText(""),
                             item.path("url").asText(""),
-                            item.path("content").asText(""),
+                            UntrustedContent.wrap(item.path("content").asText("")),
                             item.path("score").asDouble(0)
                     ));
                 }
@@ -193,7 +193,7 @@ public class WebTool implements Function<WebTool.Request, WebTool.Response> {
                             + "\n... [内容截断，共 " + content.length() + " 字符]";
                 }
                 log.debug("[WebTool] extract 返回 {} 字符", content.length());
-                return Response.extractOk(content);
+                return Response.extractOk(UntrustedContent.wrap(content));
             }
 
             JsonNode failed = root.path("failed_results");

@@ -10,6 +10,7 @@ import com.dawn.ai.rag.retrieval.fusion.ReciprocalRankFusion;
 import com.dawn.ai.rag.retrieval.rerank.HeuristicRetrievalReranker;
 import com.dawn.ai.rag.retrieval.sparse.SparseRetriever;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,6 +38,9 @@ class RagServiceIngestUuidTest {
     private VectorStore vectorStore;
 
     @Mock
+    private JdbcTemplate jdbcTemplate;
+
+    @Mock
     private AiAvailabilityChecker aiAvailabilityChecker;
 
     @Mock
@@ -50,6 +54,7 @@ class RagServiceIngestUuidTest {
         ragRetrievalExecutor = Executors.newFixedThreadPool(2);
         ragService = new RagService(
                 vectorStore,
+                jdbcTemplate,
                 new SimpleMeterRegistry(),
                 aiAvailabilityChecker,
                 new HeuristicRetrievalReranker(),

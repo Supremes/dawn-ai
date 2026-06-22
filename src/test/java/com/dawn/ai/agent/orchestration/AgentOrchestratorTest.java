@@ -4,6 +4,7 @@ import com.dawn.ai.agent.planning.TaskPlanner;
 import com.dawn.ai.agent.registry.ToolRegistry;
 import com.dawn.ai.agent.skill.SkillRegistry;
 import com.dawn.ai.agent.subagent.SubAgentRegistry;
+import com.dawn.ai.agent.token.TokenWindowManager;
 import com.dawn.ai.exception.PlanGenerationException;
 import com.dawn.ai.service.MemoryService;
 import com.dawn.ai.memory.UserProfileService;
@@ -50,6 +51,7 @@ class AgentOrchestratorTest {
     @Mock private UserProfileService userProfileService;
     @Mock private SkillRegistry skillRegistry;
     @Mock private SubAgentRegistry subAgentRegistry;
+    @Mock private TokenWindowManager tokenWindowManager;
 
     @BeforeEach
     void setUp() {
@@ -72,7 +74,8 @@ class AgentOrchestratorTest {
                 new SimpleMeterRegistry(),
                 userProfileService,
                 skillRegistry,
-                subAgentRegistry
+                subAgentRegistry,
+                tokenWindowManager
         );
         agentOrchestrator.initMetrics();
         // @Value 字段在单元测试（不经 Spring）下不会注入，显式设置固定 userId

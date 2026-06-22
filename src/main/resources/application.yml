@@ -88,6 +88,12 @@ app:
       max-steps: 10        # 单次对话最多工具调用次数（超出时作为工具观察返回，要求 LLM 停止工具调用并总结）
       show-steps: true    # 响应体中是否包含 steps 详情
       plan-enabled: true   # 是否启用执行前规划（关闭后跳过 TaskPlanner)
+      replan-threshold: 2  # 连续工具空结果达到此阈值后触发动态重规划
+    token:
+      max-tool-output-tokens: 3000    # 工具输出超过此 token 数时自动截断
+      max-history-tokens: 8000        # 对话历史 token 预算（从最新往回截取）
+      max-memory-tokens: 1000         # system prompt 中记忆部分 token 上限
+      max-skills-tokens: 500          # system prompt 中 skill/subagent 描述 token 上限
     stream:
       timeout-ms: 1200000   # SSE 单次请求最大等待时长（毫秒）
     rag:
@@ -144,6 +150,7 @@ app:
       timeout-seconds: 30               # Bash 命令执行超时秒数
       max-output-bytes: 51200           # 命令输出最大字节数（50KB）
       max-consecutive-failures: 3       # 连续失败或空输出达到阈值后，返回停止继续调用 BashTool 的观察结果
+      allow-write: false                # 是否允许写/删除类操作（rm/mv/cp/重定向写入等）。默认 false = 只读安全模式，写/删除类操作会被代码层拒绝；需要时由用户在受信任的配置中显式设为 true 开启。系统级破坏命令（shutdown/mkfs 等）始终被硬红线拦截，不受此开关影响
     file:
       base-dir: ./                       # 文件操作基准目录
 
@@ -183,7 +190,9 @@ app:
 logging:
   level:
     com.dawn.ai: DEBUG
+    com.dawn.ai.config.AiConfig: INFO
     org.springframework.ai: INFO
+    org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor: DEBUG
     # 打印 Hibernate 实际执行的 SQL 及参数绑定（走 logback，落盘到 app.log）
     org.hibernate.SQL: DEBUG
 #    org.hibernate.orm.jdbc.bind: TRACE

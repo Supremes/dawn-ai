@@ -6,7 +6,6 @@ WORKDIR /build
 
 # Layer 1: pom.xml only — invalidated only when dependencies change
 COPY pom.xml .
-COPY .mvn/ .mvn/
 
 # Layer 2: resolve all deps into the BuildKit cache mount (.m2 is NOT baked into the image)
 # --mount=type=cache persists /root/.m2 across builds on the same host, so deps are never re-downloaded

@@ -27,8 +27,10 @@ import org.springframework.ai.vectorstore.filter.Filter;
 import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -48,6 +50,7 @@ import java.util.concurrent.ExecutorService;
 public class RagService {
 
     private final VectorStore vectorStore;
+    private final JdbcTemplate jdbcTemplate;
     private final MeterRegistry meterRegistry;
     private final AiAvailabilityChecker aiAvailabilityChecker;
     private final RetrievalReranker retrievalReranker;
@@ -65,6 +68,7 @@ public class RagService {
     private final QueryCategoryClassifier queryCategoryClassifier;
 
     public RagService(VectorStore vectorStore,
+                      JdbcTemplate jdbcTemplate,
                       MeterRegistry meterRegistry,
                       AiAvailabilityChecker aiAvailabilityChecker,
                       RetrievalReranker retrievalReranker,
@@ -78,6 +82,7 @@ public class RagService {
                       QueryRewriter queryRewriter,
                       QueryCategoryClassifier queryCategoryClassifier) {
         this.vectorStore = vectorStore;
+        this.jdbcTemplate = jdbcTemplate;
         this.meterRegistry = meterRegistry;
         this.aiAvailabilityChecker = aiAvailabilityChecker;
         this.retrievalReranker = retrievalReranker;
@@ -178,12 +183,76 @@ public class RagService {
         return docIds;
     }
 
+    /**
+     * Delete all chunks belonging to a parent document identified by docId.
+     *
+     * @return number of deleted chunks, or 0 if no chunks matched
+     */
+    public int deleteByDocId(String docId) {
+        List<String> chunkIds = jdbcTemplate.queryForList(
+                "SELECT id::text FROM vector_store WHERE metadata->>'docId' = ?",
+                String.class, docId);
+        if (chunkIds.isEmpty()) {
+            return 0;
+        }
+        vectorStore.delete(chunkIds);
+        log.info("[RagService] Deleted {} chunk(s) for docId={}", chunkIds.size(), docId);
+        return chunkIds.size();
+    }
+
+    /**
+     * Update a document by deleting all existing chunks and re-ingesting with new content.
+     *
+     * @return the new docId assigned to the re-ingested document
+     */
+    public String updateDocument(String docId, String content, String source, String category, String topicId) {
+        int deleted = deleteByDocId(docId);
+        log.info("[RagService] Update: removed {} old chunk(s) for docId={}", deleted, docId);
+        return ingest(content, source, category, topicId);
+    }
+
+    /**
+     * List ingested documents grouped by docId, with optional filters.
+     */
+    public List<Map<String, Object>> listDocuments(String source, String category, String topicId,
+                                                   int limit, int offset) {
+        StringBuilder sql = new StringBuilder(
+                "SELECT metadata->>'docId' as doc_id," +
+                " metadata->>'source' as source," +
+                " metadata->>'category' as category," +
+                " metadata->>'topicId' as topic_id," +
+                " COUNT(*) as chunk_count" +
+                " FROM vector_store" +
+                " WHERE metadata->>'docId' IS NOT NULL");
+        List<Object> params = new ArrayList<>();
+
+        if (source != null && !source.isBlank()) {
+            sql.append(" AND metadata->>'source' = ?");
+            params.add(source);
+        }
+        if (category != null && !category.isBlank()) {
+            sql.append(" AND metadata->>'category' = ?");
+            params.add(category);
+        }
+        if (topicId != null && !topicId.isBlank()) {
+            sql.append(" AND metadata->>'topicId' = ?");
+            params.add(topicId);
+        }
+
+        sql.append(" GROUP BY doc_id, source, category, topic_id ORDER BY doc_id LIMIT ? OFFSET ?");
+        params.add(limit);
+        params.add(offset);
+
+        return jdbcTemplate.queryForList(sql.toString(), params.toArray());
+    }
+
     private Document buildParentDoc(String content, String source, String category, String topicId) {
         String docId = UUID.randomUUID().toString();
         Map<String, Object> metadata = new HashMap<>();
         metadata.put("source", source != null ? source : "manual");
         metadata.put("category", category != null ? category : "general");
         metadata.put("docId", docId);
+        metadata.put("ingestedAt", Instant.now().toString());
         if (topicId != null && !topicId.isBlank()) {
             metadata.put("topicId", topicId);
         }

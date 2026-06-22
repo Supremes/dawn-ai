@@ -172,6 +172,6 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
         for (int i = 0; i < docs.size(); i++) {
             sb.append(String.format("[%d] %s\n", i + 1, docs.get(i).getText()));
         }
-        return sb.toString();
+        return UntrustedContent.wrap(sb.toString());
     }
 }

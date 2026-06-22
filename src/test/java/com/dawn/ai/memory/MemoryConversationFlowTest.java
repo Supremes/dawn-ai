@@ -98,6 +98,7 @@ class MemoryConversationFlowTest {
         memoryService = new MemoryService(redisTemplate, new SimpleMeterRegistry(), pipelinePublisher);
         ReflectionTestUtils.invokeMethod(memoryService, "initMetrics");
         ReflectionTestUtils.setField(memoryService, "summaryBatchSize", SUMMARY_BATCH_SIZE);
+        ReflectionTestUtils.setField(memoryService, "maxHistory", 20);
 
         userProfileService = new UserProfileService(redisTemplate);
         memorySummarizer   = new MemorySummarizer(chatClient, pipelinePublisher);

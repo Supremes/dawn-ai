@@ -80,7 +80,9 @@ class KnowledgeSearchToolTest {
         KnowledgeSearchTool.Response response = tool.apply(new KnowledgeSearchTool.Request("查询"));
 
         assertThat(response.docsFound()).isEqualTo(0);
-        assertThat(response.context()).isEqualTo("未找到相关知识库内容。");
+        assertThat(response.context()).isEqualTo("知识库中未找到相关内容。不要换关键词反复检索同类知识库问题；" +
+                "若该问题涉及最新、当前、版本号、发布日期、官方资料或外部公开事实，请改用 webTool；" +
+                "若可凭自身知识准确回答，请直接作答，不必派发子 Agent。");
     }
 
     @Test
