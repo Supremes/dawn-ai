@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="1480" viewBox="0 0 1120 1480" font-family="'Comic Sans MS','Segoe Print','Bradley Hand',cursive">
+  <defs>
+    <filter id="rough">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="3" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="3.2"/>
+    </filter>
+    <filter id="roughS">
+      <feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="3" seed="11" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="4.6"/>
+    </filter>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="3" dy="4" stdDeviation="2.5" flood-color="#000" flood-opacity="0.16"/>
+    </filter>
+    <marker id="arr" markerWidth="13" markerHeight="13" refX="9" refY="6" orient="auto">
+      <path d="M1,1 L11,6 L1,11 L4,6 Z" fill="#3a3a3a"/>
+    </marker>
+  </defs>
+
+  <rect width="1120" height="1480" fill="#fbf7ee"/>
+
+  <!-- 标题 -->
+  <text x="560" y="56" font-size="38" font-weight="bold" text-anchor="middle" fill="#2b2b2b" filter="url(#rough)">🧠 Spring Boot 启动 · 设计思想地图</text>
+  <text x="560" y="86" font-size="17" text-anchor="middle" fill="#9a7a55">忘掉类名，记住「为什么这么设计」——类名要用时一搜即得</text>
+  <line x1="300" y1="100" x2="820" y2="100" stroke="#e07a3f" stroke-width="4" stroke-linecap="round" filter="url(#roughS)"/>
+
+  <!-- ===== 顶部：一句话本质 ===== -->
+  <g filter="url(#shadow)"><rect x="120" y="124" width="880" height="92" rx="16" fill="#fff3e0" stroke="#e07a3f" stroke-width="3" filter="url(#roughS)"/></g>
+  <text x="560" y="158" font-size="20" font-weight="bold" text-anchor="middle" fill="#c45a18">启动到底在干什么？只有三件事 👇</text>
+  <text x="265" y="196" font-size="19" font-weight="bold" text-anchor="middle" fill="#2b2b2b">① 读配置</text>
+  <text x="560" y="196" font-size="19" font-weight="bold" text-anchor="middle" fill="#2b2b2b">② 装配 Bean</text>
+  <text x="855" y="196" font-size="19" font-weight="bold" text-anchor="middle" fill="#2b2b2b">③ 拉起服务</text>
+  <line x1="350" y1="190" x2="430" y2="190" stroke="#3a3a3a" stroke-width="2.5" marker-end="url(#arr)" filter="url(#rough)"/>
+  <line x1="660" y1="190" x2="740" y2="190" stroke="#3a3a3a" stroke-width="2.5" marker-end="url(#arr)" filter="url(#rough)"/>
+
+  <text x="560" y="248" font-size="19" font-weight="bold" text-anchor="middle" fill="#1f7a5a">支撑这三件事的，是下面 5 个反复出现的设计思想 ⬇</text>
+
+  <!-- ===== 思想卡片：通用结构 ===== -->
+  <!-- 卡1 扩展点 -->
+  <g filter="url(#shadow)"><rect x="70" y="278" width="490" height="248" rx="16" fill="#eef3fb" stroke="#3f6fd0" stroke-width="3.2" filter="url(#roughS)"/></g>
+  <text x="96" y="316" font-size="23" font-weight="bold" fill="#2a52a8">🔌 ① 扩展点机制</text>
+  <text x="96" y="344" font-size="16" font-weight="bold" fill="#3a3a3a">思想：框架预留「插口」，把控制权交给你</text>
+  <text x="96" y="372" font-size="15" fill="#4a5a72">框架只定义「什么时候回调」，</text>
+  <text x="96" y="394" font-size="15" fill="#4a5a72">具体做什么由你 / Starter 实现并「插」进去。</text>
+  <g filter="url(#shadow)"><rect x="96" y="410" width="438" height="44" rx="9" fill="#fbfdff" stroke="#7a9ad8" stroke-width="2.2" filter="url(#rough)"/></g>
+  <text x="110" y="438" font-size="14.5" fill="#26324a">💡 为何如此：开闭原则 —— 对扩展开放，对修改关闭</text>
+  <text x="96" y="478" font-size="13" fill="#9aa6bc">想深究再搜：Initializer / BeanPostProcessor / SPI</text>
+  <text x="96" y="500" font-size="13" fill="#9aa6bc">举例：你写个 BeanPostProcessor 就能改造所有 Bean</text>
+
+  <!-- 卡2 事件驱动 -->
+  <g filter="url(#shadow)"><rect x="580" y="278" width="470" height="248" rx="16" fill="#fde8e8" stroke="#e0726f" stroke-width="3.2" filter="url(#roughS)"/></g>
+  <text x="606" y="316" font-size="23" font-weight="bold" fill="#b23a36">📣 ② 事件驱动</text>
+  <text x="606" y="344" font-size="16" font-weight="bold" fill="#3a3a3a">思想：每个阶段「广播」，谁关心谁监听</text>
+  <text x="606" y="372" font-size="15" fill="#6a4a4a">启动的每一步都发一个事件，</text>
+  <text x="606" y="394" font-size="15" fill="#6a4a4a">监听者互不知道，彻底解耦。</text>
+  <g filter="url(#shadow)"><rect x="606" y="410" width="418" height="44" rx="9" fill="#fffafa" stroke="#e0a0a0" stroke-width="2.2" filter="url(#rough)"/></g>
+  <text x="620" y="438" font-size="14.5" fill="#5a2a2a">💡 为何如此：发布-订阅 —— 加功能不改主流程</text>
+  <text x="606" y="478" font-size="13" fill="#bca0a0">想深究再搜：Starting→Ready 一串 XxxEvent</text>
+  <text x="606" y="500" font-size="13" fill="#bca0a0">举例：想在启动完成做事？听 ReadyEvent 即可</text>
+
+  <!-- 卡3 约定优于配置 -->
+  <g filter="url(#shadow)"><rect x="70" y="546" width="490" height="248" rx="16" fill="#e3f5ea" stroke="#1f9a6a" stroke-width="3.2" filter="url(#roughS)"/></g>
+  <text x="96" y="584" font-size="23" font-weight="bold" fill="#137a4f">🪄 ③ 约定优于配置</text>
+  <text x="96" y="612" font-size="16" font-weight="bold" fill="#3a3a3a">思想：自动装配 —— 加依赖即生效</text>
+  <text x="96" y="640" font-size="15" fill="#3a6a52">引入一个 Starter，框架「按需」判断该不该</text>
+  <text x="96" y="662" font-size="15" fill="#3a6a52">帮你配，而不是逼你写一堆 XML / Bean。</text>
+  <g filter="url(#shadow)"><rect x="96" y="678" width="438" height="44" rx="9" fill="#f5fff9" stroke="#7ac8a0" stroke-width="2.2" filter="url(#rough)"/></g>
+  <text x="110" y="706" font-size="14.5" fill="#1a5a3a">💡 为何如此：默认即最优，让你「零配置」跑起来</text>
+  <text x="96" y="746" font-size="13" fill="#9ac0ac">关键：条件判断 @ConditionalOnXxx 决定装不装</text>
+  <text x="96" y="768" font-size="13" fill="#9ac0ac">举例：classpath 有 H2 → 自动配个内存数据源</text>
+
+  <!-- 卡4 模板方法 -->
+  <g filter="url(#shadow)"><rect x="580" y="546" width="470" height="248" rx="16" fill="#fff3e0" stroke="#e0832f" stroke-width="3.2" filter="url(#roughS)"/></g>
+  <text x="606" y="584" font-size="23" font-weight="bold" fill="#a85a14">🧩 ④ 模板方法</text>
+  <text x="606" y="612" font-size="16" font-weight="bold" fill="#3a3a3a">思想：骨架固定，细节可替换</text>
+  <text x="606" y="640" font-size="15" fill="#7a5a2a">refresh() 定死了「12 步骨架」的顺序，</text>
+  <text x="606" y="662" font-size="15" fill="#7a5a2a">不同应用类型只替换其中某几步的实现。</text>
+  <g filter="url(#shadow)"><rect x="606" y="678" width="418" height="44" rx="9" fill="#fffaf2" stroke="#d9a05a" stroke-width="2.2" filter="url(#rough)"/></g>
+  <text x="620" y="706" font-size="14.5" fill="#6a4014">💡 为何如此：流程稳定可控，又保留灵活性</text>
+  <text x="606" y="746" font-size="13" fill="#c0a070">想深究再搜：refresh() / onRefresh 钩子</text>
+  <text x="606" y="768" font-size="13" fill="#c0a070">举例：Web 应用在 onRefresh 这步多拉个 Tomcat</text>
+
+  <!-- 卡5 分阶段与延迟 -->
+  <g filter="url(#shadow)"><rect x="70" y="814" width="980" height="170" rx="16" fill="#f3eefb" stroke="#7a52c0" stroke-width="3.2" filter="url(#roughS)"/></g>
+  <text x="96" y="852" font-size="23" font-weight="bold" fill="#5a2aa8">⏳ ⑤ 分阶段 &amp; 关注点分离</text>
+  <text x="96" y="880" font-size="16" font-weight="bold" fill="#3a3a3a">思想：先「画像」配置，再准备环境，最后才建容器 —— 每阶段只干一件事</text>
+  <text x="96" y="908" font-size="15" fill="#5a4a72">为什么分两大阶段(实例化 vs run)？因为「我是谁」要先确定，才能决定「怎么跑」。</text>
+  <text x="96" y="930" font-size="15" fill="#5a4a72">环境必须先于容器准备好，否则 Bean 拿不到配置 —— 顺序本身就是设计。</text>
+  <g filter="url(#shadow)"><rect x="96" y="944" width="908" height="30" rx="8" fill="#faf7ff" stroke="#b89ad8" stroke-width="2" filter="url(#rough)"/></g>
+  <text x="110" y="965" font-size="14.5" fill="#4a2a7a">💡 为何如此：复杂启动被切成有序小步，每步可测、可插、可替换 —— 这正是前 4 个思想的「容器」</text>
+
+  <!-- ===== 底部：一句话记忆锚点 ===== -->
+  <text x="560" y="1026" font-size="20" font-weight="bold" text-anchor="middle" fill="#1f7a5a">🎯 把 5 个思想串成一句话就够了：</text>
+  <g filter="url(#shadow)"><rect x="110" y="1044" width="900" height="64" rx="14" fill="#fffdf7" stroke="#e0a23f" stroke-width="3" filter="url(#roughS)"/></g>
+  <text x="560" y="1076" font-size="17" font-weight="bold" text-anchor="middle" fill="#2b2b2b">「框架定好<tspan fill="#a85a14">分阶段骨架</tspan>(④⑤)，每步<tspan fill="#b23a36">广播事件</tspan>(②)、留好<tspan fill="#2a52a8">插口</tspan>(①)，</text>
+  <text x="560" y="1098" font-size="17" font-weight="bold" text-anchor="middle" fill="#2b2b2b">再按<tspan fill="#137a4f">约定自动装配</tspan>(③) 把 Bean 配齐 —— 你只管写业务。」</text>
+
+  <!-- ===== 最底：流程速查(注脚，弱化) ===== -->
+  <text x="96" y="1156" font-size="16" font-weight="bold" fill="#9a8a70">📌 流程速查 · 仅作注脚(知道顺序即可，类名不必背)</text>
+  <line x1="96" y1="1166" x2="1024" y2="1166" stroke="#cbb" stroke-width="2" stroke-dasharray="5 5" filter="url(#rough)"/>
+
+  <g font-size="13.5" fill="#8a7a64">
+    <g filter="url(#shadow)"><rect x="96" y="1182" width="150" height="40" rx="9" fill="#f7f3ea" stroke="#cbbfa8" stroke-width="2" filter="url(#rough)"/></g>
+    <text x="171" y="1207" text-anchor="middle">实例化·自我画像</text>
+    <line x1="248" y1="1202" x2="276" y2="1202" stroke="#b0a890" stroke-width="2.2" marker-end="url(#arr)"/>
+
+    <g filter="url(#shadow)"><rect x="278" y="1182" width="120" height="40" rx="9" fill="#f7f3ea" stroke="#cbbfa8" stroke-width="2" filter="url(#rough)"/></g>
+    <text x="338" y="1207" text-anchor="middle">准备 Environment</text>
+    <line x1="400" y1="1202" x2="428" y2="1202" stroke="#b0a890" stroke-width="2.2" marker-end="url(#arr)"/>
+
+    <g filter="url(#shadow)"><rect x="430" y="1182" width="120" height="40" rx="9" fill="#f7f3ea" stroke="#cbbfa8" stroke-width="2" filter="url(#rough)"/></g>
+    <text x="490" y="1207" text-anchor="middle">创建/准备容器</text>
+    <line x1="552" y1="1202" x2="580" y2="1202" stroke="#b0a890" stroke-width="2.2" marker-end="url(#arr)"/>
+
+    <g filter="url(#shadow)"><rect x="582" y="1182" width="150" height="40" rx="9" fill="#fdf4e6" stroke="#d9a05a" stroke-width="2.4" filter="url(#rough)"/></g>
+    <text x="657" y="1207" text-anchor="middle" fill="#a85a14">refresh·自动装配+建Bean</text>
+    <line x1="734" y1="1202" x2="762" y2="1202" stroke="#b0a890" stroke-width="2.2" marker-end="url(#arr)"/>
+
+    <g filter="url(#shadow)"><rect x="764" y="1182" width="110" height="40" rx="9" fill="#f7f3ea" stroke="#cbbfa8" stroke-width="2" filter="url(#rough)"/></g>
+    <text x="819" y="1207" text-anchor="middle">执行 Runner</text>
+    <line x1="876" y1="1202" x2="904" y2="1202" stroke="#b0a890" stroke-width="2.2" marker-end="url(#arr)"/>
+
+    <g filter="url(#shadow)"><rect x="906" y="1182" width="118" height="40" rx="9" fill="#eaf6ef" stroke="#7ac8a0" stroke-width="2.2" filter="url(#rough)"/></g>
+    <text x="965" y="1207" text-anchor="middle" fill="#137a4f">就绪 Ready ✅</text>
+  </g>
+
+  <text x="96" y="1258" font-size="13.5" fill="#a89a80">🔍 需要某个类名？图右侧那张「细节版」随时备查，或 IDE 里点进去 —— 大脑不用当索引。</text>
+
+  <!-- 图例 -->
+  <g filter="url(#shadow)"><rect x="70" y="1290" width="980" height="150" rx="14" fill="#fffdf7" stroke="#cbb" stroke-width="2" filter="url(#roughS)"/></g>
+  <text x="96" y="1322" font-size="17" font-weight="bold" fill="#3a3a3a">🗺️ 一句话总览五大思想</text>
+  <text x="96" y="1352" font-size="15" fill="#2a52a8">🔌 扩展点：<tspan fill="#5a5a5a">留口子让你插手</tspan>　　📣 事件驱动：<tspan fill="#5a5a5a">广播+订阅，解耦</tspan></text>
+  <text x="96" y="1380" font-size="15" fill="#137a4f">🪄 约定优于配置：<tspan fill="#5a5a5a">加依赖即生效</tspan>　　🧩 模板方法：<tspan fill="#5a5a5a">骨架固定细节可换</tspan></text>
+  <text x="96" y="1408" font-size="15" fill="#5a2aa8">⏳ 分阶段：<tspan fill="#5a5a5a">有序切分，每步只干一件事，是前四者的容器</tspan></text>
+  <text x="96" y="1432" font-size="13.5" fill="#998">这些思想不止用于 Spring —— 是所有优秀框架的「通用套路」，学一次受益终身。</text>
+</svg>
