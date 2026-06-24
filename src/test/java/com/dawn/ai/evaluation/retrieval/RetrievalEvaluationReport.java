@@ -1,4 +1,4 @@
-package com.dawn.ai.rag.evaluation;
+package com.dawn.ai.evaluation.retrieval;
 
 public record RetrievalEvaluationReport(
         int caseCount,

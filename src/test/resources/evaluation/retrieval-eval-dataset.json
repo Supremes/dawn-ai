@@ -1,62 +1,5036 @@
 [
-  {"query":"refund policy","expectedDocIds":["doc-billing-refund-policy"],"hardNegativeDocIds":["doc-billing-invoice-settings"],"metadataFilters":{},"mockRankedDocIds":["doc-billing-refund-policy","doc-billing-invoice-settings","doc-shipping-window"]},
-  {"query":"invoice settings","expectedDocIds":["doc-billing-invoice-settings"],"hardNegativeDocIds":["doc-billing-refund-policy"],"metadataFilters":{},"mockRankedDocIds":["doc-billing-invoice-settings","doc-billing-refund-policy","doc-account-profile"]},
-  {"query":"password reset","expectedDocIds":["doc-auth-password-reset"],"hardNegativeDocIds":["doc-auth-sso-login"],"metadataFilters":{},"mockRankedDocIds":["doc-auth-password-reset","doc-auth-sso-login","doc-security-api-key"]},
-  {"query":"sso login","expectedDocIds":["doc-auth-sso-login"],"hardNegativeDocIds":["doc-auth-password-reset"],"metadataFilters":{},"mockRankedDocIds":["doc-auth-sso-login","doc-auth-password-reset","doc-web-login-widget"]},
-  {"query":"api key rotation","expectedDocIds":["doc-security-api-key-rotation"],"hardNegativeDocIds":["doc-security-api-key"],"metadataFilters":{},"mockRankedDocIds":["doc-security-api-key-rotation","doc-security-api-key","doc-billing-invoice-settings"]},
-  {"query":"redis fallback","expectedDocIds":["doc-memory-redis-fallback"],"hardNegativeDocIds":["doc-memory-redis-config"],"metadataFilters":{},"mockRankedDocIds":["doc-memory-redis-fallback","doc-memory-redis-config","doc-postgres-pgvector"]},
-  {"query":"pgvector dimensions","expectedDocIds":["doc-rag-pgvector-dimensions"],"hardNegativeDocIds":["doc-rag-pgvector-index"],"metadataFilters":{},"mockRankedDocIds":["doc-rag-pgvector-dimensions","doc-rag-pgvector-index","doc-memory-redis-config"]},
-  {"query":"hybrid retrieval","expectedDocIds":["doc-rag-hybrid-retrieval"],"hardNegativeDocIds":["doc-rag-dense-retrieval"],"metadataFilters":{},"mockRankedDocIds":["doc-rag-hybrid-retrieval","doc-rag-dense-retrieval","doc-rag-hyde"]},
-  {"query":"cross encoder rerank","expectedDocIds":["doc-rag-cross-encoder-rerank"],"hardNegativeDocIds":["doc-rag-heuristic-rerank"],"metadataFilters":{},"mockRankedDocIds":["doc-rag-cross-encoder-rerank","doc-rag-heuristic-rerank","doc-rag-hybrid-retrieval"]},
-  {"query":"tool dispatch limit","expectedDocIds":["doc-agent-tool-dispatch-limit"],"hardNegativeDocIds":["doc-agent-tool-registry"],"metadataFilters":{},"mockRankedDocIds":["doc-agent-tool-dispatch-limit","doc-agent-tool-registry","doc-agent-step-collector"]},
-  {"query":"subagent timeout","expectedDocIds":["doc-agent-subagent-timeout"],"hardNegativeDocIds":["doc-agent-subagent-routing"],"metadataFilters":{},"mockRankedDocIds":["doc-agent-subagent-timeout","doc-agent-subagent-routing","doc-agent-tool-dispatch-limit"]},
-  {"query":"step collector isolation","expectedDocIds":["doc-agent-step-collector-isolation"],"hardNegativeDocIds":["doc-agent-step-collector"],"metadataFilters":{},"mockRankedDocIds":["doc-agent-step-collector-isolation","doc-agent-step-collector","doc-agent-subagent-timeout"]},
-  {"query":"bash readonly mode","expectedDocIds":["doc-tool-bash-readonly-mode"],"hardNegativeDocIds":["doc-tool-bash-timeout"],"metadataFilters":{},"mockRankedDocIds":["doc-tool-bash-readonly-mode","doc-tool-bash-timeout","doc-agent-tool-registry"]},
-  {"query":"bash dangerous command","expectedDocIds":["doc-tool-bash-dangerous-command"],"hardNegativeDocIds":["doc-tool-bash-readonly-mode"],"metadataFilters":{},"mockRankedDocIds":["doc-tool-bash-dangerous-command","doc-tool-bash-readonly-mode","doc-tool-bash-timeout"]},
-  {"query":"calculator validation","expectedDocIds":["doc-tool-calculator-validation"],"hardNegativeDocIds":["doc-tool-weather-api"],"metadataFilters":{},"mockRankedDocIds":["doc-tool-calculator-validation","doc-tool-weather-api","doc-agent-tool-registry"]},
-  {"query":"weather tool usage","expectedDocIds":["doc-tool-weather-api"],"hardNegativeDocIds":["doc-tool-calculator-validation"],"metadataFilters":{},"mockRankedDocIds":["doc-tool-weather-api","doc-tool-calculator-validation","doc-agent-tool-registry"]},
-  {"query":"prompt assembly","expectedDocIds":["doc-agent-prompt-assembly"],"hardNegativeDocIds":["doc-agent-system-prompt-safety"],"metadataFilters":{},"mockRankedDocIds":["doc-agent-prompt-assembly","doc-agent-system-prompt-safety","doc-agent-tool-registry"]},
-  {"query":"plan enforcement","expectedDocIds":["doc-agent-plan-enforcement"],"hardNegativeDocIds":["doc-agent-prompt-assembly"],"metadataFilters":{},"mockRankedDocIds":["doc-agent-plan-enforcement","doc-agent-prompt-assembly","doc-agent-step-collector"]},
-  {"query":"memory sliding window","expectedDocIds":["doc-memory-sliding-window"],"hardNegativeDocIds":["doc-memory-redis-fallback"],"metadataFilters":{},"mockRankedDocIds":["doc-memory-sliding-window","doc-memory-redis-fallback","doc-memory-reflection"]},
-  {"query":"memory reflection","expectedDocIds":["doc-memory-reflection"],"hardNegativeDocIds":["doc-memory-summary"],"metadataFilters":{},"mockRankedDocIds":["doc-memory-reflection","doc-memory-summary","doc-memory-sliding-window"]},
-  {"query":"user profile prompt","expectedDocIds":["doc-memory-user-profile-prompt"],"hardNegativeDocIds":["doc-agent-prompt-assembly"],"metadataFilters":{},"mockRankedDocIds":["doc-memory-user-profile-prompt","doc-agent-prompt-assembly","doc-memory-reflection"]},
-  {"query":"langfuse traces","expectedDocIds":["doc-observability-langfuse-traces"],"hardNegativeDocIds":["doc-observability-prometheus-metrics"],"metadataFilters":{},"mockRankedDocIds":["doc-observability-langfuse-traces","doc-observability-prometheus-metrics","doc-agent-step-collector"]},
-  {"query":"prometheus metrics","expectedDocIds":["doc-observability-prometheus-metrics"],"hardNegativeDocIds":["doc-observability-langfuse-traces"],"metadataFilters":{},"mockRankedDocIds":["doc-observability-prometheus-metrics","doc-observability-langfuse-traces","doc-rag-hybrid-retrieval"]},
-  {"query":"evaluation judge prompt","expectedDocIds":["doc-eval-judge-prompt"],"hardNegativeDocIds":["doc-eval-cost-tracking"],"metadataFilters":{},"mockRankedDocIds":["doc-eval-judge-prompt","doc-eval-cost-tracking","doc-eval-local-harness"]},
-  {"query":"evaluation cost tracking","expectedDocIds":["doc-eval-cost-tracking"],"hardNegativeDocIds":["doc-eval-judge-prompt"],"metadataFilters":{},"mockRankedDocIds":["doc-eval-cost-tracking","doc-eval-judge-prompt","doc-eval-local-harness"]},
-  {"query":"local harness sqlite","expectedDocIds":["doc-eval-local-harness-sqlite"],"hardNegativeDocIds":["doc-eval-local-harness-output"],"metadataFilters":{},"mockRankedDocIds":["doc-eval-local-harness-sqlite","doc-eval-local-harness-output","doc-eval-judge-prompt"]},
-  {"query":"local harness report","expectedDocIds":["doc-eval-local-harness-output"],"hardNegativeDocIds":["doc-eval-local-harness-sqlite"],"metadataFilters":{},"mockRankedDocIds":["doc-eval-local-harness-output","doc-eval-local-harness-sqlite","doc-eval-cost-tracking"]},
-  {"query":"rag precision metric","expectedDocIds":["doc-eval-rag-precision"],"hardNegativeDocIds":["doc-eval-rag-recall"],"metadataFilters":{},"mockRankedDocIds":["doc-eval-rag-precision","doc-eval-rag-recall","doc-eval-rag-ndcg"]},
-  {"query":"rag hit rate metric","expectedDocIds":["doc-eval-rag-hit-rate"],"hardNegativeDocIds":["doc-eval-rag-precision"],"metadataFilters":{},"mockRankedDocIds":["doc-eval-rag-hit-rate","doc-eval-rag-precision","doc-eval-rag-mrr"]},
-  {"query":"rag noise rate metric","expectedDocIds":["doc-eval-rag-noise-rate"],"hardNegativeDocIds":["doc-eval-rag-precision"],"metadataFilters":{},"mockRankedDocIds":["doc-eval-rag-noise-rate","doc-eval-rag-precision","doc-eval-rag-ndcg"]},
-  {"query":"How does the agent choose between weather, calculator, and knowledge tools?","expectedDocIds":["doc-agent-tool-selection"],"hardNegativeDocIds":["doc-agent-tool-registry"],"metadataFilters":{},"mockRankedDocIds":["doc-agent-tool-selection","doc-agent-tool-registry","doc-agent-prompt-assembly"]},
-  {"query":"How should the system answer when Redis is unavailable during memory lookup?","expectedDocIds":["doc-memory-redis-fallback"],"hardNegativeDocIds":["doc-memory-redis-config"],"metadataFilters":{},"mockRankedDocIds":["doc-memory-redis-fallback","doc-memory-redis-config","doc-memory-sliding-window"]},
-  {"query":"How are RAG documents filtered by category before retrieval?","expectedDocIds":["doc-rag-metadata-filtering"],"hardNegativeDocIds":["doc-rag-hybrid-retrieval"],"metadataFilters":{},"mockRankedDocIds":["doc-rag-metadata-filtering","doc-rag-hybrid-retrieval","doc-rag-dense-retrieval"]},
-  {"query":"How is a sub-agent prevented from consuming the main agent step budget?","expectedDocIds":["doc-agent-step-collector-isolation"],"hardNegativeDocIds":["doc-agent-step-collector"],"metadataFilters":{},"mockRankedDocIds":["doc-agent-step-collector-isolation","doc-agent-step-collector","doc-agent-tool-dispatch-limit"]},
-  {"query":"What is the safe behavior for BashTool write operations by default?","expectedDocIds":["doc-tool-bash-readonly-mode"],"hardNegativeDocIds":["doc-tool-bash-dangerous-command"],"metadataFilters":{},"mockRankedDocIds":["doc-tool-bash-readonly-mode","doc-tool-bash-dangerous-command","doc-tool-bash-timeout"]},
-  {"query":"What should the API return when a queued tool succeeds?","expectedDocIds":["doc-api-tool-success-response"],"hardNegativeDocIds":["doc-api-tool-error-response"],"metadataFilters":{},"mockRankedDocIds":["doc-api-tool-success-response","doc-api-tool-error-response","doc-agent-tool-selection"]},
-  {"query":"What should the API return when a tool queue reaches the max step limit?","expectedDocIds":["doc-api-tool-queue-limit-response"],"hardNegativeDocIds":["doc-api-tool-success-response"],"metadataFilters":{},"mockRankedDocIds":["doc-api-tool-queue-limit-response","doc-api-tool-success-response","doc-agent-tool-dispatch-limit"]},
-  {"query":"How does the evaluation report summarize pass rate and average score?","expectedDocIds":["doc-eval-report-summary"],"hardNegativeDocIds":["doc-eval-cost-tracking"],"metadataFilters":{},"mockRankedDocIds":["doc-eval-report-summary","doc-eval-cost-tracking","doc-eval-judge-prompt"]},
-  {"query":"How does Langfuse connect a score to a dataset run item?","expectedDocIds":["doc-eval-langfuse-dataset-run"],"hardNegativeDocIds":["doc-observability-langfuse-traces"],"metadataFilters":{},"mockRankedDocIds":["doc-eval-langfuse-dataset-run","doc-observability-langfuse-traces","doc-eval-report-summary"]},
-  {"query":"How does the harness avoid real LLM calls in CI?","expectedDocIds":["doc-eval-local-harness-mock-ai"],"hardNegativeDocIds":["doc-eval-judge-prompt"],"metadataFilters":{},"mockRankedDocIds":["doc-eval-local-harness-mock-ai","doc-eval-judge-prompt","doc-eval-local-harness-sqlite"]},
-  {"query":"How do hard negatives reveal noisy retrieval results?","expectedDocIds":["doc-eval-rag-hard-negatives"],"hardNegativeDocIds":["doc-eval-rag-precision"],"metadataFilters":{},"mockRankedDocIds":["doc-eval-rag-hard-negatives","doc-eval-rag-precision","doc-eval-rag-noise-rate"]},
-  {"query":"How should HyDE be evaluated against the same baseline retriever?","expectedDocIds":["doc-rag-hyde-evaluation"],"hardNegativeDocIds":["doc-rag-hyde"],"metadataFilters":{},"mockRankedDocIds":["doc-rag-hyde-evaluation","doc-rag-hyde","doc-rag-dense-retrieval"]},
-  {"query":"How does reciprocal rank fusion prioritize documents found by both dense and sparse retrieval?","expectedDocIds":["doc-rag-rrf-fusion"],"hardNegativeDocIds":["doc-rag-hybrid-retrieval"],"metadataFilters":{},"mockRankedDocIds":["doc-rag-rrf-fusion","doc-rag-hybrid-retrieval","doc-rag-dense-retrieval"]},
-  {"query":"How should a repeated knowledge search query be deduplicated within one request?","expectedDocIds":["doc-rag-query-dedup"],"hardNegativeDocIds":["doc-rag-metadata-filtering"],"metadataFilters":{},"mockRankedDocIds":["doc-rag-query-dedup","doc-rag-metadata-filtering","doc-rag-hybrid-retrieval"]},
-  {"query":"How does the memory pipeline convert overflowing messages into vector summaries?","expectedDocIds":["doc-memory-summary-pipeline"],"hardNegativeDocIds":["doc-memory-sliding-window"],"metadataFilters":{},"mockRankedDocIds":["doc-memory-summary-pipeline","doc-memory-sliding-window","doc-memory-reflection"]},
-  {"query":"Explain the flow for a question that needs weather lookup and cost calculation.","expectedDocIds":["doc-agent-multi-tool-flow"],"hardNegativeDocIds":["doc-agent-tool-selection"],"metadataFilters":{},"mockRankedDocIds":["doc-agent-multi-tool-flow","doc-agent-tool-selection","doc-tool-weather-api"]},
-  {"query":"Explain how answer completeness is judged for architecture questions.","expectedDocIds":["doc-eval-answer-completeness"],"hardNegativeDocIds":["doc-eval-judge-prompt"],"metadataFilters":{},"mockRankedDocIds":["doc-eval-answer-completeness","doc-eval-judge-prompt","doc-eval-report-summary"]},
-  {"query":"Explain how prompt assembly checks user profile and topic sections.","expectedDocIds":["doc-eval-prompt-assembly"],"hardNegativeDocIds":["doc-agent-prompt-assembly"],"metadataFilters":{},"mockRankedDocIds":["doc-eval-prompt-assembly","doc-agent-prompt-assembly","doc-memory-user-profile-prompt"]},
-  {"query":"Explain how multi-turn coherence uses a memory snapshot.","expectedDocIds":["doc-eval-multi-turn-coherence"],"hardNegativeDocIds":["doc-memory-sliding-window"],"metadataFilters":{},"mockRankedDocIds":["doc-eval-multi-turn-coherence","doc-memory-sliding-window","doc-memory-user-profile-prompt"]},
-  {"query":"Explain how local output reports are written without Langfuse.","expectedDocIds":["doc-eval-local-harness-output"],"hardNegativeDocIds":["doc-eval-langfuse-dataset-run"],"metadataFilters":{},"mockRankedDocIds":["doc-eval-local-harness-output","doc-eval-langfuse-dataset-run","doc-eval-report-summary"]},
-  {"query":"Explain how temporary SQLite can isolate evaluation state for every test run.","expectedDocIds":["doc-eval-local-harness-sqlite"],"hardNegativeDocIds":["doc-eval-local-harness-output"],"metadataFilters":{},"mockRankedDocIds":["doc-eval-local-harness-sqlite","doc-eval-local-harness-output","doc-eval-local-harness-mock-ai"]},
-  {"query":"Explain how tool queue ordering is preserved during deterministic harness execution.","expectedDocIds":["doc-eval-tool-queue-ordering"],"hardNegativeDocIds":["doc-api-tool-queue-limit-response"],"metadataFilters":{},"mockRankedDocIds":["doc-api-tool-queue-limit-response","doc-eval-tool-queue-ordering","doc-agent-tool-selection"]},
-  {"query":"Explain how API responses include route, answer, tool calls, and retrieved docs.","expectedDocIds":["doc-api-local-agent-response"],"hardNegativeDocIds":["doc-api-tool-success-response"],"metadataFilters":{},"mockRankedDocIds":["doc-api-tool-success-response","doc-api-local-agent-response","doc-agent-tool-selection"]},
-  {"query":"Explain how risk safety is validated before any shell command is executed.","expectedDocIds":["doc-tool-bash-dangerous-command"],"hardNegativeDocIds":["doc-tool-bash-readonly-mode"],"metadataFilters":{},"mockRankedDocIds":["doc-tool-bash-readonly-mode","doc-tool-bash-dangerous-command","doc-tool-bash-timeout"]},
-  {"query":"support login failure metadata filter","expectedDocIds":["doc-rag-support-login-filter"],"hardNegativeDocIds":["doc-rag-billing-login-filter"],"metadataFilters":{"category":["support"]},"mockRankedDocIds":["doc-rag-billing-login-filter","doc-rag-support-login-filter","doc-rag-global-fallback"]},
-  {"query":"security api key metadata filter","expectedDocIds":["doc-rag-security-api-key-filter"],"hardNegativeDocIds":["doc-rag-billing-api-key-filter"],"metadataFilters":{"category":["security"]},"mockRankedDocIds":["doc-rag-billing-api-key-filter","doc-rag-security-api-key-filter","doc-rag-global-fallback"]},
-  {"query":"memory redis metadata filter","expectedDocIds":["doc-rag-memory-redis-filter"],"hardNegativeDocIds":["doc-rag-rag-redis-filter"],"metadataFilters":{"category":["memory"]},"mockRankedDocIds":["doc-rag-rag-redis-filter","doc-rag-memory-redis-filter","doc-rag-global-fallback"]},
-  {"query":"agent routing metadata filter","expectedDocIds":["doc-rag-agent-routing-filter"],"hardNegativeDocIds":["doc-rag-eval-routing-filter"],"metadataFilters":{"category":["agent"]},"mockRankedDocIds":["doc-rag-eval-routing-filter","doc-rag-agent-routing-filter","doc-rag-global-fallback"]},
-  {"query":"unknown outage playbook metadata filter","expectedDocIds":["doc-rag-ops-outage-filter"],"hardNegativeDocIds":["doc-rag-support-login-filter"],"metadataFilters":{"category":["ops"]},"mockRankedDocIds":["doc-rag-support-login-filter","doc-rag-global-fallback","doc-rag-billing-refund-filter"]},
-  {"query":"obsolete experimental metadata filter","expectedDocIds":["doc-rag-experiment-archive-filter"],"hardNegativeDocIds":["doc-rag-eval-routing-filter"],"metadataFilters":{"category":["experiment"]},"mockRankedDocIds":["doc-rag-eval-routing-filter","doc-rag-global-fallback","doc-rag-support-login-filter"]}
+  {
+    "query": "退款政策",
+    "expectedDocIds": [
+      "doc-billing-refund-policy"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-pricing-tiers"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-billing-refund-policy",
+      "doc-billing-pricing-tiers",
+      "doc-support-ticket-escalation"
+    ]
+  },
+  {
+    "query": "subscription cancellation",
+    "expectedDocIds": [
+      "doc-billing-subscription-cancel"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-subscription-upgrade"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-billing-subscription-cancel",
+      "doc-billing-subscription-upgrade",
+      "doc-billing-refund-policy"
+    ]
+  },
+  {
+    "query": "计费周期",
+    "expectedDocIds": [
+      "doc-billing-billing-cycle"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-invoice-generation"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-billing-billing-cycle",
+      "doc-billing-invoice-generation",
+      "doc-billing-pricing-tiers"
+    ]
+  },
+  {
+    "query": "invoice download",
+    "expectedDocIds": [
+      "doc-billing-invoice-generation"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-billing-cycle"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-billing-invoice-generation",
+      "doc-billing-billing-cycle",
+      "doc-support-ticket-escalation"
+    ]
+  },
+  {
+    "query": "价格方案对比",
+    "expectedDocIds": [
+      "doc-billing-pricing-tiers"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-usage-metering"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-billing-pricing-tiers",
+      "doc-billing-usage-metering",
+      "doc-billing-refund-policy"
+    ]
+  },
+  {
+    "query": "用量计费规则",
+    "expectedDocIds": [
+      "doc-billing-usage-metering"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-pricing-tiers"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-billing-usage-metering",
+      "doc-billing-pricing-tiers",
+      "doc-billing-billing-cycle"
+    ]
+  },
+  {
+    "query": "payment method update",
+    "expectedDocIds": [
+      "doc-billing-payment-method"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-invoice-generation"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-billing-payment-method",
+      "doc-billing-invoice-generation",
+      "doc-billing-subscription-cancel"
+    ]
+  },
+  {
+    "query": "优惠券使用",
+    "expectedDocIds": [
+      "doc-billing-coupon-redemption"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-pricing-tiers"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-billing-coupon-redemption",
+      "doc-billing-pricing-tiers",
+      "doc-billing-refund-policy"
+    ]
+  },
+  {
+    "query": "账单异常",
+    "expectedDocIds": [
+      "doc-billing-dispute-resolution"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-invoice-generation"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-billing-dispute-resolution",
+      "doc-billing-invoice-generation",
+      "doc-support-ticket-escalation"
+    ]
+  },
+  {
+    "query": "free trial limits",
+    "expectedDocIds": [
+      "doc-billing-free-trial"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-pricing-tiers"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-billing-free-trial",
+      "doc-billing-pricing-tiers",
+      "doc-billing-usage-metering"
+    ]
+  },
+  {
+    "query": "企业版定价",
+    "expectedDocIds": [
+      "doc-billing-enterprise-pricing"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-pricing-tiers"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-billing-enterprise-pricing",
+      "doc-billing-pricing-tiers",
+      "doc-billing-subscription-upgrade"
+    ]
+  },
+  {
+    "query": "subscription upgrade",
+    "expectedDocIds": [
+      "doc-billing-subscription-upgrade"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-subscription-cancel"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-billing-subscription-upgrade",
+      "doc-billing-subscription-cancel",
+      "doc-billing-pricing-tiers"
+    ]
+  },
+  {
+    "query": "如何申请退款",
+    "expectedDocIds": [
+      "doc-billing-refund-policy"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-dispute-resolution"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-billing-refund-policy",
+      "doc-billing-dispute-resolution",
+      "doc-support-ticket-escalation"
+    ]
+  },
+  {
+    "query": "What payment methods are supported?",
+    "expectedDocIds": [
+      "doc-billing-payment-method"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-pricing-tiers"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-billing-payment-method",
+      "doc-billing-pricing-tiers",
+      "doc-billing-invoice-generation"
+    ]
+  },
+  {
+    "query": "订阅到期后会怎样",
+    "expectedDocIds": [
+      "doc-billing-subscription-expiry"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-subscription-cancel"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-billing-subscription-expiry",
+      "doc-billing-subscription-cancel",
+      "doc-billing-free-trial"
+    ]
+  },
+  {
+    "query": "How is usage calculated for billing?",
+    "expectedDocIds": [
+      "doc-billing-usage-metering"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-billing-cycle"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-billing-usage-metering",
+      "doc-billing-billing-cycle",
+      "doc-billing-pricing-tiers"
+    ]
+  },
+  {
+    "query": "账单周期什么时候开始",
+    "expectedDocIds": [
+      "doc-billing-billing-cycle"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-subscription-expiry"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-billing-billing-cycle",
+      "doc-billing-subscription-expiry",
+      "doc-billing-invoice-generation"
+    ]
+  },
+  {
+    "query": "Can I get a prorated refund?",
+    "expectedDocIds": [
+      "doc-billing-refund-policy"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-subscription-cancel"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-billing-refund-policy",
+      "doc-billing-subscription-cancel",
+      "doc-billing-dispute-resolution"
+    ]
+  },
+  {
+    "query": "税费计算",
+    "expectedDocIds": [
+      "doc-billing-tax-calculation"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-invoice-generation"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-billing-tax-calculation",
+      "doc-billing-invoice-generation",
+      "doc-billing-pricing-tiers"
+    ]
+  },
+  {
+    "query": "overage charges",
+    "expectedDocIds": [
+      "doc-billing-overage-charges"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-usage-metering"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-billing-overage-charges",
+      "doc-billing-usage-metering",
+      "doc-billing-pricing-tiers"
+    ]
+  },
+  {
+    "query": "超额费用怎么算",
+    "expectedDocIds": [
+      "doc-billing-overage-charges"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-usage-metering"
+    ],
+    "metadataFilters": {
+      "category": [
+        "billing"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-billing-overage-charges",
+      "doc-billing-usage-metering",
+      "doc-billing-billing-cycle"
+    ]
+  },
+  {
+    "query": "billing API webhook",
+    "expectedDocIds": [
+      "doc-billing-webhook-events"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-invoice-generation"
+    ],
+    "metadataFilters": {
+      "category": [
+        "billing"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-billing-webhook-events",
+      "doc-billing-invoice-generation",
+      "doc-api-webhook-config"
+    ]
+  },
+  {
+    "query": "如何查看历史账单",
+    "expectedDocIds": [
+      "doc-billing-invoice-generation"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-billing-cycle"
+    ],
+    "metadataFilters": {
+      "category": [
+        "billing"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-billing-invoice-generation",
+      "doc-billing-billing-cycle",
+      "doc-billing-payment-method"
+    ]
+  },
+  {
+    "query": "free tier quota",
+    "expectedDocIds": [
+      "doc-billing-free-trial"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-usage-metering"
+    ],
+    "metadataFilters": {
+      "category": [
+        "billing"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-billing-free-trial",
+      "doc-billing-usage-metering",
+      "doc-billing-pricing-tiers"
+    ]
+  },
+  {
+    "query": "团队版和企业版区别",
+    "expectedDocIds": [
+      "doc-billing-pricing-tiers",
+      "doc-billing-enterprise-pricing"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-subscription-upgrade"
+    ],
+    "metadataFilters": {
+      "category": [
+        "billing"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-billing-pricing-tiers",
+      "doc-billing-enterprise-pricing",
+      "doc-billing-subscription-upgrade"
+    ]
+  },
+  {
+    "query": "MFA 设置",
+    "expectedDocIds": [
+      "doc-auth-mfa-setup"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-password-reset"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-auth-mfa-setup",
+      "doc-auth-password-reset",
+      "doc-security-access-control"
+    ]
+  },
+  {
+    "query": "OAuth2 configuration",
+    "expectedDocIds": [
+      "doc-auth-oauth2-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-api-key-auth"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-auth-oauth2-config",
+      "doc-auth-api-key-auth",
+      "doc-auth-sso-integration"
+    ]
+  },
+  {
+    "query": "单点登录集成",
+    "expectedDocIds": [
+      "doc-auth-sso-integration"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-oauth2-config"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-auth-sso-integration",
+      "doc-auth-oauth2-config",
+      "doc-auth-mfa-setup"
+    ]
+  },
+  {
+    "query": "password reset flow",
+    "expectedDocIds": [
+      "doc-auth-password-reset"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-mfa-setup"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-auth-password-reset",
+      "doc-auth-mfa-setup",
+      "doc-auth-session-management"
+    ]
+  },
+  {
+    "query": "JWT token 过期处理",
+    "expectedDocIds": [
+      "doc-auth-jwt-expiry"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-session-management"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-auth-jwt-expiry",
+      "doc-auth-session-management",
+      "doc-auth-oauth2-config"
+    ]
+  },
+  {
+    "query": "API key authentication",
+    "expectedDocIds": [
+      "doc-auth-api-key-auth"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-oauth2-config"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-auth-api-key-auth",
+      "doc-auth-oauth2-config",
+      "doc-security-api-key-rotation"
+    ]
+  },
+  {
+    "query": "用户角色权限",
+    "expectedDocIds": [
+      "doc-auth-rbac"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-session-management"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-auth-rbac",
+      "doc-auth-session-management",
+      "doc-security-access-control"
+    ]
+  },
+  {
+    "query": "session management",
+    "expectedDocIds": [
+      "doc-auth-session-management"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-jwt-expiry"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-auth-session-management",
+      "doc-auth-jwt-expiry",
+      "doc-auth-password-reset"
+    ]
+  },
+  {
+    "query": "LDAP 对接",
+    "expectedDocIds": [
+      "doc-auth-ldap-integration"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-sso-integration"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-auth-ldap-integration",
+      "doc-auth-sso-integration",
+      "doc-auth-oauth2-config"
+    ]
+  },
+  {
+    "query": "token refresh mechanism",
+    "expectedDocIds": [
+      "doc-auth-token-refresh"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-jwt-expiry"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-auth-token-refresh",
+      "doc-auth-jwt-expiry",
+      "doc-auth-session-management"
+    ]
+  },
+  {
+    "query": "如何配置第三方登录",
+    "expectedDocIds": [
+      "doc-auth-social-login"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-sso-integration"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-auth-social-login",
+      "doc-auth-sso-integration",
+      "doc-auth-oauth2-config"
+    ]
+  },
+  {
+    "query": "登录失败锁定策略",
+    "expectedDocIds": [
+      "doc-auth-account-lockout"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-password-reset"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-auth-account-lockout",
+      "doc-auth-password-reset",
+      "doc-auth-mfa-setup"
+    ]
+  },
+  {
+    "query": "How does OAuth2 token exchange work?",
+    "expectedDocIds": [
+      "doc-auth-oauth2-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-token-refresh"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-auth-oauth2-config",
+      "doc-auth-token-refresh",
+      "doc-auth-jwt-expiry"
+    ]
+  },
+  {
+    "query": "SAML 认证流程",
+    "expectedDocIds": [
+      "doc-auth-saml-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-sso-integration"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-auth-saml-config",
+      "doc-auth-sso-integration",
+      "doc-auth-ldap-integration"
+    ]
+  },
+  {
+    "query": "What happens when a JWT expires mid-request?",
+    "expectedDocIds": [
+      "doc-auth-jwt-expiry"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-token-refresh"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-auth-jwt-expiry",
+      "doc-auth-token-refresh",
+      "doc-auth-session-management"
+    ]
+  },
+  {
+    "query": "多因素认证怎么开启",
+    "expectedDocIds": [
+      "doc-auth-mfa-setup"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-account-lockout"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-auth-mfa-setup",
+      "doc-auth-account-lockout",
+      "doc-security-access-control"
+    ]
+  },
+  {
+    "query": "How to revoke an API key?",
+    "expectedDocIds": [
+      "doc-auth-api-key-auth"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-api-key-rotation"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-auth-api-key-auth",
+      "doc-security-api-key-rotation",
+      "doc-auth-token-refresh"
+    ]
+  },
+  {
+    "query": "权限继承机制",
+    "expectedDocIds": [
+      "doc-auth-rbac"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-access-control"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-auth-rbac",
+      "doc-security-access-control",
+      "doc-auth-session-management"
+    ]
+  },
+  {
+    "query": "SSO logout propagation",
+    "expectedDocIds": [
+      "doc-auth-sso-integration"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-session-management"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-auth-sso-integration",
+      "doc-auth-session-management",
+      "doc-auth-saml-config"
+    ]
+  },
+  {
+    "query": "RBAC 角色定义",
+    "expectedDocIds": [
+      "doc-auth-rbac"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-api-key-auth"
+    ],
+    "metadataFilters": {
+      "category": [
+        "auth"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-auth-rbac",
+      "doc-auth-api-key-auth",
+      "doc-auth-session-management"
+    ]
+  },
+  {
+    "query": "OAuth scope 配置",
+    "expectedDocIds": [
+      "doc-auth-oauth2-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-api-key-auth"
+    ],
+    "metadataFilters": {
+      "category": [
+        "auth"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-auth-oauth2-config",
+      "doc-auth-api-key-auth",
+      "doc-auth-sso-integration"
+    ]
+  },
+  {
+    "query": "session timeout settings",
+    "expectedDocIds": [
+      "doc-auth-session-management"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-jwt-expiry"
+    ],
+    "metadataFilters": {
+      "category": [
+        "auth"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-auth-session-management",
+      "doc-auth-jwt-expiry",
+      "doc-auth-account-lockout"
+    ]
+  },
+  {
+    "query": "LDAP group mapping",
+    "expectedDocIds": [
+      "doc-auth-ldap-integration"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-rbac"
+    ],
+    "metadataFilters": {
+      "category": [
+        "auth"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-auth-ldap-integration",
+      "doc-auth-rbac",
+      "doc-auth-sso-integration"
+    ]
+  },
+  {
+    "query": "token 刷新策略",
+    "expectedDocIds": [
+      "doc-auth-token-refresh"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-jwt-expiry"
+    ],
+    "metadataFilters": {
+      "category": [
+        "auth"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-auth-token-refresh",
+      "doc-auth-jwt-expiry",
+      "doc-auth-oauth2-config"
+    ]
+  },
+  {
+    "query": "API key rotation",
+    "expectedDocIds": [
+      "doc-security-api-key-rotation"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-secret-management"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-security-api-key-rotation",
+      "doc-security-secret-management",
+      "doc-auth-api-key-auth"
+    ]
+  },
+  {
+    "query": "数据加密方案",
+    "expectedDocIds": [
+      "doc-security-data-encryption"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-tls-config"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-security-data-encryption",
+      "doc-security-tls-config",
+      "doc-security-secret-management"
+    ]
+  },
+  {
+    "query": "access control list",
+    "expectedDocIds": [
+      "doc-security-access-control"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-rbac"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-security-access-control",
+      "doc-auth-rbac",
+      "doc-security-audit-logging"
+    ]
+  },
+  {
+    "query": "审计日志",
+    "expectedDocIds": [
+      "doc-security-audit-logging"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-log-aggregation"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-security-audit-logging",
+      "doc-observability-log-aggregation",
+      "doc-security-access-control"
+    ]
+  },
+  {
+    "query": "TLS certificate setup",
+    "expectedDocIds": [
+      "doc-security-tls-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-data-encryption"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-security-tls-config",
+      "doc-security-data-encryption",
+      "doc-config-ssl-setup"
+    ]
+  },
+  {
+    "query": "密钥管理",
+    "expectedDocIds": [
+      "doc-security-secret-management"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-api-key-rotation"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-security-secret-management",
+      "doc-security-api-key-rotation",
+      "doc-security-data-encryption"
+    ]
+  },
+  {
+    "query": "IP whitelist configuration",
+    "expectedDocIds": [
+      "doc-security-ip-whitelist"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-access-control"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-security-ip-whitelist",
+      "doc-security-access-control",
+      "doc-security-firewall-rules"
+    ]
+  },
+  {
+    "query": "漏洞扫描",
+    "expectedDocIds": [
+      "doc-security-vulnerability-scan"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-penetration-testing"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-security-vulnerability-scan",
+      "doc-security-penetration-testing",
+      "doc-security-audit-logging"
+    ]
+  },
+  {
+    "query": "CORS policy",
+    "expectedDocIds": [
+      "doc-security-cors-policy"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-ip-whitelist"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-security-cors-policy",
+      "doc-security-ip-whitelist",
+      "doc-api-rate-limiting"
+    ]
+  },
+  {
+    "query": "数据脱敏规则",
+    "expectedDocIds": [
+      "doc-security-data-masking"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-data-encryption"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-security-data-masking",
+      "doc-security-data-encryption",
+      "doc-security-audit-logging"
+    ]
+  },
+  {
+    "query": "penetration testing",
+    "expectedDocIds": [
+      "doc-security-penetration-testing"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-vulnerability-scan"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-security-penetration-testing",
+      "doc-security-vulnerability-scan",
+      "doc-security-audit-logging"
+    ]
+  },
+  {
+    "query": "防火墙规则配置",
+    "expectedDocIds": [
+      "doc-security-firewall-rules"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-ip-whitelist"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-security-firewall-rules",
+      "doc-security-ip-whitelist",
+      "doc-security-access-control"
+    ]
+  },
+  {
+    "query": "How to enable data encryption at rest?",
+    "expectedDocIds": [
+      "doc-security-data-encryption"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-tls-config"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-security-data-encryption",
+      "doc-security-tls-config",
+      "doc-security-secret-management"
+    ]
+  },
+  {
+    "query": "安全合规认证",
+    "expectedDocIds": [
+      "doc-security-compliance"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-audit-logging"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-security-compliance",
+      "doc-security-audit-logging",
+      "doc-security-penetration-testing"
+    ]
+  },
+  {
+    "query": "What security headers should I configure?",
+    "expectedDocIds": [
+      "doc-security-http-headers"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-cors-policy"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-security-http-headers",
+      "doc-security-cors-policy",
+      "doc-security-tls-config"
+    ]
+  },
+  {
+    "query": "安全事件响应流程",
+    "expectedDocIds": [
+      "doc-security-incident-response"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-audit-logging"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-security-incident-response",
+      "doc-security-audit-logging",
+      "doc-security-vulnerability-scan"
+    ]
+  },
+  {
+    "query": "How does API key rotation work without downtime?",
+    "expectedDocIds": [
+      "doc-security-api-key-rotation"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-api-key-auth"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-security-api-key-rotation",
+      "doc-auth-api-key-auth",
+      "doc-security-secret-management"
+    ]
+  },
+  {
+    "query": "DDoS 防护",
+    "expectedDocIds": [
+      "doc-security-ddos-protection"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-firewall-rules"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-security-ddos-protection",
+      "doc-security-firewall-rules",
+      "doc-security-ip-whitelist"
+    ]
+  },
+  {
+    "query": "GDPR 数据处理",
+    "expectedDocIds": [
+      "doc-security-compliance"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-data-masking"
+    ],
+    "metadataFilters": {
+      "category": [
+        "security"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-security-compliance",
+      "doc-security-data-masking",
+      "doc-security-data-encryption"
+    ]
+  },
+  {
+    "query": "secret vault integration",
+    "expectedDocIds": [
+      "doc-security-secret-management"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-data-encryption"
+    ],
+    "metadataFilters": {
+      "category": [
+        "security"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-security-secret-management",
+      "doc-security-data-encryption",
+      "doc-security-api-key-rotation"
+    ]
+  },
+  {
+    "query": "SSL 证书续期",
+    "expectedDocIds": [
+      "doc-security-tls-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-data-encryption"
+    ],
+    "metadataFilters": {
+      "category": [
+        "security"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-security-tls-config",
+      "doc-security-data-encryption",
+      "doc-config-ssl-setup"
+    ]
+  },
+  {
+    "query": "WAF rules",
+    "expectedDocIds": [
+      "doc-security-firewall-rules"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-ddos-protection"
+    ],
+    "metadataFilters": {
+      "category": [
+        "security"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-security-firewall-rules",
+      "doc-security-ddos-protection",
+      "doc-security-ip-whitelist"
+    ]
+  },
+  {
+    "query": "安全审计报告导出",
+    "expectedDocIds": [
+      "doc-security-audit-logging"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-compliance"
+    ],
+    "metadataFilters": {
+      "category": [
+        "security"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-security-audit-logging",
+      "doc-security-compliance",
+      "doc-security-incident-response"
+    ]
+  },
+  {
+    "query": "Redis 缓存策略",
+    "expectedDocIds": [
+      "doc-memory-redis-cache"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-cache-invalidation"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-redis-cache",
+      "doc-memory-cache-invalidation",
+      "doc-memory-session-store"
+    ]
+  },
+  {
+    "query": "conversation history storage",
+    "expectedDocIds": [
+      "doc-memory-conversation-history"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-session-store"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-conversation-history",
+      "doc-memory-session-store",
+      "doc-memory-context-window"
+    ]
+  },
+  {
+    "query": "上下文窗口管理",
+    "expectedDocIds": [
+      "doc-memory-context-window"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-conversation-history"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-context-window",
+      "doc-memory-conversation-history",
+      "doc-memory-token-budget"
+    ]
+  },
+  {
+    "query": "cache invalidation",
+    "expectedDocIds": [
+      "doc-memory-cache-invalidation"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-redis-cache"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-cache-invalidation",
+      "doc-memory-redis-cache",
+      "doc-memory-ttl-config"
+    ]
+  },
+  {
+    "query": "session 持久化",
+    "expectedDocIds": [
+      "doc-memory-session-store"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-conversation-history"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-session-store",
+      "doc-memory-conversation-history",
+      "doc-memory-redis-cache"
+    ]
+  },
+  {
+    "query": "token budget allocation",
+    "expectedDocIds": [
+      "doc-memory-token-budget"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-context-window"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-token-budget",
+      "doc-memory-context-window",
+      "doc-memory-conversation-history"
+    ]
+  },
+  {
+    "query": "向量存储选型",
+    "expectedDocIds": [
+      "doc-memory-vector-store"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-embedding-model"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-vector-store",
+      "doc-rag-embedding-model",
+      "doc-memory-redis-cache"
+    ]
+  },
+  {
+    "query": "Redis failover",
+    "expectedDocIds": [
+      "doc-memory-redis-failover"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-redis-cache"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-redis-failover",
+      "doc-memory-redis-cache",
+      "doc-memory-cache-invalidation"
+    ]
+  },
+  {
+    "query": "内存溢出处理",
+    "expectedDocIds": [
+      "doc-memory-oom-handling"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-context-window"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-oom-handling",
+      "doc-memory-context-window",
+      "doc-memory-token-budget"
+    ]
+  },
+  {
+    "query": "TTL configuration",
+    "expectedDocIds": [
+      "doc-memory-ttl-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-cache-invalidation"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-ttl-config",
+      "doc-memory-cache-invalidation",
+      "doc-memory-redis-cache"
+    ]
+  },
+  {
+    "query": "What happens when Redis is unavailable?",
+    "expectedDocIds": [
+      "doc-memory-redis-failover"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-redis-cache"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-redis-failover",
+      "doc-memory-redis-cache",
+      "doc-memory-session-store"
+    ]
+  },
+  {
+    "query": "如何管理长对话历史",
+    "expectedDocIds": [
+      "doc-memory-conversation-history"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-context-window"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-conversation-history",
+      "doc-memory-context-window",
+      "doc-memory-token-budget"
+    ]
+  },
+  {
+    "query": "How does the system handle context overflow?",
+    "expectedDocIds": [
+      "doc-memory-context-window"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-token-budget"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-context-window",
+      "doc-memory-token-budget",
+      "doc-memory-oom-handling"
+    ]
+  },
+  {
+    "query": "缓存预热策略",
+    "expectedDocIds": [
+      "doc-memory-cache-warmup"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-redis-cache"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-cache-warmup",
+      "doc-memory-redis-cache",
+      "doc-memory-cache-invalidation"
+    ]
+  },
+  {
+    "query": "distributed session store",
+    "expectedDocIds": [
+      "doc-memory-session-store"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-redis-cache"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-session-store",
+      "doc-memory-redis-cache",
+      "doc-memory-conversation-history"
+    ]
+  },
+  {
+    "query": "How to optimize token usage in conversations?",
+    "expectedDocIds": [
+      "doc-memory-token-budget"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-context-window"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-token-budget",
+      "doc-memory-context-window",
+      "doc-memory-conversation-history"
+    ]
+  },
+  {
+    "query": "向量数据库连接池",
+    "expectedDocIds": [
+      "doc-memory-vector-store"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-redis-cache"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-vector-store",
+      "doc-memory-redis-cache",
+      "doc-rag-pgvector-config"
+    ]
+  },
+  {
+    "query": "memory compaction strategy",
+    "expectedDocIds": [
+      "doc-memory-compaction"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-context-window"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-compaction",
+      "doc-memory-context-window",
+      "doc-memory-conversation-history"
+    ]
+  },
+  {
+    "query": "缓存命中率监控",
+    "expectedDocIds": [
+      "doc-memory-cache-metrics"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-redis-cache"
+    ],
+    "metadataFilters": {
+      "category": [
+        "memory"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-memory-cache-metrics",
+      "doc-memory-redis-cache",
+      "doc-observability-metrics-collection"
+    ]
+  },
+  {
+    "query": "Redis cluster 配置",
+    "expectedDocIds": [
+      "doc-memory-redis-cache"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-redis-failover"
+    ],
+    "metadataFilters": {
+      "category": [
+        "memory"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-memory-redis-cache",
+      "doc-memory-redis-failover",
+      "doc-memory-session-store"
+    ]
+  },
+  {
+    "query": "conversation memory pruning",
+    "expectedDocIds": [
+      "doc-memory-compaction"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-conversation-history"
+    ],
+    "metadataFilters": {
+      "category": [
+        "memory"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-memory-compaction",
+      "doc-memory-conversation-history",
+      "doc-memory-context-window"
+    ]
+  },
+  {
+    "query": "TTL 过期回调",
+    "expectedDocIds": [
+      "doc-memory-ttl-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-cache-invalidation"
+    ],
+    "metadataFilters": {
+      "category": [
+        "memory"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-memory-ttl-config",
+      "doc-memory-cache-invalidation",
+      "doc-memory-redis-cache"
+    ]
+  },
+  {
+    "query": "pgvector dimensions",
+    "expectedDocIds": [
+      "doc-rag-pgvector-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-embedding-model"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-pgvector-config",
+      "doc-rag-embedding-model",
+      "doc-rag-hybrid-retrieval"
+    ]
+  },
+  {
+    "query": "混合检索策略",
+    "expectedDocIds": [
+      "doc-rag-hybrid-retrieval"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-semantic-search"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-hybrid-retrieval",
+      "doc-rag-semantic-search",
+      "doc-rag-keyword-search"
+    ]
+  },
+  {
+    "query": "embedding model selection",
+    "expectedDocIds": [
+      "doc-rag-embedding-model"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-pgvector-config"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-embedding-model",
+      "doc-rag-pgvector-config",
+      "doc-rag-hybrid-retrieval"
+    ]
+  },
+  {
+    "query": "文档分块策略",
+    "expectedDocIds": [
+      "doc-rag-chunking-strategy"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-document-parsing"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-chunking-strategy",
+      "doc-rag-document-parsing",
+      "doc-rag-hybrid-retrieval"
+    ]
+  },
+  {
+    "query": "reranking pipeline",
+    "expectedDocIds": [
+      "doc-rag-reranking"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-hybrid-retrieval"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-reranking",
+      "doc-rag-hybrid-retrieval",
+      "doc-rag-semantic-search"
+    ]
+  },
+  {
+    "query": "语义搜索配置",
+    "expectedDocIds": [
+      "doc-rag-semantic-search"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-keyword-search"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-semantic-search",
+      "doc-rag-keyword-search",
+      "doc-rag-hybrid-retrieval"
+    ]
+  },
+  {
+    "query": "document ingestion",
+    "expectedDocIds": [
+      "doc-rag-document-ingestion"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-document-parsing"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-document-ingestion",
+      "doc-rag-document-parsing",
+      "doc-rag-chunking-strategy"
+    ]
+  },
+  {
+    "query": "关键词搜索降级",
+    "expectedDocIds": [
+      "doc-rag-keyword-search"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-semantic-search"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-keyword-search",
+      "doc-rag-semantic-search",
+      "doc-rag-hybrid-retrieval"
+    ]
+  },
+  {
+    "query": "metadata filtering in RAG",
+    "expectedDocIds": [
+      "doc-rag-metadata-filtering"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-hybrid-retrieval"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-metadata-filtering",
+      "doc-rag-hybrid-retrieval",
+      "doc-rag-semantic-search"
+    ]
+  },
+  {
+    "query": "PDF 文档解析",
+    "expectedDocIds": [
+      "doc-rag-document-parsing"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-document-ingestion"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-document-parsing",
+      "doc-rag-document-ingestion",
+      "doc-rag-chunking-strategy"
+    ]
+  },
+  {
+    "query": "How does the RAG pipeline handle duplicate documents?",
+    "expectedDocIds": [
+      "doc-rag-deduplication"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-document-ingestion"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-deduplication",
+      "doc-rag-document-ingestion",
+      "doc-rag-chunking-strategy"
+    ]
+  },
+  {
+    "query": "向量索引类型选择",
+    "expectedDocIds": [
+      "doc-rag-vector-index"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-pgvector-config"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-vector-index",
+      "doc-rag-pgvector-config",
+      "doc-rag-embedding-model"
+    ]
+  },
+  {
+    "query": "What is the optimal chunk size for code documentation?",
+    "expectedDocIds": [
+      "doc-rag-chunking-strategy"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-document-parsing"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-chunking-strategy",
+      "doc-rag-document-parsing",
+      "doc-rag-embedding-model"
+    ]
+  },
+  {
+    "query": "检索结果重排序",
+    "expectedDocIds": [
+      "doc-rag-reranking"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-semantic-search"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-reranking",
+      "doc-rag-semantic-search",
+      "doc-rag-hybrid-retrieval"
+    ]
+  },
+  {
+    "query": "How to improve retrieval recall?",
+    "expectedDocIds": [
+      "doc-rag-hybrid-retrieval"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-reranking"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-hybrid-retrieval",
+      "doc-rag-reranking",
+      "doc-rag-semantic-search"
+    ]
+  },
+  {
+    "query": "RAG 上下文注入方式",
+    "expectedDocIds": [
+      "doc-rag-context-injection"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-hybrid-retrieval"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-context-injection",
+      "doc-rag-hybrid-retrieval",
+      "doc-memory-context-window"
+    ]
+  },
+  {
+    "query": "embedding batch processing",
+    "expectedDocIds": [
+      "doc-rag-embedding-model"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-document-ingestion"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-embedding-model",
+      "doc-rag-document-ingestion",
+      "doc-rag-pgvector-config"
+    ]
+  },
+  {
+    "query": "多语言文档检索",
+    "expectedDocIds": [
+      "doc-rag-multilingual"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-semantic-search"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-multilingual",
+      "doc-rag-semantic-search",
+      "doc-rag-embedding-model"
+    ]
+  },
+  {
+    "query": "How does hybrid search combine keyword and vector results?",
+    "expectedDocIds": [
+      "doc-rag-hybrid-retrieval"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-keyword-search"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-hybrid-retrieval",
+      "doc-rag-keyword-search",
+      "doc-rag-semantic-search"
+    ]
+  },
+  {
+    "query": "pgvector HNSW 参数",
+    "expectedDocIds": [
+      "doc-rag-pgvector-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-vector-index"
+    ],
+    "metadataFilters": {
+      "category": [
+        "rag"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-rag-pgvector-config",
+      "doc-rag-vector-index",
+      "doc-rag-embedding-model"
+    ]
+  },
+  {
+    "query": "文档去重策略",
+    "expectedDocIds": [
+      "doc-rag-deduplication"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-document-ingestion"
+    ],
+    "metadataFilters": {
+      "category": [
+        "rag"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-rag-deduplication",
+      "doc-rag-document-ingestion",
+      "doc-rag-chunking-strategy"
+    ]
+  },
+  {
+    "query": "RAG retrieval latency optimization",
+    "expectedDocIds": [
+      "doc-rag-performance-tuning"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-hybrid-retrieval"
+    ],
+    "metadataFilters": {
+      "category": [
+        "rag"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-rag-performance-tuning",
+      "doc-rag-hybrid-retrieval",
+      "doc-rag-vector-index"
+    ]
+  },
+  {
+    "query": "metadata filter 语法",
+    "expectedDocIds": [
+      "doc-rag-metadata-filtering"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-semantic-search"
+    ],
+    "metadataFilters": {
+      "category": [
+        "rag"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-rag-metadata-filtering",
+      "doc-rag-semantic-search",
+      "doc-rag-hybrid-retrieval"
+    ]
+  },
+  {
+    "query": "文档解析格式支持",
+    "expectedDocIds": [
+      "doc-rag-document-parsing"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-chunking-strategy"
+    ],
+    "metadataFilters": {
+      "category": [
+        "rag"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-rag-document-parsing",
+      "doc-rag-chunking-strategy",
+      "doc-rag-document-ingestion"
+    ]
+  },
+  {
+    "query": "tool dispatch limit",
+    "expectedDocIds": [
+      "doc-agent-tool-dispatch-limit"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-tool-selection"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-tool-dispatch-limit",
+      "doc-agent-tool-selection",
+      "doc-agent-planning-loop"
+    ]
+  },
+  {
+    "query": "Agent 规划循环",
+    "expectedDocIds": [
+      "doc-agent-planning-loop"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-reasoning-chain"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-planning-loop",
+      "doc-agent-reasoning-chain",
+      "doc-agent-tool-selection"
+    ]
+  },
+  {
+    "query": "multi-agent orchestration",
+    "expectedDocIds": [
+      "doc-agent-multi-agent"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-planning-loop"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-multi-agent",
+      "doc-agent-planning-loop",
+      "doc-agent-task-decomposition"
+    ]
+  },
+  {
+    "query": "工具选择逻辑",
+    "expectedDocIds": [
+      "doc-agent-tool-selection"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-tool-dispatch-limit"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-tool-selection",
+      "doc-agent-tool-dispatch-limit",
+      "doc-agent-planning-loop"
+    ]
+  },
+  {
+    "query": "task decomposition",
+    "expectedDocIds": [
+      "doc-agent-task-decomposition"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-planning-loop"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-task-decomposition",
+      "doc-agent-planning-loop",
+      "doc-agent-multi-agent"
+    ]
+  },
+  {
+    "query": "Agent 错误恢复",
+    "expectedDocIds": [
+      "doc-agent-error-recovery"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-fallback-strategy"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-error-recovery",
+      "doc-agent-fallback-strategy",
+      "doc-agent-planning-loop"
+    ]
+  },
+  {
+    "query": "reasoning chain",
+    "expectedDocIds": [
+      "doc-agent-reasoning-chain"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-planning-loop"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-reasoning-chain",
+      "doc-agent-planning-loop",
+      "doc-agent-tool-selection"
+    ]
+  },
+  {
+    "query": "Agent 超时处理",
+    "expectedDocIds": [
+      "doc-agent-timeout-handling"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-error-recovery"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-timeout-handling",
+      "doc-agent-error-recovery",
+      "doc-agent-planning-loop"
+    ]
+  },
+  {
+    "query": "fallback strategy",
+    "expectedDocIds": [
+      "doc-agent-fallback-strategy"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-error-recovery"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-fallback-strategy",
+      "doc-agent-error-recovery",
+      "doc-agent-planning-loop"
+    ]
+  },
+  {
+    "query": "Agent 记忆同步",
+    "expectedDocIds": [
+      "doc-agent-memory-sync"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-conversation-history"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-memory-sync",
+      "doc-memory-conversation-history",
+      "doc-agent-multi-agent"
+    ]
+  },
+  {
+    "query": "How does the agent choose between tools?",
+    "expectedDocIds": [
+      "doc-agent-tool-selection"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-tool-dispatch-limit"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-tool-selection",
+      "doc-agent-tool-dispatch-limit",
+      "doc-agent-reasoning-chain"
+    ]
+  },
+  {
+    "query": "多 Agent 通信协议",
+    "expectedDocIds": [
+      "doc-agent-multi-agent"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-memory-sync"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-multi-agent",
+      "doc-agent-memory-sync",
+      "doc-agent-task-decomposition"
+    ]
+  },
+  {
+    "query": "What is the maximum number of tool calls per turn?",
+    "expectedDocIds": [
+      "doc-agent-tool-dispatch-limit"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-tool-selection"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-tool-dispatch-limit",
+      "doc-agent-tool-selection",
+      "doc-api-rate-limiting"
+    ]
+  },
+  {
+    "query": "Agent 任务优先级",
+    "expectedDocIds": [
+      "doc-agent-task-priority"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-task-decomposition"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-task-priority",
+      "doc-agent-task-decomposition",
+      "doc-agent-planning-loop"
+    ]
+  },
+  {
+    "query": "How does the agent recover from a failed tool call?",
+    "expectedDocIds": [
+      "doc-agent-error-recovery"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-fallback-strategy"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-error-recovery",
+      "doc-agent-fallback-strategy",
+      "doc-agent-timeout-handling"
+    ]
+  },
+  {
+    "query": "子任务拆分策略",
+    "expectedDocIds": [
+      "doc-agent-task-decomposition"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-planning-loop"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-task-decomposition",
+      "doc-agent-planning-loop",
+      "doc-agent-multi-agent"
+    ]
+  },
+  {
+    "query": "agent streaming response",
+    "expectedDocIds": [
+      "doc-agent-streaming"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-streaming-response"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-streaming",
+      "doc-api-streaming-response",
+      "doc-agent-planning-loop"
+    ]
+  },
+  {
+    "query": "Agent 自我反思机制",
+    "expectedDocIds": [
+      "doc-agent-self-reflection"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-reasoning-chain"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-self-reflection",
+      "doc-agent-reasoning-chain",
+      "doc-agent-planning-loop"
+    ]
+  },
+  {
+    "query": "How to limit agent recursion depth?",
+    "expectedDocIds": [
+      "doc-agent-recursion-limit"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-tool-dispatch-limit"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-recursion-limit",
+      "doc-agent-tool-dispatch-limit",
+      "doc-agent-planning-loop"
+    ]
+  },
+  {
+    "query": "Agent 上下文传递",
+    "expectedDocIds": [
+      "doc-agent-context-passing"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-memory-sync"
+    ],
+    "metadataFilters": {
+      "category": [
+        "agent"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-agent-context-passing",
+      "doc-agent-memory-sync",
+      "doc-agent-multi-agent"
+    ]
+  },
+  {
+    "query": "tool execution sandbox",
+    "expectedDocIds": [
+      "doc-agent-tool-sandbox"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-tool-selection"
+    ],
+    "metadataFilters": {
+      "category": [
+        "agent"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-agent-tool-sandbox",
+      "doc-agent-tool-selection",
+      "doc-security-access-control"
+    ]
+  },
+  {
+    "query": "Agent 并发执行",
+    "expectedDocIds": [
+      "doc-agent-concurrent-execution"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-multi-agent"
+    ],
+    "metadataFilters": {
+      "category": [
+        "agent"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-agent-concurrent-execution",
+      "doc-agent-multi-agent",
+      "doc-agent-task-decomposition"
+    ]
+  },
+  {
+    "query": "agent prompt template",
+    "expectedDocIds": [
+      "doc-agent-prompt-template"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-reasoning-chain"
+    ],
+    "metadataFilters": {
+      "category": [
+        "agent"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-agent-prompt-template",
+      "doc-agent-reasoning-chain",
+      "doc-agent-planning-loop"
+    ]
+  },
+  {
+    "query": "Bash tool 配置",
+    "expectedDocIds": [
+      "doc-tool-bash-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-web-scraper"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-tool-bash-config",
+      "doc-tool-web-scraper",
+      "doc-tool-file-reader"
+    ]
+  },
+  {
+    "query": "web scraping tool",
+    "expectedDocIds": [
+      "doc-tool-web-scraper"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-http-client"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-tool-web-scraper",
+      "doc-tool-http-client",
+      "doc-tool-bash-config"
+    ]
+  },
+  {
+    "query": "文件读取工具",
+    "expectedDocIds": [
+      "doc-tool-file-reader"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-file-writer"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-tool-file-reader",
+      "doc-tool-file-writer",
+      "doc-tool-bash-config"
+    ]
+  },
+  {
+    "query": "HTTP client tool",
+    "expectedDocIds": [
+      "doc-tool-http-client"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-web-scraper"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-tool-http-client",
+      "doc-tool-web-scraper",
+      "doc-api-endpoint-design"
+    ]
+  },
+  {
+    "query": "数据库查询工具",
+    "expectedDocIds": [
+      "doc-tool-database-query"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-sql-executor"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-tool-database-query",
+      "doc-tool-sql-executor",
+      "doc-tool-bash-config"
+    ]
+  },
+  {
+    "query": "tool registration",
+    "expectedDocIds": [
+      "doc-tool-registration"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-schema-definition"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-tool-registration",
+      "doc-tool-schema-definition",
+      "doc-agent-tool-selection"
+    ]
+  },
+  {
+    "query": "自定义工具开发",
+    "expectedDocIds": [
+      "doc-tool-custom-development"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-registration"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-tool-custom-development",
+      "doc-tool-registration",
+      "doc-tool-schema-definition"
+    ]
+  },
+  {
+    "query": "tool schema definition",
+    "expectedDocIds": [
+      "doc-tool-schema-definition"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-registration"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-tool-schema-definition",
+      "doc-tool-registration",
+      "doc-api-schema-validation"
+    ]
+  },
+  {
+    "query": "文件写入权限",
+    "expectedDocIds": [
+      "doc-tool-file-writer"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-file-reader"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-tool-file-writer",
+      "doc-tool-file-reader",
+      "doc-security-access-control"
+    ]
+  },
+  {
+    "query": "SQL executor sandbox",
+    "expectedDocIds": [
+      "doc-tool-sql-executor"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-database-query"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-tool-sql-executor",
+      "doc-tool-database-query",
+      "doc-agent-tool-sandbox"
+    ]
+  },
+  {
+    "query": "工具调用超时设置",
+    "expectedDocIds": [
+      "doc-tool-timeout-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-timeout-handling"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-tool-timeout-config",
+      "doc-agent-timeout-handling",
+      "doc-tool-bash-config"
+    ]
+  },
+  {
+    "query": "tool output parsing",
+    "expectedDocIds": [
+      "doc-tool-output-parsing"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-schema-definition"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-tool-output-parsing",
+      "doc-tool-schema-definition",
+      "doc-agent-tool-selection"
+    ]
+  },
+  {
+    "query": "如何注册新工具",
+    "expectedDocIds": [
+      "doc-tool-registration"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-custom-development"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-tool-registration",
+      "doc-tool-custom-development",
+      "doc-tool-schema-definition"
+    ]
+  },
+  {
+    "query": "How to configure bash tool permissions?",
+    "expectedDocIds": [
+      "doc-tool-bash-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-file-writer"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-tool-bash-config",
+      "doc-tool-file-writer",
+      "doc-security-access-control"
+    ]
+  },
+  {
+    "query": "工具输出格式化",
+    "expectedDocIds": [
+      "doc-tool-output-parsing"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-schema-definition"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-tool-output-parsing",
+      "doc-tool-schema-definition",
+      "doc-tool-registration"
+    ]
+  },
+  {
+    "query": "What tools are available by default?",
+    "expectedDocIds": [
+      "doc-tool-default-tools"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-registration"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-tool-default-tools",
+      "doc-tool-registration",
+      "doc-tool-bash-config"
+    ]
+  },
+  {
+    "query": "MCP 工具集成",
+    "expectedDocIds": [
+      "doc-tool-mcp-integration"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-registration"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-tool-mcp-integration",
+      "doc-tool-registration",
+      "doc-tool-custom-development"
+    ]
+  },
+  {
+    "query": "How does the tool sandbox prevent file system access?",
+    "expectedDocIds": [
+      "doc-tool-sandbox-fs"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-file-writer"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-tool-sandbox-fs",
+      "doc-tool-file-writer",
+      "doc-agent-tool-sandbox"
+    ]
+  },
+  {
+    "query": "工具版本管理",
+    "expectedDocIds": [
+      "doc-tool-versioning"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-registration"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-tool-versioning",
+      "doc-tool-registration",
+      "doc-tool-custom-development"
+    ]
+  },
+  {
+    "query": "tool error handling",
+    "expectedDocIds": [
+      "doc-tool-error-handling"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-error-recovery"
+    ],
+    "metadataFilters": {
+      "category": [
+        "tool"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-tool-error-handling",
+      "doc-agent-error-recovery",
+      "doc-tool-timeout-config"
+    ]
+  },
+  {
+    "query": "工具权限模型",
+    "expectedDocIds": [
+      "doc-tool-permission-model"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-access-control"
+    ],
+    "metadataFilters": {
+      "category": [
+        "tool"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-tool-permission-model",
+      "doc-security-access-control",
+      "doc-tool-bash-config"
+    ]
+  },
+  {
+    "query": "tool input validation",
+    "expectedDocIds": [
+      "doc-tool-input-validation"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-schema-definition"
+    ],
+    "metadataFilters": {
+      "category": [
+        "tool"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-tool-input-validation",
+      "doc-tool-schema-definition",
+      "doc-api-schema-validation"
+    ]
+  },
+  {
+    "query": "MCP server 配置",
+    "expectedDocIds": [
+      "doc-tool-mcp-integration"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-registration"
+    ],
+    "metadataFilters": {
+      "category": [
+        "tool"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-tool-mcp-integration",
+      "doc-tool-registration",
+      "doc-config-server-setup"
+    ]
+  },
+  {
+    "query": "日志聚合",
+    "expectedDocIds": [
+      "doc-observability-log-aggregation"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-log-search"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-observability-log-aggregation",
+      "doc-observability-log-search",
+      "doc-observability-metrics-collection"
+    ]
+  },
+  {
+    "query": "metrics collection",
+    "expectedDocIds": [
+      "doc-observability-metrics-collection"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-dashboard"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-observability-metrics-collection",
+      "doc-observability-dashboard",
+      "doc-observability-alerting"
+    ]
+  },
+  {
+    "query": "分布式追踪",
+    "expectedDocIds": [
+      "doc-observability-distributed-tracing"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-span-analysis"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-observability-distributed-tracing",
+      "doc-observability-span-analysis",
+      "doc-observability-log-aggregation"
+    ]
+  },
+  {
+    "query": "alerting rules",
+    "expectedDocIds": [
+      "doc-observability-alerting"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-metrics-collection"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-observability-alerting",
+      "doc-observability-metrics-collection",
+      "doc-observability-dashboard"
+    ]
+  },
+  {
+    "query": "Dashboard 配置",
+    "expectedDocIds": [
+      "doc-observability-dashboard"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-metrics-collection"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-observability-dashboard",
+      "doc-observability-metrics-collection",
+      "doc-observability-alerting"
+    ]
+  },
+  {
+    "query": "log search syntax",
+    "expectedDocIds": [
+      "doc-observability-log-search"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-log-aggregation"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-observability-log-search",
+      "doc-observability-log-aggregation",
+      "doc-observability-log-retention"
+    ]
+  },
+  {
+    "query": "性能分析",
+    "expectedDocIds": [
+      "doc-observability-performance-profiling"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-metrics-collection"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-observability-performance-profiling",
+      "doc-observability-metrics-collection",
+      "doc-observability-distributed-tracing"
+    ]
+  },
+  {
+    "query": "span analysis",
+    "expectedDocIds": [
+      "doc-observability-span-analysis"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-distributed-tracing"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-observability-span-analysis",
+      "doc-observability-distributed-tracing",
+      "doc-observability-performance-profiling"
+    ]
+  },
+  {
+    "query": "日志保留策略",
+    "expectedDocIds": [
+      "doc-observability-log-retention"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-log-aggregation"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-observability-log-retention",
+      "doc-observability-log-aggregation",
+      "doc-observability-log-search"
+    ]
+  },
+  {
+    "query": "health check endpoint",
+    "expectedDocIds": [
+      "doc-observability-health-check"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-endpoint-design"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-observability-health-check",
+      "doc-api-endpoint-design",
+      "doc-observability-alerting"
+    ]
+  },
+  {
+    "query": "How to set up custom metrics?",
+    "expectedDocIds": [
+      "doc-observability-custom-metrics"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-metrics-collection"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-observability-custom-metrics",
+      "doc-observability-metrics-collection",
+      "doc-observability-dashboard"
+    ]
+  },
+  {
+    "query": "错误追踪与分组",
+    "expectedDocIds": [
+      "doc-observability-error-tracking"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-log-aggregation"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-observability-error-tracking",
+      "doc-observability-log-aggregation",
+      "doc-observability-alerting"
+    ]
+  },
+  {
+    "query": "How to trace a request across microservices?",
+    "expectedDocIds": [
+      "doc-observability-distributed-tracing"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-span-analysis"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-observability-distributed-tracing",
+      "doc-observability-span-analysis",
+      "doc-observability-log-aggregation"
+    ]
+  },
+  {
+    "query": "监控告警静默",
+    "expectedDocIds": [
+      "doc-observability-alert-silencing"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-alerting"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-observability-alert-silencing",
+      "doc-observability-alerting",
+      "doc-observability-dashboard"
+    ]
+  },
+  {
+    "query": "What metrics should I track for LLM performance?",
+    "expectedDocIds": [
+      "doc-observability-llm-metrics"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-metrics-collection"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-observability-llm-metrics",
+      "doc-observability-metrics-collection",
+      "doc-eval-model-comparison"
+    ]
+  },
+  {
+    "query": "SLA 监控",
+    "expectedDocIds": [
+      "doc-observability-sla-monitoring"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-health-check"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-observability-sla-monitoring",
+      "doc-observability-health-check",
+      "doc-observability-alerting"
+    ]
+  },
+  {
+    "query": "OpenTelemetry integration",
+    "expectedDocIds": [
+      "doc-observability-otel-integration"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-distributed-tracing"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-observability-otel-integration",
+      "doc-observability-distributed-tracing",
+      "doc-observability-metrics-collection"
+    ]
+  },
+  {
+    "query": "日志级别动态调整",
+    "expectedDocIds": [
+      "doc-observability-log-level"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-log-aggregation"
+    ],
+    "metadataFilters": {
+      "category": [
+        "observability"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-observability-log-level",
+      "doc-observability-log-aggregation",
+      "doc-config-runtime-config"
+    ]
+  },
+  {
+    "query": "Prometheus exporter",
+    "expectedDocIds": [
+      "doc-observability-metrics-collection"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-custom-metrics"
+    ],
+    "metadataFilters": {
+      "category": [
+        "observability"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-observability-metrics-collection",
+      "doc-observability-custom-metrics",
+      "doc-observability-dashboard"
+    ]
+  },
+  {
+    "query": "告警通知渠道",
+    "expectedDocIds": [
+      "doc-observability-alerting"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-alert-silencing"
+    ],
+    "metadataFilters": {
+      "category": [
+        "observability"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-observability-alerting",
+      "doc-observability-alert-silencing",
+      "doc-observability-dashboard"
+    ]
+  },
+  {
+    "query": "tracing sampling rate",
+    "expectedDocIds": [
+      "doc-observability-distributed-tracing"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-span-analysis"
+    ],
+    "metadataFilters": {
+      "category": [
+        "observability"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-observability-distributed-tracing",
+      "doc-observability-span-analysis",
+      "doc-observability-otel-integration"
+    ]
+  },
+  {
+    "query": "评估指标定义",
+    "expectedDocIds": [
+      "doc-eval-metrics-definition"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-benchmark-suite"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-eval-metrics-definition",
+      "doc-eval-benchmark-suite",
+      "doc-eval-model-comparison"
+    ]
+  },
+  {
+    "query": "benchmark suite",
+    "expectedDocIds": [
+      "doc-eval-benchmark-suite"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-metrics-definition"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-eval-benchmark-suite",
+      "doc-eval-metrics-definition",
+      "doc-eval-test-dataset"
+    ]
+  },
+  {
+    "query": "模型对比评估",
+    "expectedDocIds": [
+      "doc-eval-model-comparison"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-benchmark-suite"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-eval-model-comparison",
+      "doc-eval-benchmark-suite",
+      "doc-eval-metrics-definition"
+    ]
+  },
+  {
+    "query": "test dataset creation",
+    "expectedDocIds": [
+      "doc-eval-test-dataset"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-benchmark-suite"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-eval-test-dataset",
+      "doc-eval-benchmark-suite",
+      "doc-eval-ground-truth"
+    ]
+  },
+  {
+    "query": "检索质量评估",
+    "expectedDocIds": [
+      "doc-eval-retrieval-quality"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-metrics-definition"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-eval-retrieval-quality",
+      "doc-eval-metrics-definition",
+      "doc-rag-hybrid-retrieval"
+    ]
+  },
+  {
+    "query": "A/B testing framework",
+    "expectedDocIds": [
+      "doc-eval-ab-testing"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-model-comparison"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-eval-ab-testing",
+      "doc-eval-model-comparison",
+      "doc-eval-benchmark-suite"
+    ]
+  },
+  {
+    "query": "ground truth 标注",
+    "expectedDocIds": [
+      "doc-eval-ground-truth"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-test-dataset"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-eval-ground-truth",
+      "doc-eval-test-dataset",
+      "doc-eval-metrics-definition"
+    ]
+  },
+  {
+    "query": "LLM judge evaluation",
+    "expectedDocIds": [
+      "doc-eval-llm-judge"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-model-comparison"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-eval-llm-judge",
+      "doc-eval-model-comparison",
+      "doc-eval-metrics-definition"
+    ]
+  },
+  {
+    "query": "回归测试",
+    "expectedDocIds": [
+      "doc-eval-regression-testing"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-benchmark-suite"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-eval-regression-testing",
+      "doc-eval-benchmark-suite",
+      "doc-eval-test-dataset"
+    ]
+  },
+  {
+    "query": "hallucination detection",
+    "expectedDocIds": [
+      "doc-eval-hallucination-detection"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-llm-judge"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-eval-hallucination-detection",
+      "doc-eval-llm-judge",
+      "doc-eval-metrics-definition"
+    ]
+  },
+  {
+    "query": "How to evaluate RAG retrieval accuracy?",
+    "expectedDocIds": [
+      "doc-eval-retrieval-quality"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-hybrid-retrieval"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-eval-retrieval-quality",
+      "doc-rag-hybrid-retrieval",
+      "doc-eval-metrics-definition"
+    ]
+  },
+  {
+    "query": "评估流水线自动化",
+    "expectedDocIds": [
+      "doc-eval-pipeline-automation"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-benchmark-suite"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-eval-pipeline-automation",
+      "doc-eval-benchmark-suite",
+      "doc-eval-regression-testing"
+    ]
+  },
+  {
+    "query": "What metrics matter for conversational AI?",
+    "expectedDocIds": [
+      "doc-eval-conversational-metrics"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-metrics-definition"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-eval-conversational-metrics",
+      "doc-eval-metrics-definition",
+      "doc-eval-llm-judge"
+    ]
+  },
+  {
+    "query": "人工标注流程",
+    "expectedDocIds": [
+      "doc-eval-annotation-workflow"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-ground-truth"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-eval-annotation-workflow",
+      "doc-eval-ground-truth",
+      "doc-eval-test-dataset"
+    ]
+  },
+  {
+    "query": "How to set up continuous evaluation?",
+    "expectedDocIds": [
+      "doc-eval-pipeline-automation"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-regression-testing"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-eval-pipeline-automation",
+      "doc-eval-regression-testing",
+      "doc-eval-benchmark-suite"
+    ]
+  },
+  {
+    "query": "评估报告生成",
+    "expectedDocIds": [
+      "doc-eval-report-generation"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-metrics-definition"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-eval-report-generation",
+      "doc-eval-metrics-definition",
+      "doc-eval-benchmark-suite"
+    ]
+  },
+  {
+    "query": "How does LLM-as-a-judge scoring work?",
+    "expectedDocIds": [
+      "doc-eval-llm-judge"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-model-comparison"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-eval-llm-judge",
+      "doc-eval-model-comparison",
+      "doc-eval-hallucination-detection"
+    ]
+  },
+  {
+    "query": "幻觉检测方法",
+    "expectedDocIds": [
+      "doc-eval-hallucination-detection"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-llm-judge"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-eval-hallucination-detection",
+      "doc-eval-llm-judge",
+      "doc-eval-ground-truth"
+    ]
+  },
+  {
+    "query": "latency percentile tracking",
+    "expectedDocIds": [
+      "doc-eval-latency-tracking"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-performance-profiling"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-eval-latency-tracking",
+      "doc-observability-performance-profiling",
+      "doc-eval-metrics-definition"
+    ]
+  },
+  {
+    "query": "评估数据集版本控制",
+    "expectedDocIds": [
+      "doc-eval-test-dataset"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-ground-truth"
+    ],
+    "metadataFilters": {
+      "category": [
+        "eval"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-eval-test-dataset",
+      "doc-eval-ground-truth",
+      "doc-eval-benchmark-suite"
+    ]
+  },
+  {
+    "query": "eval rubric design",
+    "expectedDocIds": [
+      "doc-eval-rubric-design"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-metrics-definition"
+    ],
+    "metadataFilters": {
+      "category": [
+        "eval"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-eval-rubric-design",
+      "doc-eval-metrics-definition",
+      "doc-eval-llm-judge"
+    ]
+  },
+  {
+    "query": "模型基准测试运行",
+    "expectedDocIds": [
+      "doc-eval-benchmark-suite"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-model-comparison"
+    ],
+    "metadataFilters": {
+      "category": [
+        "eval"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-eval-benchmark-suite",
+      "doc-eval-model-comparison",
+      "doc-eval-pipeline-automation"
+    ]
+  },
+  {
+    "query": "retrieval recall vs precision",
+    "expectedDocIds": [
+      "doc-eval-retrieval-quality"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-metrics-definition"
+    ],
+    "metadataFilters": {
+      "category": [
+        "eval"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-eval-retrieval-quality",
+      "doc-eval-metrics-definition",
+      "doc-rag-hybrid-retrieval"
+    ]
+  },
+  {
+    "query": "rate limiting",
+    "expectedDocIds": [
+      "doc-api-rate-limiting"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-throttling"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-rate-limiting",
+      "doc-api-throttling",
+      "doc-api-quota-management"
+    ]
+  },
+  {
+    "query": "API 版本管理",
+    "expectedDocIds": [
+      "doc-api-versioning"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-deprecation"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-versioning",
+      "doc-api-deprecation",
+      "doc-api-endpoint-design"
+    ]
+  },
+  {
+    "query": "webhook configuration",
+    "expectedDocIds": [
+      "doc-api-webhook-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-callback-handling"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-webhook-config",
+      "doc-api-callback-handling",
+      "doc-api-endpoint-design"
+    ]
+  },
+  {
+    "query": "端点设计规范",
+    "expectedDocIds": [
+      "doc-api-endpoint-design"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-versioning"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-endpoint-design",
+      "doc-api-versioning",
+      "doc-api-schema-validation"
+    ]
+  },
+  {
+    "query": "schema validation",
+    "expectedDocIds": [
+      "doc-api-schema-validation"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-endpoint-design"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-schema-validation",
+      "doc-api-endpoint-design",
+      "doc-tool-schema-definition"
+    ]
+  },
+  {
+    "query": "API 错误码规范",
+    "expectedDocIds": [
+      "doc-api-error-codes"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-endpoint-design"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-error-codes",
+      "doc-api-endpoint-design",
+      "doc-api-schema-validation"
+    ]
+  },
+  {
+    "query": "streaming response",
+    "expectedDocIds": [
+      "doc-api-streaming-response"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-streaming"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-streaming-response",
+      "doc-agent-streaming",
+      "doc-api-endpoint-design"
+    ]
+  },
+  {
+    "query": "API 配额管理",
+    "expectedDocIds": [
+      "doc-api-quota-management"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-rate-limiting"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-quota-management",
+      "doc-api-rate-limiting",
+      "doc-billing-usage-metering"
+    ]
+  },
+  {
+    "query": "pagination design",
+    "expectedDocIds": [
+      "doc-api-pagination"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-endpoint-design"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-pagination",
+      "doc-api-endpoint-design",
+      "doc-api-schema-validation"
+    ]
+  },
+  {
+    "query": "API 回调处理",
+    "expectedDocIds": [
+      "doc-api-callback-handling"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-webhook-config"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-callback-handling",
+      "doc-api-webhook-config",
+      "doc-api-endpoint-design"
+    ]
+  },
+  {
+    "query": "How to handle API rate limit errors?",
+    "expectedDocIds": [
+      "doc-api-rate-limiting"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-throttling"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-rate-limiting",
+      "doc-api-throttling",
+      "doc-api-error-codes"
+    ]
+  },
+  {
+    "query": "API 废弃策略",
+    "expectedDocIds": [
+      "doc-api-deprecation"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-versioning"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-deprecation",
+      "doc-api-versioning",
+      "doc-api-endpoint-design"
+    ]
+  },
+  {
+    "query": "What is the difference between rate limiting and throttling?",
+    "expectedDocIds": [
+      "doc-api-rate-limiting",
+      "doc-api-throttling"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-quota-management"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-rate-limiting",
+      "doc-api-throttling",
+      "doc-api-quota-management"
+    ]
+  },
+  {
+    "query": "请求重试策略",
+    "expectedDocIds": [
+      "doc-api-retry-strategy"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-error-codes"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-retry-strategy",
+      "doc-api-error-codes",
+      "doc-api-rate-limiting"
+    ]
+  },
+  {
+    "query": "How to design idempotent API endpoints?",
+    "expectedDocIds": [
+      "doc-api-idempotency"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-endpoint-design"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-idempotency",
+      "doc-api-endpoint-design",
+      "doc-api-retry-strategy"
+    ]
+  },
+  {
+    "query": "批量请求 API",
+    "expectedDocIds": [
+      "doc-api-batch-requests"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-endpoint-design"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-batch-requests",
+      "doc-api-endpoint-design",
+      "doc-api-pagination"
+    ]
+  },
+  {
+    "query": "API documentation generation",
+    "expectedDocIds": [
+      "doc-api-documentation"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-endpoint-design"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-documentation",
+      "doc-api-endpoint-design",
+      "doc-api-schema-validation"
+    ]
+  },
+  {
+    "query": "GraphQL vs REST 选择",
+    "expectedDocIds": [
+      "doc-api-graphql-rest"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-endpoint-design"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-graphql-rest",
+      "doc-api-endpoint-design",
+      "doc-api-schema-validation"
+    ]
+  },
+  {
+    "query": "How does SSE streaming work in the API?",
+    "expectedDocIds": [
+      "doc-api-streaming-response"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-webhook-config"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-streaming-response",
+      "doc-api-webhook-config",
+      "doc-agent-streaming"
+    ]
+  },
+  {
+    "query": "API 限流算法",
+    "expectedDocIds": [
+      "doc-api-throttling"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-rate-limiting"
+    ],
+    "metadataFilters": {
+      "category": [
+        "api"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-api-throttling",
+      "doc-api-rate-limiting",
+      "doc-api-quota-management"
+    ]
+  },
+  {
+    "query": "webhook retry policy",
+    "expectedDocIds": [
+      "doc-api-webhook-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-retry-strategy"
+    ],
+    "metadataFilters": {
+      "category": [
+        "api"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-api-webhook-config",
+      "doc-api-retry-strategy",
+      "doc-api-callback-handling"
+    ]
+  },
+  {
+    "query": "API key 权限范围",
+    "expectedDocIds": [
+      "doc-api-key-scopes"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-api-key-auth"
+    ],
+    "metadataFilters": {
+      "category": [
+        "api"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-api-key-scopes",
+      "doc-auth-api-key-auth",
+      "doc-api-rate-limiting"
+    ]
+  },
+  {
+    "query": "OpenAPI spec generation",
+    "expectedDocIds": [
+      "doc-api-documentation"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-schema-validation"
+    ],
+    "metadataFilters": {
+      "category": [
+        "api"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-api-documentation",
+      "doc-api-schema-validation",
+      "doc-api-endpoint-design"
+    ]
+  },
+  {
+    "query": "环境变量配置",
+    "expectedDocIds": [
+      "doc-config-env-variables"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-runtime-config"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-env-variables",
+      "doc-config-runtime-config",
+      "doc-config-server-setup"
+    ]
+  },
+  {
+    "query": "server setup guide",
+    "expectedDocIds": [
+      "doc-config-server-setup"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-deployment"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-server-setup",
+      "doc-config-deployment",
+      "doc-config-env-variables"
+    ]
+  },
+  {
+    "query": "Docker 部署",
+    "expectedDocIds": [
+      "doc-config-docker-deploy"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-kubernetes-deploy"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-docker-deploy",
+      "doc-config-kubernetes-deploy",
+      "doc-config-deployment"
+    ]
+  },
+  {
+    "query": "runtime configuration",
+    "expectedDocIds": [
+      "doc-config-runtime-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-env-variables"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-runtime-config",
+      "doc-config-env-variables",
+      "doc-config-feature-flags"
+    ]
+  },
+  {
+    "query": "数据库迁移",
+    "expectedDocIds": [
+      "doc-config-db-migration"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-server-setup"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-db-migration",
+      "doc-config-server-setup",
+      "doc-config-deployment"
+    ]
+  },
+  {
+    "query": "feature flags",
+    "expectedDocIds": [
+      "doc-config-feature-flags"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-runtime-config"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-feature-flags",
+      "doc-config-runtime-config",
+      "doc-config-env-variables"
+    ]
+  },
+  {
+    "query": "K8s 部署配置",
+    "expectedDocIds": [
+      "doc-config-kubernetes-deploy"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-docker-deploy"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-kubernetes-deploy",
+      "doc-config-docker-deploy",
+      "doc-config-deployment"
+    ]
+  },
+  {
+    "query": "SSL setup",
+    "expectedDocIds": [
+      "doc-config-ssl-setup"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-tls-config"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-ssl-setup",
+      "doc-security-tls-config",
+      "doc-config-server-setup"
+    ]
+  },
+  {
+    "query": "日志输出配置",
+    "expectedDocIds": [
+      "doc-config-logging-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-log-aggregation"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-logging-config",
+      "doc-observability-log-aggregation",
+      "doc-config-env-variables"
+    ]
+  },
+  {
+    "query": "deployment strategy",
+    "expectedDocIds": [
+      "doc-config-deployment"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-server-setup"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-deployment",
+      "doc-config-server-setup",
+      "doc-config-kubernetes-deploy"
+    ]
+  },
+  {
+    "query": "如何配置多环境",
+    "expectedDocIds": [
+      "doc-config-multi-env"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-env-variables"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-multi-env",
+      "doc-config-env-variables",
+      "doc-config-feature-flags"
+    ]
+  },
+  {
+    "query": "CORS configuration in config",
+    "expectedDocIds": [
+      "doc-config-cors-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-cors-policy"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-cors-config",
+      "doc-security-cors-policy",
+      "doc-config-server-setup"
+    ]
+  },
+  {
+    "query": "How to set up a development environment?",
+    "expectedDocIds": [
+      "doc-config-dev-setup"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-server-setup"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-dev-setup",
+      "doc-config-server-setup",
+      "doc-config-env-variables"
+    ]
+  },
+  {
+    "query": "模型配置参数",
+    "expectedDocIds": [
+      "doc-config-model-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-runtime-config"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-model-config",
+      "doc-config-runtime-config",
+      "doc-config-env-variables"
+    ]
+  },
+  {
+    "query": "How to configure proxy settings?",
+    "expectedDocIds": [
+      "doc-config-proxy-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-server-setup"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-proxy-config",
+      "doc-config-server-setup",
+      "doc-config-env-variables"
+    ]
+  },
+  {
+    "query": "配置热更新",
+    "expectedDocIds": [
+      "doc-config-hot-reload"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-runtime-config"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-hot-reload",
+      "doc-config-runtime-config",
+      "doc-config-feature-flags"
+    ]
+  },
+  {
+    "query": "database connection pooling config",
+    "expectedDocIds": [
+      "doc-config-db-connection-pool"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-db-migration"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-db-connection-pool",
+      "doc-config-db-migration",
+      "doc-config-server-setup"
+    ]
+  },
+  {
+    "query": "CI/CD 管道配置",
+    "expectedDocIds": [
+      "doc-config-cicd-pipeline"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-deployment"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-cicd-pipeline",
+      "doc-config-deployment",
+      "doc-config-docker-deploy"
+    ]
+  },
+  {
+    "query": "How to manage secrets in different environments?",
+    "expectedDocIds": [
+      "doc-config-secret-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-secret-management"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-secret-config",
+      "doc-security-secret-management",
+      "doc-config-env-variables"
+    ]
+  },
+  {
+    "query": "功能开关使用",
+    "expectedDocIds": [
+      "doc-config-feature-flags"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-runtime-config"
+    ],
+    "metadataFilters": {
+      "category": [
+        "config"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-config-feature-flags",
+      "doc-config-runtime-config",
+      "doc-config-env-variables"
+    ]
+  },
+  {
+    "query": "Docker compose 配置",
+    "expectedDocIds": [
+      "doc-config-docker-deploy"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-kubernetes-deploy"
+    ],
+    "metadataFilters": {
+      "category": [
+        "config"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-config-docker-deploy",
+      "doc-config-kubernetes-deploy",
+      "doc-config-deployment"
+    ]
+  },
+  {
+    "query": "environment variable override",
+    "expectedDocIds": [
+      "doc-config-env-variables"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-multi-env"
+    ],
+    "metadataFilters": {
+      "category": [
+        "config"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-config-env-variables",
+      "doc-config-multi-env",
+      "doc-config-runtime-config"
+    ]
+  },
+  {
+    "query": "数据库连接字符串",
+    "expectedDocIds": [
+      "doc-config-db-connection-pool"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-env-variables"
+    ],
+    "metadataFilters": {
+      "category": [
+        "config"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-config-db-connection-pool",
+      "doc-config-env-variables",
+      "doc-config-db-migration"
+    ]
+  },
+  {
+    "query": "工单提交",
+    "expectedDocIds": [
+      "doc-support-ticket-submission"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-ticket-escalation"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-support-ticket-submission",
+      "doc-support-ticket-escalation",
+      "doc-support-faq"
+    ]
+  },
+  {
+    "query": "ticket escalation",
+    "expectedDocIds": [
+      "doc-support-ticket-escalation"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-ticket-submission"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-support-ticket-escalation",
+      "doc-support-ticket-submission",
+      "doc-support-sla-policy"
+    ]
+  },
+  {
+    "query": "常见问题解答",
+    "expectedDocIds": [
+      "doc-support-faq"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-knowledge-base"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-support-faq",
+      "doc-support-knowledge-base",
+      "doc-support-troubleshooting"
+    ]
+  },
+  {
+    "query": "knowledge base",
+    "expectedDocIds": [
+      "doc-support-knowledge-base"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-faq"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-support-knowledge-base",
+      "doc-support-faq",
+      "doc-support-documentation"
+    ]
+  },
+  {
+    "query": "故障排查指南",
+    "expectedDocIds": [
+      "doc-support-troubleshooting"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-faq"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-support-troubleshooting",
+      "doc-support-faq",
+      "doc-support-known-issues"
+    ]
+  },
+  {
+    "query": "SLA policy",
+    "expectedDocIds": [
+      "doc-support-sla-policy"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-ticket-escalation"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-support-sla-policy",
+      "doc-support-ticket-escalation",
+      "doc-support-priority-levels"
+    ]
+  },
+  {
+    "query": "联系客服",
+    "expectedDocIds": [
+      "doc-support-contact-channels"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-ticket-submission"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-support-contact-channels",
+      "doc-support-ticket-submission",
+      "doc-support-faq"
+    ]
+  },
+  {
+    "query": "known issues",
+    "expectedDocIds": [
+      "doc-support-known-issues"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-troubleshooting"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-support-known-issues",
+      "doc-support-troubleshooting",
+      "doc-support-faq"
+    ]
+  },
+  {
+    "query": "文档中心",
+    "expectedDocIds": [
+      "doc-support-documentation"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-knowledge-base"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-support-documentation",
+      "doc-support-knowledge-base",
+      "doc-support-faq"
+    ]
+  },
+  {
+    "query": "priority levels",
+    "expectedDocIds": [
+      "doc-support-priority-levels"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-sla-policy"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-support-priority-levels",
+      "doc-support-sla-policy",
+      "doc-support-ticket-escalation"
+    ]
+  },
+  {
+    "query": "How to submit a support ticket?",
+    "expectedDocIds": [
+      "doc-support-ticket-submission"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-contact-channels"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-support-ticket-submission",
+      "doc-support-contact-channels",
+      "doc-support-faq"
+    ]
+  },
+  {
+    "query": "服务中断通知",
+    "expectedDocIds": [
+      "doc-support-incident-notice"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-known-issues"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-support-incident-notice",
+      "doc-support-known-issues",
+      "doc-support-sla-policy"
+    ]
+  },
+  {
+    "query": "What is the response time for critical tickets?",
+    "expectedDocIds": [
+      "doc-support-sla-policy"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-priority-levels"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-support-sla-policy",
+      "doc-support-priority-levels",
+      "doc-support-ticket-escalation"
+    ]
+  },
+  {
+    "query": "更新日志",
+    "expectedDocIds": [
+      "doc-support-changelog"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-documentation"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-support-changelog",
+      "doc-support-documentation",
+      "doc-support-known-issues"
+    ]
+  },
+  {
+    "query": "How do I check service status?",
+    "expectedDocIds": [
+      "doc-support-status-page"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-incident-notice"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-support-status-page",
+      "doc-support-incident-notice",
+      "doc-observability-health-check"
+    ]
+  },
+  {
+    "query": "社区论坛",
+    "expectedDocIds": [
+      "doc-support-community-forum"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-contact-channels"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-support-community-forum",
+      "doc-support-contact-channels",
+      "doc-support-faq"
+    ]
+  },
+  {
+    "query": "migration guide",
+    "expectedDocIds": [
+      "doc-support-migration-guide"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-documentation"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-support-migration-guide",
+      "doc-support-documentation",
+      "doc-config-db-migration"
+    ]
+  },
+  {
+    "query": "功能请求提交",
+    "expectedDocIds": [
+      "doc-support-feature-request"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-ticket-submission"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-support-feature-request",
+      "doc-support-ticket-submission",
+      "doc-support-community-forum"
+    ]
+  },
+  {
+    "query": "How to report a bug?",
+    "expectedDocIds": [
+      "doc-support-bug-report"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-ticket-submission"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-support-bug-report",
+      "doc-support-ticket-submission",
+      "doc-support-known-issues"
+    ]
+  },
+  {
+    "query": "计费争议如何处理",
+    "expectedDocIds": [
+      "doc-billing-dispute-resolution"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-refund-policy"
+    ],
+    "metadataFilters": {
+      "category": [
+        "billing"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-billing-dispute-resolution",
+      "doc-billing-refund-policy",
+      "doc-support-ticket-escalation"
+    ]
+  },
+  {
+    "query": "API 文档在哪",
+    "expectedDocIds": [
+      "doc-support-documentation",
+      "doc-api-documentation"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-faq"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-support-documentation",
+      "doc-api-documentation",
+      "doc-support-faq"
+    ]
+  },
+  {
+    "query": "工单状态查询",
+    "expectedDocIds": [
+      "doc-support-ticket-tracking"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-ticket-submission"
+    ],
+    "metadataFilters": {
+      "category": [
+        "support"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-support-ticket-tracking",
+      "doc-support-ticket-submission",
+      "doc-support-ticket-escalation"
+    ]
+  },
+  {
+    "query": "support SLA tier comparison",
+    "expectedDocIds": [
+      "doc-support-sla-policy"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-priority-levels"
+    ],
+    "metadataFilters": {
+      "category": [
+        "support"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-support-sla-policy",
+      "doc-support-priority-levels",
+      "doc-billing-pricing-tiers"
+    ]
+  },
+  {
+    "query": "已知缺陷列表",
+    "expectedDocIds": [
+      "doc-support-known-issues"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-changelog"
+    ],
+    "metadataFilters": {
+      "category": [
+        "support"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-support-known-issues",
+      "doc-support-changelog",
+      "doc-support-troubleshooting"
+    ]
+  },
+  {
+    "query": "onboarding tutorial",
+    "expectedDocIds": [
+      "doc-support-onboarding"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-documentation"
+    ],
+    "metadataFilters": {
+      "category": [
+        "support"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-support-onboarding",
+      "doc-support-documentation",
+      "doc-support-faq"
+    ]
+  },
+  {
+    "query": "如何从旧版迁移到新版",
+    "expectedDocIds": [
+      "doc-support-migration-guide"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-changelog"
+    ],
+    "metadataFilters": {
+      "category": [
+        "support"
+      ]
+    },
+    "mockRankedDocIds": [
+      "doc-support-migration-guide",
+      "doc-support-changelog",
+      "doc-config-db-migration"
+    ]
+  },
+  {
+    "query": "Redis sentinel 配置",
+    "expectedDocIds": [
+      "doc-memory-redis-failover"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-redis-cache"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-redis-failover",
+      "doc-memory-redis-cache",
+      "doc-config-server-setup"
+    ]
+  },
+  {
+    "query": "embedding 维度选择",
+    "expectedDocIds": [
+      "doc-rag-embedding-model"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-pgvector-config"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-embedding-model",
+      "doc-rag-pgvector-config",
+      "doc-rag-vector-index"
+    ]
+  },
+  {
+    "query": "agent loop timeout",
+    "expectedDocIds": [
+      "doc-agent-timeout-handling"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-planning-loop"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-timeout-handling",
+      "doc-agent-planning-loop",
+      "doc-agent-error-recovery"
+    ]
+  },
+  {
+    "query": "文档索引更新频率",
+    "expectedDocIds": [
+      "doc-rag-index-refresh"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-document-ingestion"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-index-refresh",
+      "doc-rag-document-ingestion",
+      "doc-rag-vector-index"
+    ]
+  },
+  {
+    "query": "How to configure custom alert thresholds?",
+    "expectedDocIds": [
+      "doc-observability-alerting"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-custom-metrics"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-observability-alerting",
+      "doc-observability-custom-metrics",
+      "doc-observability-dashboard"
+    ]
+  },
+  {
+    "query": "token 计数方式",
+    "expectedDocIds": [
+      "doc-memory-token-budget"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-usage-metering"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-token-budget",
+      "doc-billing-usage-metering",
+      "doc-memory-context-window"
+    ]
+  },
+  {
+    "query": "how to run eval locally",
+    "expectedDocIds": [
+      "doc-eval-pipeline-automation"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-benchmark-suite"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-eval-pipeline-automation",
+      "doc-eval-benchmark-suite",
+      "doc-config-dev-setup"
+    ]
+  },
+  {
+    "query": "API 鉴权方式",
+    "expectedDocIds": [
+      "doc-auth-api-key-auth"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-oauth2-config"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-auth-api-key-auth",
+      "doc-auth-oauth2-config",
+      "doc-api-key-scopes"
+    ]
+  },
+  {
+    "query": "chunk overlap setting",
+    "expectedDocIds": [
+      "doc-rag-chunking-strategy"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-document-parsing"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-chunking-strategy",
+      "doc-rag-document-parsing",
+      "doc-rag-hybrid-retrieval"
+    ]
+  },
+  {
+    "query": "怎么查看 Agent 执行轨迹",
+    "expectedDocIds": [
+      "doc-observability-distributed-tracing"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-reasoning-chain"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-observability-distributed-tracing",
+      "doc-agent-reasoning-chain",
+      "doc-observability-span-analysis"
+    ]
+  },
+  {
+    "query": "billing webhook events",
+    "expectedDocIds": [
+      "doc-billing-webhook-events"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-webhook-config"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-billing-webhook-events",
+      "doc-api-webhook-config",
+      "doc-billing-invoice-generation"
+    ]
+  },
+  {
+    "query": "安全头部配置",
+    "expectedDocIds": [
+      "doc-security-http-headers"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-cors-config"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-security-http-headers",
+      "doc-config-cors-config",
+      "doc-security-cors-policy"
+    ]
+  },
+  {
+    "query": "multi-tenant isolation",
+    "expectedDocIds": [
+      "doc-security-multi-tenant"
+    ],
+    "hardNegativeDocIds": [
+      "doc-security-access-control"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-security-multi-tenant",
+      "doc-security-access-control",
+      "doc-auth-rbac"
+    ]
+  },
+  {
+    "query": "model temperature setting",
+    "expectedDocIds": [
+      "doc-config-model-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-runtime-config"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-model-config",
+      "doc-config-runtime-config",
+      "doc-agent-prompt-template"
+    ]
+  },
+  {
+    "query": "缓存穿透处理",
+    "expectedDocIds": [
+      "doc-memory-cache-invalidation"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-redis-cache"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-cache-invalidation",
+      "doc-memory-redis-cache",
+      "doc-memory-cache-warmup"
+    ]
+  },
+  {
+    "query": "How to debug agent tool failures?",
+    "expectedDocIds": [
+      "doc-agent-error-recovery"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-error-handling"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-tool-error-handling",
+      "doc-agent-error-recovery",
+      "doc-observability-error-tracking"
+    ]
+  },
+  {
+    "query": "向量搜索性能优化",
+    "expectedDocIds": [
+      "doc-rag-performance-tuning"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-vector-index"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-performance-tuning",
+      "doc-rag-vector-index",
+      "doc-rag-pgvector-config"
+    ]
+  },
+  {
+    "query": "API request body size limit",
+    "expectedDocIds": [
+      "doc-api-request-limits"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-rate-limiting"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-request-limits",
+      "doc-api-rate-limiting",
+      "doc-api-schema-validation"
+    ]
+  },
+  {
+    "query": "对话摘要生成",
+    "expectedDocIds": [
+      "doc-memory-compaction"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-conversation-history"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-compaction",
+      "doc-memory-conversation-history",
+      "doc-memory-context-window"
+    ]
+  },
+  {
+    "query": "eval dataset format",
+    "expectedDocIds": [
+      "doc-eval-test-dataset"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-ground-truth"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-eval-test-dataset",
+      "doc-eval-ground-truth",
+      "doc-eval-benchmark-suite"
+    ]
+  },
+  {
+    "query": "工具沙箱安全策略",
+    "expectedDocIds": [
+      "doc-agent-tool-sandbox"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-sandbox-fs"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-tool-sandbox",
+      "doc-tool-sandbox-fs",
+      "doc-security-access-control"
+    ]
+  },
+  {
+    "query": "How to configure webhook retry backoff?",
+    "expectedDocIds": [
+      "doc-api-webhook-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-retry-strategy"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-webhook-config",
+      "doc-api-retry-strategy",
+      "doc-api-callback-handling"
+    ]
+  },
+  {
+    "query": "日志格式化标准",
+    "expectedDocIds": [
+      "doc-config-logging-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-log-aggregation"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-logging-config",
+      "doc-observability-log-aggregation",
+      "doc-observability-log-search"
+    ]
+  },
+  {
+    "query": "auto-scaling configuration",
+    "expectedDocIds": [
+      "doc-config-auto-scaling"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-kubernetes-deploy"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-auto-scaling",
+      "doc-config-kubernetes-deploy",
+      "doc-config-deployment"
+    ]
+  },
+  {
+    "query": "检索增强生成原理",
+    "expectedDocIds": [
+      "doc-rag-hybrid-retrieval"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-semantic-search"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-hybrid-retrieval",
+      "doc-rag-semantic-search",
+      "doc-rag-context-injection"
+    ]
+  },
+  {
+    "query": "How to export billing data?",
+    "expectedDocIds": [
+      "doc-billing-invoice-generation"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-billing-cycle"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-billing-invoice-generation",
+      "doc-billing-billing-cycle",
+      "doc-billing-usage-metering"
+    ]
+  },
+  {
+    "query": "Agent 链式调用",
+    "expectedDocIds": [
+      "doc-agent-reasoning-chain"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-tool-selection"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-reasoning-chain",
+      "doc-agent-tool-selection",
+      "doc-agent-planning-loop"
+    ]
+  },
+  {
+    "query": "cross-origin resource sharing",
+    "expectedDocIds": [
+      "doc-security-cors-policy"
+    ],
+    "hardNegativeDocIds": [
+      "doc-config-cors-config"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-security-cors-policy",
+      "doc-config-cors-config",
+      "doc-security-http-headers"
+    ]
+  },
+  {
+    "query": "回调 URL 验证",
+    "expectedDocIds": [
+      "doc-api-callback-handling"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-webhook-config"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-callback-handling",
+      "doc-api-webhook-config",
+      "doc-security-ip-whitelist"
+    ]
+  },
+  {
+    "query": "support ticket SLA tracking",
+    "expectedDocIds": [
+      "doc-support-sla-policy"
+    ],
+    "hardNegativeDocIds": [
+      "doc-support-ticket-tracking"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-support-sla-policy",
+      "doc-support-ticket-tracking",
+      "doc-support-priority-levels"
+    ]
+  },
+  {
+    "query": "如何切换模型",
+    "expectedDocIds": [
+      "doc-config-model-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-model-comparison"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-model-config",
+      "doc-eval-model-comparison",
+      "doc-config-runtime-config"
+    ]
+  },
+  {
+    "query": "vector similarity threshold",
+    "expectedDocIds": [
+      "doc-rag-semantic-search"
+    ],
+    "hardNegativeDocIds": [
+      "doc-rag-hybrid-retrieval"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-semantic-search",
+      "doc-rag-hybrid-retrieval",
+      "doc-rag-pgvector-config"
+    ]
+  },
+  {
+    "query": "账户冻结解冻",
+    "expectedDocIds": [
+      "doc-auth-account-lockout"
+    ],
+    "hardNegativeDocIds": [
+      "doc-billing-subscription-cancel"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-auth-account-lockout",
+      "doc-billing-subscription-cancel",
+      "doc-auth-password-reset"
+    ]
+  },
+  {
+    "query": "How to implement custom tool middleware?",
+    "expectedDocIds": [
+      "doc-tool-custom-development"
+    ],
+    "hardNegativeDocIds": [
+      "doc-tool-registration"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-tool-custom-development",
+      "doc-tool-registration",
+      "doc-tool-mcp-integration"
+    ]
+  },
+  {
+    "query": "Grafana dashboard 模板",
+    "expectedDocIds": [
+      "doc-observability-dashboard"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-metrics-collection"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-observability-dashboard",
+      "doc-observability-metrics-collection",
+      "doc-observability-custom-metrics"
+    ]
+  },
+  {
+    "query": "幂等性设计",
+    "expectedDocIds": [
+      "doc-api-idempotency"
+    ],
+    "hardNegativeDocIds": [
+      "doc-api-retry-strategy"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-api-idempotency",
+      "doc-api-retry-strategy",
+      "doc-api-endpoint-design"
+    ]
+  },
+  {
+    "query": "context window size limits",
+    "expectedDocIds": [
+      "doc-memory-context-window"
+    ],
+    "hardNegativeDocIds": [
+      "doc-memory-token-budget"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-memory-context-window",
+      "doc-memory-token-budget",
+      "doc-config-model-config"
+    ]
+  },
+  {
+    "query": "密码复杂度要求",
+    "expectedDocIds": [
+      "doc-auth-password-policy"
+    ],
+    "hardNegativeDocIds": [
+      "doc-auth-password-reset"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-auth-password-policy",
+      "doc-auth-password-reset",
+      "doc-auth-account-lockout"
+    ]
+  },
+  {
+    "query": "How to debug RAG retrieval issues?",
+    "expectedDocIds": [
+      "doc-rag-performance-tuning"
+    ],
+    "hardNegativeDocIds": [
+      "doc-eval-retrieval-quality"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-rag-performance-tuning",
+      "doc-eval-retrieval-quality",
+      "doc-rag-hybrid-retrieval"
+    ]
+  },
+  {
+    "query": "服务降级策略",
+    "expectedDocIds": [
+      "doc-agent-fallback-strategy"
+    ],
+    "hardNegativeDocIds": [
+      "doc-agent-error-recovery"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-agent-fallback-strategy",
+      "doc-agent-error-recovery",
+      "doc-observability-health-check"
+    ]
+  },
+  {
+    "query": "structured logging format",
+    "expectedDocIds": [
+      "doc-config-logging-config"
+    ],
+    "hardNegativeDocIds": [
+      "doc-observability-log-aggregation"
+    ],
+    "metadataFilters": {},
+    "mockRankedDocIds": [
+      "doc-config-logging-config",
+      "doc-observability-log-aggregation",
+      "doc-config-env-variables"
+    ]
+  }
 ]

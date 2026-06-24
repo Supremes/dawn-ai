@@ -1,4 +1,4 @@
-package com.dawn.ai.rag.evaluation;
+package com.dawn.ai.evaluation.retrieval;
 
 import java.util.List;
 import java.util.Map;

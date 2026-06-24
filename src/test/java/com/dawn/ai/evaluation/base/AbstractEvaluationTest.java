@@ -147,6 +147,11 @@ public abstract class AbstractEvaluationTest {
             ));
 
             log.info("[Evaluation] report written to {}", path);
+
+            // Generate HTML report alongside the JSON report
+            com.dawn.ai.evaluation.report.HtmlReportWriter.write(
+                    report, RUN_ID, dimension().id(), java.nio.file.Path.of("target/evaluation-reports"));
+            log.info("[Evaluation] HTML report written to target/evaluation-reports/{}-{}.html", RUN_ID, dimension().id());
         } catch (Exception e) {
             log.warn("[Evaluation] failed to write local report: {}", e.getMessage());
         }

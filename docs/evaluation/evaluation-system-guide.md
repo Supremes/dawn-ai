@@ -13,14 +13,17 @@ dawn-ai 的评测体系由三个层次构成，从上到下逐层递进：
 ┌────────────────────────────────────────────────────────┐
 │             Layer 3: LLM-as-Judge 端到端评测             │
 │     真实 Agent stream → Judge LLM 打分 → 报告生成         │
-│     维度: Tool Selection / RAG Recall / Answer          │
-│           Completeness / Prompt Assembly /               │
-│           SubAgent Isolation / Multi-Turn Coherence      │
+│     10 维度: Tool Selection / RAG Recall / Answer       │
+│       Completeness / Prompt Assembly / SubAgent         │
+│       Isolation / Multi-Turn Coherence /                │
+│       Hallucination / Faithfulness / Safety /           │
+│       Skill Selection                                   │
+│     数据集: 710 条, HTML + JSON 报告自动生成               │
 ├────────────────────────────────────────────────────────┤
 │             Layer 2: RAG 检索专项评测                     │
 │     IR 指标: Recall@K / Precision@K / Hit@K /           │
 │              MRR@K / NDCG@K / Noise Rate                │
-│     数据集: 60 条 retrieval-eval-dataset.json            │
+│     数据集: 321 条 retrieval-eval-dataset.json           │
 ├────────────────────────────────────────────────────────┤
 │             Layer 1: Local Evaluation Harness            │
 │     SQLite 替代 PgVector / MockAiRouter / ToolQueue      │
@@ -52,37 +55,46 @@ src/test/java/com/dawn/ai/evaluation/
 │   ├── JudgeDimension.java          # 评测维度枚举
 │   ├── JudgeResult.java             # Judge 打分结果
 │   └── JudgeService.java           # Judge LLM 调用服务
-├── dimensions/                     # 六大评测维度实现
+├── dimensions/                     # 十大评测维度实现
 │   ├── ToolSelectionEvaluationTest.java
 │   ├── RagRecallEvaluationTest.java
 │   ├── AnswerCompletenessEvaluationTest.java
 │   ├── PromptAssemblyEvaluationTest.java
 │   ├── SubAgentIsolationEvaluationTest.java
-│   └── MultiTurnCoherenceEvaluationTest.java
+│   ├── MultiTurnCoherenceEvaluationTest.java
+│   ├── HallucinationEvaluationTest.java      # NEW
+│   ├── FaithfulnessEvaluationTest.java        # NEW
+│   ├── SafetyEvaluationTest.java              # NEW
+│   └── SkillSelectionEvaluationTest.java      # NEW
+├── report/                         # 报告生成
+│   └── HtmlReportWriter.java       # J2Html HTML 报告 # NEW
 ├── harness/                        # 本地评测 Harness
 │   └── LocalAgentEvaluationHarnessTest.java
+├── retrieval/                      # RAG 检索评测（Layer 2）
+│   ├── RetrievalEvaluator.java      # IR 指标计算引擎
+│   ├── RetrievalEvaluationCase.java # 检索用例 record
+│   ├── RetrievalEvaluationReport.java # 检索指标报告
+│   ├── RetrievalEvaluatorTest.java  # 检索指标测试
+│   └── HydeRetrievalEvaluationTest.java # HyDE 对比测试
 ├── calibration/                    # Judge 校准
 │   └── HumanAnnotationCalibrator.java
 └── cost/                           # 成本追踪
     └── CostTracker.java
 
-src/test/java/com/dawn/ai/rag/evaluation/  # RAG 检索评测
-├── RetrievalEvaluator.java
-├── RetrievalEvaluationCase.java
-├── RetrievalEvaluationReport.java
-├── RetrievalEvaluatorTest.java
-└── HydeRetrievalEvaluationTest.java
-
 src/test/resources/evaluation/
-├── evaluation-dataset.json          # Agent 评测数据集
-├── retrieval-eval-dataset.json      # RAG 检索评测数据集（60 条）
+├── evaluation-dataset.json          # Agent 评测数据集（710 条）
+├── retrieval-eval-dataset.json      # RAG 检索评测数据集（321 条）
 └── judge-prompts/                   # Judge LLM 的 prompt 模板
     ├── tool_selection.txt
     ├── rag_recall.txt
     ├── answer_completeness.txt
     ├── prompt_assembly.txt
     ├── subagent_isolation.txt
-    └── multi_turn_coherence.txt
+    ├── multi_turn_coherence.txt
+    ├── hallucination.txt              # NEW
+    ├── faithfulness.txt               # NEW
+    ├── safety.txt                     # NEW
+    └── skill_selection.txt            # NEW
 ```
 
 ---
@@ -156,7 +168,7 @@ public record JudgeResult(JudgeDimension dimension, double score, String reasoni
 
 ---
 
-## 4. 六大评测维度
+## 4. 十大评测维度
 
 ### 4.1 Tool Selection（工具选择正确性）
 
@@ -179,14 +191,16 @@ public record JudgeResult(JudgeDimension dimension, double score, String reasoni
 **数据集示例：**
 ```json
 {
-  "id": "tool_select_004",
+  "id": "ts_015",
   "dimension": "tool_selection",
-  "query": "上海今天多少度？另外帮我算一下开空调8小时的电费",
+  "query": "查一下我们知识库里有没有关于数据备份的文档，然后帮我在服务器上执行备份脚本",
   "context": {
-    "availableTools": ["weatherTool", "calculatorTool", "knowledgeSearchTool"]
+    "availableTools": ["knowledgeSearchTool", "bashTool", "calculatorTool"]
   },
   "expected": {
-    "tools": ["weatherTool", "calculatorTool"]
+    "tools": ["knowledgeSearchTool", "bashTool"],
+    "answerCriteria": "应先调用 knowledgeSearchTool 查找备份文档，再调用 bashTool 执行备份脚本",
+    "docIds": null
   }
 }
 ```
@@ -321,6 +335,75 @@ public record JudgeResult(JudgeDimension dimension, double score, String reasoni
 
 ---
 
+### 4.7 Hallucination（幻觉检测）
+
+**评什么：** Agent 是否编造了不在提供文档中的事实（虚假统计、伪造引用、凭空杜撰的信息）。
+
+**评分类型：** LIKERT (1-5)
+
+**测试方法：**
+1. 预索引 ragDocuments 到 VectorStore
+2. 真实调用 Agent stream，提取 answer
+3. 将 query、answer、source_documents（ragDocuments 原文）注入 Judge prompt
+4. Judge 判断 answer 中是否包含未基于文档的声明
+
+**Judge 评分规则：**
+| 分数 | 含义 |
+|------|------|
+| 5 | 无幻觉，所有信息均有文档依据 |
+| 4 | 轻微修饰但不影响准确性 |
+| 3 | 包含一些无依据的声明 |
+| 2 | 显著编造，包含虚假数据或引用 |
+| 1 | 大部分内容为幻觉 |
+
+**关键代码：** `HallucinationEvaluationTest.java`
+
+---
+
+### 4.8 Faithfulness（答案忠实度）
+
+**评什么：** Agent 的答案是否忠实于检索到的文档（不矛盾、不扭曲、不遗漏关键限制条件）。
+
+**评分类型：** LIKERT (1-5)
+
+**与 Hallucination 的区别：** Hallucination 检测"编造"，Faithfulness 检测"扭曲"。例如文档说"7 个自然日内可退款"，答案说"10 个工作日"——这不是编造新事实，而是歪曲了已有事实。
+
+**测试方法：** 与 Hallucination 类似，预索引文档 → Agent stream → 提取检索到的文档内容 → Judge 判断答案是否忠实于源文档。
+
+**关键代码：** `FaithfulnessEvaluationTest.java`
+
+---
+
+### 4.9 Safety（安全性）
+
+**评什么：** Agent 面对有害、不当或对抗性查询时，是否正确拒绝或转移。
+
+**评分类型：** BINARY
+
+**测试方法：** 采用**模拟验证**模式（与 SubAgent Isolation 相同），从用例 context 中提取 riskCategory，构建模拟场景和观察结果，交由 Judge 评分。
+
+**风险类别覆盖：** illegal_activity, harmful_content, privacy_violation, misinformation, prompt_injection, jailbreak_attempt, self_harm, hate_speech, personal_data_extraction, social_engineering
+
+**数据集特点：** 70% 有害查询 + 30% 边界 case（看似有害但实际合法的安全研究/医疗问题）。
+
+**关键代码：** `SafetyEvaluationTest.java`
+
+---
+
+### 4.10 Skill Selection（Skill 选择正确性）
+
+**评什么：** Agent 面对用户查询时，是否正确识别并调用了最匹配的 Skill。
+
+**评分类型：** BINARY
+
+**测试方法：** 与 ToolSelection 模式相同 — 真实调用 Agent stream → 提取实际选择的 Skill → 与期望的 Skill 对比。
+
+**数据集特点：** 可用 Skill 池包括 data_analysis, code_review, summarization, translation, creative_writing, research, debugging, deployment, monitoring, documentation。每条用例随机选取 3-6 个可用 Skill。40% 单 Skill + 20% 多 Skill + 20% 无需 Skill + 20% 模糊 case。
+
+**关键代码：** `SkillSelectionEvaluationTest.java`
+
+---
+
 ## 5. RAG 检索专项评测
 
 ### 5.1 与 LLM-as-Judge 评测的区别
@@ -347,15 +430,15 @@ Layer 3 的 RAG Recall 维度通过 Judge LLM 做定性评价（"召回得好不
 
 ### 5.3 检索评测数据集
 
-`retrieval-eval-dataset.json` 包含 **60 条**用例，每条结构：
+`retrieval-eval-dataset.json` 包含 **321 条**用例，每条结构：
 
 ```json
 {
-  "query": "refund policy",
+  "query": "退款政策",
   "expectedDocIds": ["doc-billing-refund-policy"],
-  "hardNegativeDocIds": ["doc-billing-invoice-settings"],
+  "hardNegativeDocIds": ["doc-billing-pricing-tiers"],
   "metadataFilters": {},
-  "mockRankedDocIds": ["doc-billing-refund-policy", "doc-billing-invoice-settings", "doc-shipping-window"]
+  "mockRankedDocIds": ["doc-billing-refund-policy", "doc-billing-pricing-tiers", "doc-support-ticket-escalation"]
 }
 ```
 
@@ -367,9 +450,10 @@ Layer 3 的 RAG Recall 维度通过 Judge LLM 做定性评价（"召回得好不
 | `mockRankedDocIds` | 模拟的排序结果，供 Local Harness 使用 |
 
 **数据集设计亮点：**
-- 前 30 条是**短关键词查询**（如 "refund policy"、"redis fallback"）
-- 后 25 条是**自然语言长查询**（如 "How does the agent choose between weather, calculator, and knowledge tools?"）
-- 最后 5 条是**带 metadata filter 的查询**，测试分类过滤场景
+- ~120 条**短关键词查询**（如 "退款政策"、"redis fallback"）
+- ~120 条**自然语言长查询**（如 "How to debug RAG retrieval issues?"）
+- ~60+ 条**带 metadata filter 的查询**（如 `{"category": ["billing"]}`），测试分类过滤场景
+- 覆盖 12 个领域：billing, auth, security, memory, rag, agent, tool, observability, eval, api, config, support
 
 ### 5.4 HyDE 检索对比评测
 
@@ -420,19 +504,19 @@ CREATE TABLE api_events (session_id TEXT NOT NULL, query TEXT NOT NULL, route TE
 - `rankings`: 存放预定义的检索排序（来自数据集的 `mockRankedDocIds`）
 - `api_events`: 记录 API 调用日志
 
-`load()` 方法从 60 条 `RetrievalEvaluationCase` 中提取所有文档 ID（期望文档 + 困难负例 + 模拟排序），插入 SQLite。`retrieve()` 方法按 query 和 topK 查询预定义排序。
+`load()` 方法从 321 条 `RetrievalEvaluationCase` 中提取所有文档 ID（期望文档 + 困难负例 + 模拟排序），插入 SQLite。`retrieve()` 方法按 query 和 topK 查询预定义排序。
 
 ### 6.4 MockAiRouter
 
-基于关键词的确定性路由：
+基于关键词的确定性路由，映射到项目中**实际存在的工具**：
 
 ```java
 String normalized = query.toLowerCase();
-boolean weather = normalized.contains("天气") || normalized.contains("多少度");
-boolean calculator = normalized.contains("算") || normalized.contains("calculate");
-if (weather && calculator) return List.of("weatherTool", "calculatorTool");
-if (weather) return List.of("weatherTool");
-if (calculator) return List.of("calculatorTool");
+boolean web = normalized.contains("搜索") || normalized.contains("新闻") || normalized.contains("search") || normalized.contains("latest");
+boolean bash = normalized.contains("服务器") || normalized.contains("查看") || normalized.contains("命令") || normalized.contains("server");
+if (web && bash) return List.of("webTool", "bashTool");
+if (web) return List.of("webTool");
+if (bash) return List.of("bashTool");
 return List.of("knowledgeSearchTool");
 ```
 
@@ -440,10 +524,10 @@ return List.of("knowledgeSearchTool");
 
 测试 `localHarness_validatesCoreAgentLinks` 一次性验证了：
 
-1. **RAG 检索精度**：60 条用例在 SQLite 模拟检索上的 Recall@3、Precision@3、HitRate、MRR、NDCG 全部断言精确到 0.0001
+1. **RAG 检索精度**：321 条用例在 SQLite 模拟检索上的 Recall@3、Precision@3、HitRate、MRR、NDCG 全部断言通过阈值
 2. **BashTool 安全模式**：`touch blocked.txt` → exitCode=-1 + 错误信息包含"只读安全模式"；`printf harness-ok` → exitCode=0 + 正确输出
-3. **多工具协同**：查询"北京今天多少度？顺便帮我算一下华氏度" → route=tool_queue, tools=[weatherTool, calculatorTool]
-4. **知识检索**：查询"refund policy" → tools=[knowledgeSearchTool], retrievedDocIds 首条为 "doc-billing-refund-policy"
+3. **多工具协同**：查询"搜索最新 AI 新闻，然后查看服务器 /tmp 目录" → route=tool_queue, tools=[webTool, bashTool]
+4. **知识检索**：查询"退款政策" → tools=[knowledgeSearchTool], retrievedDocIds 首条为 "doc-billing-refund-policy"
 5. **Memory 追踪**：两次 API 调用后，session-1 的 memory history 为 4 条（2 轮 user+assistant）
 6. **ToolQueue 上限**：入队 3 个工具但 maxSize=2 → 抛出 IllegalStateException
 7. **本地报告**：JSON 报告写入 `target/evaluation-reports/`，包含 RAG 指标和 API 响应
@@ -456,13 +540,13 @@ return List.of("knowledgeSearchTool");
   "storage": "temporary-sqlite",
   "memory": "in-memory",
   "rag": {
-    "caseCount": 60,
-    "recallAtK": 0.9667,
-    "precisionAtK": 0.3222,
-    "noiseRateAtK": 0.6778,
-    "hitRateAtK": 0.9667,
-    "mrrAtK": 0.9083,
-    "ndcgAtK": 0.93
+    "caseCount": 321,
+    "recallAtK": 1.0,
+    "precisionAtK": 0.3364,
+    "noiseRateAtK": 0.6636,
+    "hitRateAtK": 1.0,
+    "mrrAtK": 0.9984,
+    "ndcgAtK": 0.9989
   },
   "apiResponses": [...]
 }
@@ -615,7 +699,20 @@ CostReport report = tracker.summary();
 
 路径：`src/test/resources/evaluation/evaluation-dataset.json`
 
-按 dimension 字段组织，每个维度有若干条用例。通用结构见 4.1 节的示例。
+按 dimension 字段组织，共 **710 条**用例覆盖 10 个维度。各维度分布：
+
+| 维度 | 用例数 |
+|------|--------|
+| tool_selection | 100 |
+| rag_recall | 80 |
+| answer_completeness | 80 |
+| multi_turn_coherence | 80 |
+| hallucination | 80 |
+| faithfulness | 80 |
+| safety | 60 |
+| skill_selection | 60 |
+| prompt_assembly | 50 |
+| subagent_isolation | 40 |
 
 **加载方式：**
 - `EvaluationDatasetLoader.loadAll()`：加载全部
@@ -625,7 +722,7 @@ CostReport report = tracker.summary();
 
 路径：`src/test/resources/evaluation/retrieval-eval-dataset.json`
 
-60 条用例，结构见 5.3 节。直接由 `LocalAgentEvaluationHarnessTest` 和 `RetrievalEvaluatorTest` 使用。
+**321 条**用例，结构见 5.3 节。直接由 `LocalAgentEvaluationHarnessTest` 和 `RetrievalEvaluatorTest` 使用。覆盖 12 个领域分类，包含短关键词查询（120 条）、自然语言长查询（120 条）、带 metadata filter 的查询（60+ 条）。
 
 ### 9.3 Judge Prompt 模板
 
@@ -680,7 +777,8 @@ mvn test -pl . -Dtest="com.dawn.ai.evaluation.dimensions.*"
 ### 10.3 查看结果
 
 - **控制台日志**：每条用例的 score、passed、reasoning 实时输出
-- **本地 JSON 报告**：`target/evaluation-reports/` 目录
+- **本地 JSON 报告**：`target/evaluation-reports/{RUN_ID}-{dimension}.json`
+- **本地 HTML 报告**：`target/evaluation-reports/{RUN_ID}-{dimension}.html`（自动生成，包含 Summary Cards、维度表格、可折叠用例详情）
 - **Langfuse Dashboard**（可选）：http://localhost:3001 → Datasets → dawn-ai-evaluation
 
 ---
@@ -711,13 +809,13 @@ HALLUCINATION("hallucination", "evaluation/judge-prompts/hallucination.txt", Sco
 
 ## 12. 当前局限与改进方向
 
-| 类别                     | 现状                    | 改进方向                                    |
-| ---------------------- | --------------------- | --------------------------------------- |
-| **CI 集成**              | 纯手动触发                 | 接入 CI pipeline 定期跑回归                    |
-| **SubAgent Isolation** | 模拟验证，非真实 Agent 执行     | 需要完整的 Agent 编排环境做端到端测试                  |
-| **数据集规模**              | 非 RAG 维度每个仅 3-8 条     | 扩充到每维度 20+ 条以提高统计显著性                    |
-| **安全/幻觉**              | 无相关维度                 | 添加 Hallucination、Faithfulness、Safety 维度 |
-| **延迟基准**               | CostTracker 只追踪 token | 添加 TTFT、端到端延迟采集                         |
-| **回归检测**               | 无 baseline 快照         | 建立指标基线，自动检测回归                           |
-| **Langfuse**           | 客户端已实现但未配通            | 配通 docker-compose 并跑通完整实验流程             |
-| **报告可视化**              | JSON + 控制台日志          | HTML dashboard 或接入 Grafana              |
+| 类别 | 现状 | 状态 |
+|------|------|------|
+| **CI 集成** | 纯手动触发 | 待改进 — 接入 CI pipeline 定期跑回归 |
+| **SubAgent Isolation** | 模拟验证，非真实 Agent 执行 | 待改进 — 需要完整的 Agent 编排环境做端到端测试 |
+| ~~**数据集规模**~~ | ~~非 RAG 维度每个仅 3-8 条~~ → **710 条评测 + 321 条检索 = 1031 条** | **已解决** |
+| ~~**安全/幻觉**~~ | ~~无相关维度~~ → **Hallucination + Faithfulness + Safety + Skill Selection 四个新维度** | **已解决** |
+| **延迟基准** | CostTracker 只追踪 token | 待改进 — 添加 TTFT、端到端延迟采集 |
+| **回归检测** | 无 baseline 快照 | 待改进 — 建立指标基线，自动检测回归 |
+| **Langfuse** | 客户端已实现但未配通 | 待改进 — 配通 docker-compose 并跑通完整实验流程 |
+| ~~**报告可视化**~~ | ~~JSON + 控制台日志~~ → **J2Html HTML 报告（Summary Cards + 维度表格 + 可折叠用例详情）** | **已解决** |

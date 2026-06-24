@@ -1,4 +1,4 @@
-package com.dawn.ai.rag.evaluation;
+package com.dawn.ai.evaluation.retrieval;
 
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import org.springframework.ai.document.Document;

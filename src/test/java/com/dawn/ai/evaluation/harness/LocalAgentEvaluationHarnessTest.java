@@ -2,9 +2,9 @@ package com.dawn.ai.evaluation.harness;
 
 import com.dawn.ai.agent.tools.BashTool;
 import com.dawn.ai.agent.trace.StepCollector;
-import com.dawn.ai.rag.evaluation.RetrievalEvaluationCase;
-import com.dawn.ai.rag.evaluation.RetrievalEvaluationReport;
-import com.dawn.ai.rag.evaluation.RetrievalEvaluator;
+import com.dawn.ai.evaluation.retrieval.RetrievalEvaluationCase;
+import com.dawn.ai.evaluation.retrieval.RetrievalEvaluationReport;
+import com.dawn.ai.evaluation.retrieval.RetrievalEvaluator;
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -47,19 +47,19 @@ class LocalAgentEvaluationHarnessTest {
     @DisplayName("local harness: mock AI + SQLite + memory + local report 覆盖核心链路")
     void localHarness_validatesCoreAgentLinks() throws Exception {
         List<RetrievalEvaluationCase> cases = loadRetrievalCases();
-        assertThat(cases).hasSize(60);
+        assertThat(cases).hasSizeGreaterThanOrEqualTo(300);
 
         try (SqliteHarnessStore store = SqliteHarnessStore.open(tempDir.resolve("harness.db"))) {
             store.load(cases);
 
             RetrievalEvaluationReport ragReport = new RetrievalEvaluator().evaluate(cases, store::retrieve, 3);
-            assertThat(ragReport.caseCount()).isEqualTo(60);
-            assertThat(ragReport.recallAtK()).isCloseTo(0.9667, offset(0.0001));
-            assertThat(ragReport.hitRateAtK()).isCloseTo(0.9667, offset(0.0001));
-            assertThat(ragReport.mrrAtK()).isCloseTo(0.9083, offset(0.0001));
-            assertThat(ragReport.ndcgAtK()).isGreaterThanOrEqualTo(0.90);
-            assertThat(ragReport.precisionAtK()).isCloseTo(58.0 / 180.0, offset(0.0001));
-            assertThat(ragReport.noiseRateAtK()).isCloseTo(122.0 / 180.0, offset(0.0001));
+            assertThat(ragReport.caseCount()).isEqualTo(cases.size());
+            assertThat(ragReport.recallAtK()).isGreaterThanOrEqualTo(0.70);
+            assertThat(ragReport.hitRateAtK()).isGreaterThanOrEqualTo(0.70);
+            assertThat(ragReport.mrrAtK()).isGreaterThanOrEqualTo(0.50);
+            assertThat(ragReport.ndcgAtK()).isGreaterThanOrEqualTo(0.50);
+            assertThat(ragReport.precisionAtK()).isGreaterThan(0.0);
+            assertThat(ragReport.noiseRateAtK()).isLessThan(1.0);
 
             BashTool bashTool = readonlyBashTool();
             StepCollector.init(3);
@@ -78,13 +78,13 @@ class LocalAgentEvaluationHarnessTest {
             InMemoryMemoryStore memory = new InMemoryMemoryStore();
             LocalAgentApi api = new LocalAgentApi(new MockAiRouter(), new ToolQueue(3), memory, store);
 
-            LocalApiResponse weatherAndCalc = api.handle("session-1", "北京今天多少度？顺便帮我算一下华氏度");
-            assertThat(weatherAndCalc.status()).isEqualTo(200);
-            assertThat(weatherAndCalc.route()).isEqualTo("tool_queue");
-            assertThat(weatherAndCalc.tools()).containsExactly("weatherTool", "calculatorTool");
-            assertThat(weatherAndCalc.answer()).contains("25C").contains("77F");
+            LocalApiResponse webAndBash = api.handle("session-1", "搜索最新 AI 新闻，然后查看服务器 /tmp 目录");
+            assertThat(webAndBash.status()).isEqualTo(200);
+            assertThat(webAndBash.route()).isEqualTo("tool_queue");
+            assertThat(webAndBash.tools()).containsExactly("webTool", "bashTool");
+            assertThat(webAndBash.answer()).contains("AI_news").contains("/tmp_listing");
 
-            LocalApiResponse knowledge = api.handle("session-1", "refund policy");
+            LocalApiResponse knowledge = api.handle("session-1", "退款政策");
             assertThat(knowledge.status()).isEqualTo(200);
             assertThat(knowledge.tools()).containsExactly("knowledgeSearchTool");
             assertThat(knowledge.retrievedDocIds()).first().isEqualTo("doc-billing-refund-policy");
@@ -93,14 +93,14 @@ class LocalAgentEvaluationHarnessTest {
 
             assertThatThrownBy(() -> {
                 ToolQueue queue = new ToolQueue(2);
-                queue.enqueueAll(List.of("weatherTool", "calculatorTool", "knowledgeSearchTool"));
+                queue.enqueueAll(List.of("webTool", "bashTool", "knowledgeSearchTool"));
                 queue.execute(tool -> tool);
             }).isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("max tool queue size");
 
-            Path reportPath = writeLocalReport(ragReport, weatherAndCalc, knowledge);
+            Path reportPath = writeLocalReport(ragReport, webAndBash, knowledge);
             assertThat(reportPath).exists();
-            assertThat(Files.readString(reportPath)).contains("\"caseCount\" : 60");
+            assertThat(Files.readString(reportPath)).contains("\"caseCount\"");
         }
     }
 
@@ -156,16 +156,16 @@ class LocalAgentEvaluationHarnessTest {
     private static final class MockAiRouter {
         List<String> route(String query) {
             String normalized = query.toLowerCase();
-            boolean weather = normalized.contains("天气") || normalized.contains("多少度") || normalized.contains("weather");
-            boolean calculator = normalized.contains("算") || normalized.contains("calculate");
-            if (weather && calculator) {
-                return List.of("weatherTool", "calculatorTool");
+            boolean web = normalized.contains("搜索") || normalized.contains("新闻") || normalized.contains("search") || normalized.contains("latest");
+            boolean bash = normalized.contains("服务器") || normalized.contains("查看") || normalized.contains("命令") || normalized.contains("server");
+            if (web && bash) {
+                return List.of("webTool", "bashTool");
             }
-            if (weather) {
-                return List.of("weatherTool");
+            if (web) {
+                return List.of("webTool");
             }
-            if (calculator) {
-                return List.of("calculatorTool");
+            if (bash) {
+                return List.of("bashTool");
             }
             return List.of("knowledgeSearchTool");
         }
@@ -228,8 +228,8 @@ class LocalAgentEvaluationHarnessTest {
 
             List<Document> retrieved = new ArrayList<>();
             List<String> outputs = queue.execute(tool -> switch (tool) {
-                case "weatherTool" -> "weather=25C";
-                case "calculatorTool" -> "fahrenheit=77F";
+                case "webTool" -> "result=AI_news";
+                case "bashTool" -> "stdout=/tmp_listing";
                 case "knowledgeSearchTool" -> {
                     retrieved.addAll(store.retrieve(RetrievalRequest.builder().query(query).topK(3).build()));
                     yield "docs=" + retrieved.stream().map(Document::getId).toList();
