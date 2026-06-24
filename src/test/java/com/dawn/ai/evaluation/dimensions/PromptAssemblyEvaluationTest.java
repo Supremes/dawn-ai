@@ -33,7 +33,6 @@ class PromptAssemblyEvaluationTest extends AbstractEvaluationTest {
         List<EvaluationCase> cases = loadCases();
         assertThat(cases).isNotEmpty();
 
-        // buildSystemPrompt 是 private，通过反射调用
         Method method = AgentOrchestrator.class.getDeclaredMethod(
                 "buildSystemPrompt", List.class, String.class, String.class);
         method.setAccessible(true);
@@ -42,17 +41,11 @@ class PromptAssemblyEvaluationTest extends AbstractEvaluationTest {
             @SuppressWarnings("unchecked")
             Map<String, String> promptSegments = (Map<String, String>) evalCase.context().get("promptSegments");
 
-            // prompt_assembly_002 需要带执行计划
-            List<PlanStep> plan = "prompt_assembly_002".equals(evalCase.id())
-                    ? List.of(
-                            new PlanStep(1, "knowledge_search", "搜索营收数据"),
-                            new PlanStep(2, "calculator", "计算增长率"))
-                    : Collections.emptyList();
-
-            String topicId = "prompt_assembly_002".equals(evalCase.id()) ? "finance-reports" : null;
+            List<PlanStep> plan = deriveplan(promptSegments);
+            String topicId = promptSegments.get("topic");
 
             String actualPrompt = (String) method.invoke(
-                    agentOrchestrator, plan, "eval-prompt-" + evalCase.id(), topicId);
+                    agentOrchestrator, plan, topicId, evalCase.query());
 
             String expectedSegmentsStr = promptSegments.entrySet().stream()
                     .filter(e -> e.getValue() != null)
@@ -70,5 +63,14 @@ class PromptAssemblyEvaluationTest extends AbstractEvaluationTest {
                     .as("Prompt assembly for case '%s': %s", evalCase.id(), judgeResult.reasoning())
                     .isTrue();
         }
+    }
+
+    private static List<PlanStep> deriveplan(Map<String, String> segments) {
+        if (segments == null || segments.get("plan") == null) {
+            return Collections.emptyList();
+        }
+        return List.of(
+                new PlanStep(1, "knowledgeSearchTool", "检索相关文档"),
+                new PlanStep(2, "bashTool", "执行数据处理"));
     }
 }

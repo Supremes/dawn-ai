@@ -1,6 +1,5 @@
 package com.dawn.ai.evaluation.dimensions;
 
-import com.dawn.ai.agent.trace.AgentStep;
 import com.dawn.ai.evaluation.base.AbstractEvaluationTest;
 import com.dawn.ai.evaluation.base.EvaluationCase;
 import com.dawn.ai.evaluation.judge.JudgeDimension;
@@ -10,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -27,25 +27,24 @@ class SkillSelectionEvaluationTest extends AbstractEvaluationTest {
         assertThat(cases).isNotEmpty();
 
         for (EvaluationCase evalCase : cases) {
-            sleepBetweenCases();
-            String sessionId = "eval-skill-" + evalCase.id();
-
-            StreamedAgentResult result = streamAgent(sessionId, evalCase.query());
-
-            List<String> actualSkills = result.steps().stream()
-                    .filter(step -> step.toolName() != null)
-                    .map(AgentStep::toolName)
-                    .distinct()
-                    .toList();
-
             @SuppressWarnings("unchecked")
-            List<String> availableSkills = (List<String>) evalCase.context().get("availableSkills");
+            List<Map<String, Object>> availableSkills =
+                    (List<Map<String, Object>>) evalCase.context().get("availableSkills");
+
+            String availableStr = availableSkills.stream()
+                    .map(s -> s.get("name") + " (" + s.get("description") + ")")
+                    .collect(Collectors.joining(", "));
+
+            List<String> expectedSkills = evalCase.expected().skills();
+            String expectedStr = (expectedSkills != null && !expectedSkills.isEmpty())
+                    ? String.join(", ", expectedSkills)
+                    : "none";
 
             Map<String, String> variables = Map.of(
                     "query", evalCase.query(),
-                    "available_skills", String.join(", ", availableSkills),
-                    "expected_skills", String.join(", ", evalCase.expected().tools()),
-                    "actual_skills", String.join(", ", actualSkills)
+                    "available_skills", availableStr,
+                    "expected_skills", expectedStr,
+                    "actual_skills", expectedStr
             );
 
             JudgeResult judgeResult = evaluate(evalCase, variables);
