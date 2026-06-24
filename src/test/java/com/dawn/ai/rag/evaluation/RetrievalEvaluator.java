@@ -2,14 +2,12 @@ package com.dawn.ai.rag.evaluation;
 
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import org.springframework.ai.document.Document;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-@Component
 public class RetrievalEvaluator {
 
     public RetrievalEvaluationReport evaluate(
