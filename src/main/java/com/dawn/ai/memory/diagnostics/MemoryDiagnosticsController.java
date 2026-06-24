@@ -38,6 +38,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/debug/memory")
 @RequiredArgsConstructor
+@Profile("e2e-test")
 public class MemoryDiagnosticsController {
 
     private static final String SESSION_PREFIX = "ai:session:";

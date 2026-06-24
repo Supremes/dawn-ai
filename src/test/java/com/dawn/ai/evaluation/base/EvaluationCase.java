@@ -16,6 +16,7 @@ public record EvaluationCase(
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Expected(
             List<String> tools,
+            Boolean allowExtraTools,
             List<String> skills,
             String answerCriteria,
             List<String> docIds

@@ -757,7 +757,7 @@ mvn test -pl . -Dtest=HydeRetrievalEvaluationTest
 # 需要配置 LLM API 密钥
 
 # 跑单个维度
-mvn test -pl . -Dtest=ToolSelectionEvaluationTest
+mvn test -pl . -Dtest=ToolSelectionEvaluationTest -Dexcluded.test.groups=
 
 # 跑所有维度
 mvn test -pl . -Dtest="com.dawn.ai.evaluation.dimensions.*"

@@ -42,7 +42,7 @@ public class ToolExecutionAspect {
     @Value("${app.ai.react.replan-threshold:2}")
     private int rePlanThreshold;
 
-    @Around("execution(* com.dawn.ai.agent.tools.*.apply(..))")
+    @Around("execution(* com.dawn.ai.agent.tools..*.apply(..))")
     public Object captureStep(ProceedingJoinPoint pjp) throws Throwable {
         String toolName = pjp.getTarget().getClass().getSimpleName();
         Object input = pjp.getArgs()[0];

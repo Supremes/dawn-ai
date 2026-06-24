@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -26,14 +27,16 @@ import java.util.UUID;
  *
  * 前置条件：
  * - docker compose up -d （PostgreSQL + Redis 必须健康）
- * - LLM API 可用（OPENAI_API_KEY / BASE_URL 已配置）
+ * - LLM API 可用（application-evaluation.yml 会自动导入项目根目录 .env）
  * - （可选）Langfuse 可用时自动写入评分
  *
  * 运行方式：
- * - mvn test -Dgroups=evaluation
- * - mvn test -Dtest=ToolSelectionEvaluationTest
+ * - mvn test -Dgroups=evaluation -Dexcluded.test.groups=
+ * - mvn test -Dtest=ToolSelectionEvaluationTest -Dexcluded.test.groups=
+ * - 默认每个维度只跑前 5 条；用 -Deval.limit=100 显式扩大数量
  */
 @SpringBootTest
+@ActiveProfiles("evaluation")
 @Tag("evaluation")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractEvaluationTest {
@@ -41,6 +44,8 @@ public abstract class AbstractEvaluationTest {
     private static final Logger log = LoggerFactory.getLogger(AbstractEvaluationTest.class);
     private static final List<JudgeResult> ALL_RESULTS = Collections.synchronizedList(new ArrayList<>());
     private static final String RUN_ID = "eval-" + UUID.randomUUID().toString().substring(0, 8);
+    private static final String EVAL_LIMIT_PROPERTY = "eval.limit";
+    private static final int DEFAULT_EVAL_CASE_LIMIT = 5;
 
     @Autowired
     protected JudgeService judgeService;
@@ -54,7 +59,35 @@ public abstract class AbstractEvaluationTest {
     protected abstract JudgeDimension dimension();
 
     protected List<EvaluationCase> loadCases() {
-        return EvaluationDatasetLoader.loadByDimension(dimension().id());
+        List<EvaluationCase> cases = EvaluationDatasetLoader.loadByDimension(dimension().id());
+        int limit = resolveCaseLimit(cases.size());
+        if (limit >= cases.size()) {
+            log.info("[Evaluation] dimension={} | selected all {} case(s)", dimension().id(), cases.size());
+            return cases;
+        }
+
+        log.info("[Evaluation] dimension={} | selected {}/{} case(s), override with -D{}=<count>",
+                dimension().id(), limit, cases.size(), EVAL_LIMIT_PROPERTY);
+        return cases.stream().limit(limit).toList();
+    }
+
+    private int resolveCaseLimit(int totalCases) {
+        String rawLimit = System.getProperty(EVAL_LIMIT_PROPERTY);
+        if (rawLimit == null || rawLimit.isBlank()) {
+            return Math.min(DEFAULT_EVAL_CASE_LIMIT, totalCases);
+        }
+
+        try {
+            int limit = Integer.parseInt(rawLimit);
+            if (limit <= 0) {
+                throw new IllegalArgumentException(
+                        "System property eval.limit must be a positive integer, but was: " + rawLimit);
+            }
+            return limit;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(
+                    "System property eval.limit must be a positive integer, but was: " + rawLimit, e);
+        }
     }
 
     protected void sleepBetweenCases() {
@@ -67,13 +100,16 @@ public abstract class AbstractEvaluationTest {
 
     protected JudgeResult evaluate(EvaluationCase evalCase, Map<String, String> variables) {
         JudgeResult result = judgeService.judge(dimension(), variables);
+        recordResult(evalCase, result);
+        return result;
+    }
+
+    protected void recordResult(EvaluationCase evalCase, JudgeResult result) {
         ALL_RESULTS.add(result);
 
         log.info("[Evaluation] case={} | dimension={} | score={} | passed={} | reasoning={}",
                 evalCase.id(), dimension().id(), result.score(), result.passed(),
                 truncate(result.reasoning(), 100));
-
-        return result;
     }
 
     protected StreamedAgentResult streamAgent(String sessionId, String query) {

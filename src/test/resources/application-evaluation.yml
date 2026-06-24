@@ -1,0 +1,31 @@
+spring:
+  config:
+    import: optional:file:.env.evaluation[.properties]
+
+  datasource:
+    url: ${EVALUATION_DATASOURCE_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/dawn_ai}}
+    username: ${EVALUATION_DATASOURCE_USERNAME:${SPRING_DATASOURCE_USERNAME:dawn}}
+    password: ${EVALUATION_DATASOURCE_PASSWORD:${SPRING_DATASOURCE_PASSWORD:dawn123}}
+    driver-class-name: org.postgresql.Driver
+
+  data:
+    redis:
+      host: ${EVALUATION_REDIS_HOST:${SPRING_DATA_REDIS_HOST:localhost}}
+      port: ${EVALUATION_REDIS_PORT:${SPRING_DATA_REDIS_PORT:6379}}
+      timeout: ${EVALUATION_REDIS_TIMEOUT:${SPRING_DATA_REDIS_TIMEOUT:3000ms}}
+
+  ai:
+    openai:
+      api-key: ${EVALUATION_OPENAI_API_KEY:${OPENAI_API_KEY}}
+      base-url: ${EVALUATION_BASE_URL:${BASE_URL}}
+      chat:
+        base-url: ${EVALUATION_CHAT_BASE_URL:${CHAT_BASE_URL:${EVALUATION_BASE_URL:${BASE_URL}}}}
+        api-key: ${EVALUATION_CHAT_API_KEY:${CHAT_API_KEY:${EVALUATION_OPENAI_API_KEY:${OPENAI_API_KEY}}}}
+        options:
+          model: ${EVALUATION_CHAT_MODEL:${CHAT_MODEL}}
+      embedding:
+        base-url: ${EVALUATION_EMBEDDING_BASE_URL:${EMBEDDING_BASE_URL:${EVALUATION_BASE_URL:${BASE_URL}}}}
+        api-key: ${EVALUATION_EMBEDDING_API_KEY:${EMBEDDING_API_KEY:${EVALUATION_OPENAI_API_KEY:${OPENAI_API_KEY}}}}
+        options:
+          model: ${EVALUATION_EMBEDDING_MODEL:${EMBEDDING_MODEL}}
+          dimensions: ${EVALUATION_EMBEDDING_DIMENSIONS:${EMBEDDING_DIMENSIONS:1024}}
