@@ -1,10 +1,11 @@
 package com.dawn.ai.evaluation.dimensions;
 
-import com.dawn.ai.agent.trace.AgentStep;
 import com.dawn.ai.evaluation.base.AbstractEvaluationTest;
 import com.dawn.ai.evaluation.base.EvaluationCase;
 import com.dawn.ai.evaluation.judge.JudgeDimension;
 import com.dawn.ai.evaluation.judge.JudgeResult;
+import com.dawn.ai.rag.RagService;
+import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.document.Document;
@@ -22,6 +23,9 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
     @Autowired
     private VectorStore vectorStore;
 
+    @Autowired
+    private RagService ragService;
+
     @Override
     protected JudgeDimension dimension() {
         return JudgeDimension.RAG_RECALL;
@@ -35,17 +39,20 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
 
         for (EvaluationCase evalCase : cases) {
             sleepBetweenCases();
-            String sessionId = "eval-rag-" + evalCase.id();
 
-            // 预索引测试文档到向量库
             indexTestDocuments(evalCase);
 
-            StreamedAgentResult result = streamAgent(sessionId, evalCase.query());
+            RetrievalRequest request = RetrievalRequest.builder()
+                    .query(evalCase.query())
+                    .topK(5)
+                    .build();
+            List<Document> retrieved = ragService.retrieve(request);
 
-            // 提取实际检索到的文档 ID
-            List<String> retrievedDocIds = result.steps().stream()
-                    .filter(step -> "knowledgeSearchTool".equals(step.toolName()) && step.toolOutput() != null)
-                    .flatMap(step -> extractDocIds(step.toolOutput()))
+            List<String> retrievedDocIds = retrieved.stream()
+                    .map(doc -> {
+                        Object originalId = doc.getMetadata().get("originalId");
+                        return originalId != null ? originalId.toString() : doc.getId();
+                    })
                     .distinct()
                     .toList();
 
@@ -79,7 +86,6 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
                     .map(doc -> {
                         String docId = (String) doc.get("id");
                         String content = (String) doc.get("content");
-                        // Spring AI Document requires UUID as ID; use random UUID to avoid conflicts
                         String uuid = UUID.randomUUID().toString();
                         return new Document(uuid, content, Map.of(
                                 "source", "evaluation-test",
@@ -91,17 +97,7 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
 
             vectorStore.add(documents);
         } catch (Exception e) {
-            // Log but don't fail - documents may already exist or embedding service may be unavailable
             System.err.println("[Evaluation] Warning: failed to index test documents for " + evalCase.id() + ": " + e.getMessage());
         }
-    }
-
-    private java.util.stream.Stream<String> extractDocIds(String output) {
-        java.util.List<String> ids = new java.util.ArrayList<>();
-        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("doc-\\S+").matcher(output);
-        while (matcher.find()) {
-            ids.add(matcher.group());
-        }
-        return ids.stream();
     }
 }
