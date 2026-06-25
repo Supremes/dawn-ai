@@ -3,6 +3,7 @@ package com.dawn.ai.evaluation.dimensions;
 import com.dawn.ai.agent.trace.AgentStep;
 import com.dawn.ai.evaluation.base.AbstractEvaluationTest;
 import com.dawn.ai.evaluation.base.EvaluationCase;
+import com.dawn.ai.evaluation.base.EvaluationCaseResult;
 import com.dawn.ai.evaluation.judge.JudgeDimension;
 import com.dawn.ai.evaluation.judge.JudgeResult;
 import org.junit.jupiter.api.DisplayName;
@@ -32,9 +33,9 @@ class ToolSelectionEvaluationTest extends AbstractEvaluationTest {
         List<String> failures = new ArrayList<>();
 
         for (EvaluationCase evalCase : cases) {
+            String sessionId = "eval-tool-" + evalCase.id() + "-" + UUID.randomUUID().toString().substring(0, 8);
             try {
                 sleepBetweenCases();
-                String sessionId = "eval-tool-" + evalCase.id() + "-" + UUID.randomUUID().toString().substring(0, 8);
 
                 StreamedAgentResult result = streamAgent(sessionId, evalCase.query());
                 List<String> actualTools = result.steps().stream()
@@ -44,14 +45,36 @@ class ToolSelectionEvaluationTest extends AbstractEvaluationTest {
                         .toList();
 
                 JudgeResult resultByRules = evaluateByRules(evalCase, actualTools);
-                recordResult(evalCase, resultByRules);
+                recordCaseResult(new EvaluationCaseResult(
+                        evalCase,
+                        resultByRules,
+                        sessionId,
+                        expectedTools(evalCase),
+                        actualTools,
+                        forbiddenTools(evalCase),
+                        allowExtraTools(evalCase),
+                        result.finalAnswer(),
+                        result.plannerSteps(),
+                        result.steps()
+                ));
                 if (!resultByRules.passed()) {
                     failures.add(formatFailure(evalCase, resultByRules));
                 }
             } catch (RuntimeException e) {
                 JudgeResult errorResult = new JudgeResult(dimension(), 0.0,
                         "Evaluation case failed with exception: " + e.getMessage());
-                recordResult(evalCase, errorResult);
+                recordCaseResult(new EvaluationCaseResult(
+                        evalCase,
+                        errorResult,
+                        sessionId,
+                        expectedTools(evalCase),
+                        List.of(),
+                        forbiddenTools(evalCase),
+                        allowExtraTools(evalCase),
+                        "",
+                        List.of(),
+                        List.of()
+                ));
                 failures.add(formatFailure(evalCase, errorResult));
             }
         }
@@ -62,12 +85,10 @@ class ToolSelectionEvaluationTest extends AbstractEvaluationTest {
     }
 
     private JudgeResult evaluateByRules(EvaluationCase evalCase, List<String> actualTools) {
-        List<String> expectedTools = evalCase.expected().tools() == null
-                ? List.of()
-                : evalCase.expected().tools();
+        List<String> expectedTools = expectedTools(evalCase);
         Set<String> expected = normalizeToolNames(expectedTools);
         Set<String> actual = normalizeToolNames(actualTools);
-        boolean allowExtraTools = Boolean.TRUE.equals(evalCase.expected().allowExtraTools());
+        boolean allowExtraTools = allowExtraTools(evalCase);
 
         boolean includesAllExpected = actual.containsAll(expected);
         boolean hasUnexpectedTools = !expected.containsAll(actual);
@@ -98,6 +119,20 @@ class ToolSelectionEvaluationTest extends AbstractEvaluationTest {
         String reasoning = "%s expected=%s actual=%s allowExtraTools=%s".formatted(
                 verdict, expectedTools, actualTools, allowExtraTools);
         return new JudgeResult(dimension(), score, reasoning);
+    }
+
+    private List<String> expectedTools(EvaluationCase evalCase) {
+        return evalCase.expected().tools() == null ? List.of() : evalCase.expected().tools();
+    }
+
+    private List<String> forbiddenTools(EvaluationCase evalCase) {
+        return evalCase.expected().forbiddenTools() == null ? List.of() : evalCase.expected().forbiddenTools();
+    }
+
+    private boolean allowExtraTools(EvaluationCase evalCase) {
+        if (evalCase.expected().allowExtraTools() == null)
+            return true;
+        return evalCase.expected().allowExtraTools();
     }
 
     private Set<String> normalizeToolNames(List<String> tools) {

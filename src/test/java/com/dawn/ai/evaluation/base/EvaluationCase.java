@@ -17,6 +17,7 @@ public record EvaluationCase(
     public record Expected(
             List<String> tools,
             Boolean allowExtraTools,
+            List<String> forbiddenTools,
             List<String> skills,
             String answerCriteria,
             List<String> docIds

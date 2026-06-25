@@ -62,19 +62,19 @@ mvn test -Dgroups=evaluation -Dexcluded.test.groups=
 
 ## 4. 已锁定决策
 
-| # | 决策项 | 选择 | 理由 |
-|---|--------|------|------|
-| 1 | 评估策略 | 分层评估 | 默认走 deterministic harness，高成本语义判断按需运行 |
-| 2 | 默认回归 | Mock AI + 临时 SQLite + 内存记忆 | 零外部依赖、零 token 成本、CI 稳定 |
-| 3 | RAG 指标 | Retrieval metrics + 60 条数据集 | 比纯 Judge 更可重复，可定位召回不足或噪声过多 |
-| 4 | LLM Judge | 非默认专项评估 | 保留真实 Agent 行为判断，避免日常开发被限流/成本影响 |
-| 5 | 数据集管理 | 本地 JSON 为 source of truth，Langfuse 可选同步 | git 版本控制 + 可视化对比 |
-| 6 | 运行模式 | JUnit 测试类 + Maven group | CI 原生支持，最小侵入 |
-| 7 | Judge 模型 | JudgeService 内独立 ChatModel | 避免自评偏见，职责分离 |
-| 8 | 评分方式 | Binary + Likert + Retrieval Metrics | 行为类确定性评分，质量类语义评分，检索类数值指标 |
-| 9 | 高保真环境 | Docker Compose | 仅 E2E/专项评估使用，最接近真实 Redis/PGVector |
-| 10 | Langfuse API | 封装 REST Client | 零额外 SDK 依赖，与现有设计一致 |
-| 11 | Judge Prompt | 代码内 `.txt` 文件 | git 版本控制，测试自包含 |
+| #   | 决策项          | 选择                                      | 理由                                    |
+| --- | ------------ | --------------------------------------- | ------------------------------------- |
+| 1   | 评估策略         | 分层评估                                    | 默认走 deterministic harness，高成本语义判断按需运行 |
+| 2   | 默认回归         | Mock AI + 临时 SQLite + 内存记忆              | 零外部依赖、零 token 成本、CI 稳定                |
+| 3   | RAG 指标       | Retrieval metrics + 60 条数据集             | 比纯 Judge 更可重复，可定位召回不足或噪声过多            |
+| 4   | LLM Judge    | 非默认专项评估                                 | 保留真实 Agent 行为判断，避免日常开发被限流/成本影响        |
+| 5   | 数据集管理        | 本地 JSON 为 source of truth，Langfuse 可选同步 | git 版本控制 + 可视化对比                      |
+| 6   | 运行模式         | JUnit 测试类 + Maven group                 | CI 原生支持，最小侵入                          |
+| 7   | Judge 模型     | JudgeService 内独立 ChatModel              | 避免自评偏见，职责分离                           |
+| 8   | 评分方式         | Binary + Likert + Retrieval Metrics     | 行为类确定性评分，质量类语义评分，检索类数值指标              |
+| 9   | 高保真环境        | Docker Compose                          | 仅 E2E/专项评估使用，最接近真实 Redis/PGVector     |
+| 10  | Langfuse API | 封装 REST Client                          | 零额外 SDK 依赖，与现有设计一致                    |
+| 11  | Judge Prompt | 代码内 `.txt` 文件                           | git 版本控制，测试自包含                        |
 
 ## 5. 架构
 

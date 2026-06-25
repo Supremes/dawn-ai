@@ -1,3 +1,6 @@
+---
+updated: 2026-06-25 23:26
+---
 # Dawn AI Agent Evaluation System
 
 > 本文档完整阐述 dawn-ai 项目的 Agent 评测体系：**为什么要评测、评什么、怎么评、怎么跑、结果怎么看**。
@@ -756,8 +759,14 @@ mvn test -pl . -Dtest=HydeRetrievalEvaluationTest
 # 需要先启动依赖服务（PgVector、Redis）
 # 需要配置 LLM API 密钥
 
-# 跑单个维度
+# 跑单个维度，默认跑前5个
 mvn test -pl . -Dtest=ToolSelectionEvaluationTest -Dexcluded.test.groups=
+
+# 打乱顺序，添加参数
+-Deval.shuffle=true
+
+# 跑指定次数个
+-Deval.limit=100
 
 # 跑所有维度
 mvn test -pl . -Dtest="com.dawn.ai.evaluation.dimensions.*"

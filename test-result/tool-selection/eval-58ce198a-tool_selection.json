@@ -1,0 +1,33 @@
+{
+  "averageScore" : 0.6,
+  "results" : [ {
+    "dimension" : "tool_selection",
+    "reasoning" : "All expected tools were called, but unexpected extra tools were also called. expected=[knowledgeSearchTool] actual=[KnowledgeSearchTool, WebTool, BashTool] allowExtraTools=false",
+    "passed" : false,
+    "score" : 0.5
+  }, {
+    "dimension" : "tool_selection",
+    "reasoning" : "All expected tools were called, but unexpected extra tools were also called. expected=[knowledgeSearchTool] actual=[KnowledgeSearchTool, WebTool] allowExtraTools=false",
+    "passed" : false,
+    "score" : 0.5
+  }, {
+    "dimension" : "tool_selection",
+    "reasoning" : "The agent called exactly the expected tools. expected=[knowledgeSearchTool] actual=[KnowledgeSearchTool] allowExtraTools=false",
+    "passed" : true,
+    "score" : 1.0
+  }, {
+    "dimension" : "tool_selection",
+    "reasoning" : "All expected tools were called, but unexpected extra tools were also called. expected=[knowledgeSearchTool] actual=[KnowledgeSearchTool, WebTool] allowExtraTools=false",
+    "passed" : false,
+    "score" : 0.5
+  }, {
+    "dimension" : "tool_selection",
+    "reasoning" : "All expected tools were called, but unexpected extra tools were also called. expected=[knowledgeSearchTool] actual=[KnowledgeSearchTool, WebTool] allowExtraTools=false",
+    "passed" : false,
+    "score" : 0.5
+  } ],
+  "totalCases" : 5,
+  "runId" : "eval-58ce198a",
+  "passRate" : 0.2,
+  "dimension" : "tool_selection"
+}
