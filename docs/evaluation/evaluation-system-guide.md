@@ -1,5 +1,5 @@
 ---
-updated: 2026-06-25 23:26
+updated: 2026-06-27 16:17
 ---
 # Dawn AI Agent Evaluation System
 
@@ -172,6 +172,16 @@ public record JudgeResult(JudgeDimension dimension, double score, String reasoni
 ---
 
 ## 4. 十大评测维度
+
+评测方法：
+
+- BINARY(二元测试法)：对或错的二元测试法，但常会衍生成三元等。本项目中使用 0、0.5、1 来进行错、部分对和全对评测打分。
+- LIKERT(李克特量表)：多阶段测试，常将测试结果分为多阶打分。本项目中使用 1-5 范围打分
+
+模型：
+- Embedding Model：bge-m3-mlx-fp16  - 1024 维
+- LLM：Qwen3.5-9B-MLX-4bit
+- Judge Model：Qwen3.5-9B-MLX-4bit，按道理要换一个更加轻量的模型，但是本地再部署第二个模型，机器会超负荷
 
 ### 4.1 Tool Selection（工具选择正确性）
 

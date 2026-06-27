@@ -86,11 +86,13 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
                     .map(doc -> {
                         String docId = (String) doc.get("id");
                         String content = (String) doc.get("content");
+                        String category = categoryOf(doc);
                         String uuid = UUID.randomUUID().toString();
                         return new Document(uuid, content, Map.of(
                                 "source", "evaluation-test",
                                 "evalCaseId", evalCase.id(),
-                                "originalId", docId
+                                "originalId", docId,
+                                "category", category
                         ));
                     })
                     .toList();
@@ -99,5 +101,13 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
         } catch (Exception e) {
             System.err.println("[Evaluation] Warning: failed to index test documents for " + evalCase.id() + ": " + e.getMessage());
         }
+    }
+
+    private String categoryOf(Map<String, Object> doc) {
+        Object category = doc.get("category");
+        if (category instanceof String value && !value.isBlank()) {
+            return value;
+        }
+        return "general";
     }
 }

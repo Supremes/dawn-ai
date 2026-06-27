@@ -119,6 +119,9 @@ public class RagService {
     @Value("${app.ai.rag.reranker.min-score:0.0}")
     private double rerankMinScore = 0.0;
 
+    @Value("${spring.ai.vectorstore.pgvector.table-name:vector_store}")
+    private String vectorStoreTable = "vector_store";
+
     private Counter ingestionCounter;
     private Counter retrievalHitCounter;
     private Counter retrievalMissCounter;
@@ -190,7 +193,7 @@ public class RagService {
      */
     public int deleteByDocId(String docId) {
         List<String> chunkIds = jdbcTemplate.queryForList(
-                "SELECT id::text FROM vector_store WHERE metadata->>'docId' = ?",
+                "SELECT id::text FROM " + vectorStoreTable() + " WHERE metadata->>'docId' = ?",
                 String.class, docId);
         if (chunkIds.isEmpty()) {
             return 0;
@@ -222,7 +225,7 @@ public class RagService {
                 " metadata->>'category' as category," +
                 " metadata->>'topicId' as topic_id," +
                 " COUNT(*) as chunk_count" +
-                " FROM vector_store" +
+                " FROM " + vectorStoreTable() +
                 " WHERE metadata->>'docId' IS NOT NULL");
         List<Object> params = new ArrayList<>();
 
@@ -441,5 +444,9 @@ public class RagService {
             combined = combined == null ? current : builder.and(combined, current);
         }
         return combined == null ? null : combined.build();
+    }
+
+    private String vectorStoreTable() {
+        return VectorStoreTableName.requireValid(vectorStoreTable);
     }
 }

@@ -1,5 +1,6 @@
 package com.dawn.ai.rag.retrieval.sparse;
 
+import com.dawn.ai.rag.VectorStoreTableName;
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,6 +28,9 @@ public class PostgresBm25Retriever implements SparseRetriever {
     @Value("${app.ai.rag.sparse.text-search-config:english}")
     private String textSearchConfig = "english";
 
+    @Value("${spring.ai.vectorstore.pgvector.table-name:vector_store}")
+    private String vectorStoreTable = "vector_store";
+
     @Override
     public List<Document> retrieve(RetrievalRequest request, int limit) {
         if (request.getQuery() == null || request.getQuery().isBlank()) {
@@ -37,10 +41,10 @@ public class PostgresBm25Retriever implements SparseRetriever {
         // without fragile string interpolation inside SQL text blocks.
         StringBuilder sql = new StringBuilder("""
                 SELECT id, content, metadata
-                FROM vector_store
+                FROM %s
             WHERE to_tsvector(CAST(? AS regconfig), content)
               @@ websearch_to_tsquery(CAST(? AS regconfig), ?)
-                """);
+                """.formatted(VectorStoreTableName.requireValid(vectorStoreTable)));
         List<Object> params = new ArrayList<>();
         params.add(textSearchConfig);
         params.add(textSearchConfig);

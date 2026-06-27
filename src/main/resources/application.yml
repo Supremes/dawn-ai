@@ -50,6 +50,7 @@ spring:
     # Vector Store - PGVector
     vectorstore:
       pgvector:
+        table-name: vector_store
         index-type: NONE
         distance-type: COSINE_DISTANCE
         dimensions: ${EMBEDDING_DIMENSIONS:1024}

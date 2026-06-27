@@ -29,3 +29,12 @@ spring:
         options:
           model: ${EVALUATION_EMBEDDING_MODEL:${EMBEDDING_MODEL}}
           dimensions: ${EVALUATION_EMBEDDING_DIMENSIONS:${EMBEDDING_DIMENSIONS:1024}}
+    vectorstore:
+      pgvector:
+        table-name: vector_store_evaluation
+        dimensions: ${EVALUATION_EMBEDDING_DIMENSIONS:${EMBEDDING_DIMENSIONS:1024}}
+        initialize-schema: true
+app:
+  ai:
+    rag:
+      categories: 历史,法律,技术,医疗,金融,教育,general  # 逗号分隔字符串，@Value 自动切成 List；勿用 [..] 列表语法
