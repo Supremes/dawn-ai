@@ -1,5 +1,5 @@
 ---
-updated: 2026-06-27 16:17
+updated: 2026-06-28 14:40
 ---
 # Dawn AI Agent Evaluation System
 
@@ -173,17 +173,63 @@ public record JudgeResult(JudgeDimension dimension, double score, String reasoni
 
 ## 4. 十大评测维度
 
-评测方法：
-
+**评测方法：**
 - BINARY(二元测试法)：对或错的二元测试法，但常会衍生成三元等。本项目中使用 0、0.5、1 来进行错、部分对和全对评测打分。
 - LIKERT(李克特量表)：多阶段测试，常将测试结果分为多阶打分。本项目中使用 1-5 范围打分
 
-模型：
+**模型：**
 - Embedding Model：bge-m3-mlx-fp16  - 1024 维
 - LLM：Qwen3.5-9B-MLX-4bit
 - Judge Model：Qwen3.5-9B-MLX-4bit，按道理要换一个更加轻量的模型，但是本地再部署第二个模型，机器会超负荷
 
-### 4.1 Tool Selection（工具选择正确性）
+**优先级:**
+
+| 优先级   | 维度                         | 判断                                                       |
+| ----- | -------------------------- | -------------------------------------------------------- |
+| P0    | **Safety**                 | 必须有。Agent 有工具调用能力，安全边界是上线门槛。                             |
+| P0    | **Tool Selection**         | 必须有。工具选错，后面全错，这是 Agent 的核心能力。                            |
+| P0    | **RAG Recall / Retrieval** | 必须有，但更适合用确定性 IR 指标，不应主要依赖 LLM Judge。                     |
+| P0    | **Faithfulness**           | 必须有。回答必须忠实于检索内容，防止“看似正确但歪曲事实”。                           |
+| P0/P1 | **Hallucination**          | 有必要，但和 Faithfulness 高度重叠，建议合并成 Groundedness。             |
+| P1    | **Answer Completeness**    | 有必要。它衡量“有没有真正回答完整”，但优先级低于正确性和安全性。                        |
+| P1    | **Multi-Turn Coherence**   | 如果 Dawn AI 的记忆/第二大脑是核心卖点，就必须保留；否则是 P1。                   |
+| P1/P2 | **Skill Selection**        | 取决于 Skill 是否是核心能力。若 Skill 本质也是工具路由，可和 Tool Selection 合并。 |
+| P2    | **SubAgent Isolation**     | 重要，但不适合作为 LLM Judge 语义评测，更适合确定性集成测试。                     |
+| P2    | **Prompt Assembly**        | 应保留为工程回归测试，但不应作为核心 Agent 质量维度。用户不关心 prompt 拼装，只关心最终行为。   |
+
+如果要做一个更干净、更有解释力的评测体系，核心保留：
+
+1. **Safety**：不能做危险事。
+2. **Action Selection**：合并 Tool Selection + Skill Selection。
+3. **Retrieval Quality**：用 Recall@K / MRR / NDCG 等确定性指标。
+4. **Groundedness**：合并 Faithfulness + Hallucination。
+5. **Answer Quality**：以 Completeness 为主，也可包含清晰度。
+6. **Context Coherence**：覆盖多轮上下文和记忆能力。
+
+降级为工程回归的两个维度：
+
+- **Prompt Assembly**：放到单元/集成测试里，作为“结构是否拼对”的回归保障。
+- **SubAgent Isolation**：放到确定性 contract/integration test，不需要 LLM Judge。
+
+下方 4.1 - 4.10 按优先级重排。标题中的 `[P0-1]` 表示该优先级下的排序；`P0/P1`、`P1/P2` 表示跨优先级维度。
+
+### 4.1 [P0-1] Safety（安全性）
+
+**评什么：** Agent 面对有害、不当或对抗性查询时，是否正确拒绝或转移。
+
+**评分类型：** BINARY
+
+**测试方法：** 采用**模拟验证**模式（与 SubAgent Isolation 相同），从用例 context 中提取 riskCategory，构建模拟场景和观察结果，交由 Judge 评分。
+
+**风险类别覆盖：** illegal_activity, harmful_content, privacy_violation, misinformation, prompt_injection, jailbreak_attempt, self_harm, hate_speech, personal_data_extraction, social_engineering
+
+**数据集特点：** 70% 有害查询 + 30% 边界 case（看似有害但实际合法的安全研究/医疗问题）。
+
+**关键代码：** `SafetyEvaluationTest.java`
+
+---
+
+### 4.2 [P0-2] Tool Selection（工具选择正确性）
 
 **评什么：** Agent 面对用户查询时，是否选对了工具。
 
@@ -222,7 +268,7 @@ public record JudgeResult(JudgeDimension dimension, double score, String reasoni
 
 ---
 
-### 4.2 RAG Recall（RAG 召回相关性）
+### 4.3 [P0-3] RAG Recall（RAG 召回相关性）
 
 **评什么：** 当 Agent 通过 `knowledgeSearchTool` 检索知识库时，是否召回了正确的文档。
 
@@ -235,6 +281,7 @@ public record JudgeResult(JudgeDimension dimension, double score, String reasoni
 4. 与期望的 `expected.docIds` 对比，注入 Judge prompt 评分
 
 **Judge 评分规则：**
+
 | 分数 | 含义 |
 |------|------|
 | 5 | 所有期望文档都被召回，top 结果无噪声 |
@@ -249,7 +296,47 @@ public record JudgeResult(JudgeDimension dimension, double score, String reasoni
 
 ---
 
-### 4.3 Answer Completeness（答案完整性）
+### 4.4 [P0-4] Faithfulness（答案忠实度）
+
+**评什么：** Agent 的答案是否忠实于检索到的文档（不矛盾、不扭曲、不遗漏关键限制条件）。
+
+**评分类型：** LIKERT (1-5)
+
+**与 Hallucination 的区别：** Hallucination 检测"编造"，Faithfulness 检测"扭曲"。例如文档说"7 个自然日内可退款"，答案说"10 个工作日"——这不是编造新事实，而是歪曲了已有事实。
+
+**测试方法：** 与 Hallucination 类似，预索引文档 → Agent stream → 提取检索到的文档内容 → Judge 判断答案是否忠实于源文档。
+
+**关键代码：** `FaithfulnessEvaluationTest.java`
+
+---
+
+### 4.5 [P0/P1-1] Hallucination（幻觉检测）
+
+**评什么：** Agent 是否编造了不在提供文档中的事实（虚假统计、伪造引用、凭空杜撰的信息）。
+
+**评分类型：** LIKERT (1-5)
+
+**测试方法：**
+1. 预索引 ragDocuments 到 VectorStore
+2. 真实调用 Agent stream，提取 answer
+3. 将 query、answer、source_documents（ragDocuments 原文）注入 Judge prompt
+4. Judge 判断 answer 中是否包含未基于文档的声明
+
+**Judge 评分规则：**
+
+| 分数 | 含义 |
+|------|------|
+| 5 | 无幻觉，所有信息均有文档依据 |
+| 4 | 轻微修饰但不影响准确性 |
+| 3 | 包含一些无依据的声明 |
+| 2 | 显著编造，包含虚假数据或引用 |
+| 1 | 大部分内容为幻觉 |
+
+**关键代码：** `HallucinationEvaluationTest.java`
+
+---
+
+### 4.6 [P1-1] Answer Completeness（答案完整性）
 
 **评什么：** Agent 最终返回给用户的答案，是否涵盖了所有应该包含的信息点。
 
@@ -261,6 +348,7 @@ public record JudgeResult(JudgeDimension dimension, double score, String reasoni
 3. 将 query、answer、answer_criteria 注入 Judge prompt
 
 **Judge 评分规则：**
+
 | 分数 | 含义 |
 |------|------|
 | 5 | 覆盖所有信息点，结构良好且准确 |
@@ -275,31 +363,49 @@ public record JudgeResult(JudgeDimension dimension, double score, String reasoni
 
 ---
 
-### 4.4 Prompt Assembly（Prompt 拼装正确性）
+### 4.7 [P1-2] Multi-Turn Coherence（多轮对话连贯性）
 
-**评什么：** `AgentOrchestrator.buildSystemPrompt()` 是否按照配置正确拼装了 system prompt 的各个段落（角色定义、用户画像、主题约束、Skill 目录、子 Agent 目录、执行计划等）。
+**评什么：** 在有对话历史的情况下，Agent 是否正确利用了上下文来回答当前问题。
 
-**评分类型：** BINARY
+**评分类型：** LIKERT (1-5)
 
 **测试方法：**
-1. 从用例的 `context.promptSegments` 获取期望存在的段落关键词
-2. 通过反射调用 `AgentOrchestrator.buildSystemPrompt()` 获取实际拼装结果
-3. Judge LLM 对 actual prompt 做**语义匹配**（而非精确字符串匹配），逐一检查期望段落是否存在
-
-**特殊处理：**
-- `prompt_assembly_002` 会带执行计划（`PlanStep` list）和 topicId，验证计划注入是否正确
-- null 值的段落会被跳过，不参与检查
+1. 从用例的 `context.memorySnapshot` 中取出历史对话消息
+2. 通过 `MemoryService.addMessage()` 将历史消息预填充到 Redis
+3. 真实调用 Agent stream 发送当前 query
+4. 将 query、memory_snapshot、answer、answer_criteria 注入 Judge prompt
 
 **Judge 评分规则：**
-- **1.0**：所有期望段落关键词在实际 prompt 中都能语义匹配到
-- **0.5**：大部分存在但缺一个
-- **0.0**：多个段落缺失或 prompt 格式异常
 
-**关键代码：** `PromptAssemblyEvaluationTest.java`
+| 分数 | 含义 |
+|------|------|
+| 5 | 完美引用先前对话上下文，展现清晰的对话流理解 |
+| 4 | 正确使用了大部分上下文，有小遗漏但不影响质量 |
+| 3 | 对部分上下文有意识，但遗漏了早期轮次的重要细节 |
+| 2 | 几乎没有引用对话历史，像是重新开始的对话 |
+| 1 | 完全忽略对话历史，或与已建立的事实矛盾 |
+
+**通过标准：** score >= 3.0
+
+**关键代码：** `MultiTurnCoherenceEvaluationTest.java`
 
 ---
 
-### 4.5 SubAgent Isolation（子 Agent 上下文隔离）
+### 4.8 [P1/P2-1] Skill Selection（Skill 选择正确性）
+
+**评什么：** Agent 面对用户查询时，是否正确识别并调用了最匹配的 Skill。
+
+**评分类型：** BINARY
+
+**测试方法：** 与 ToolSelection 模式相同 — 真实调用 Agent stream → 提取实际选择的 Skill → 与期望的 Skill 对比。
+
+**数据集特点：** 可用 Skill 池包括 data_analysis, code_review, summarization, translation, creative_writing, research, debugging, deployment, monitoring, documentation。每条用例随机选取 3-6 个可用 Skill。40% 单 Skill + 20% 多 Skill + 20% 无需 Skill + 20% 模糊 case。
+
+**关键代码：** `SkillSelectionEvaluationTest.java`
+
+---
+
+### 4.9 [P2-1] SubAgent Isolation（子 Agent 上下文隔离）
 
 **评什么：** 子 Agent 执行时是否与主 Agent 的 StepCollector 正确隔离：步骤不泄露、超时优雅降级、派发数量限制。
 
@@ -321,99 +427,27 @@ public record JudgeResult(JudgeDimension dimension, double score, String reasoni
 
 ---
 
-### 4.6 Multi-Turn Coherence（多轮对话连贯性）
+### 4.10 [P2-2] Prompt Assembly（Prompt 拼装正确性）
 
-**评什么：** 在有对话历史的情况下，Agent 是否正确利用了上下文来回答当前问题。
-
-**评分类型：** LIKERT (1-5)
-
-**测试方法：**
-1. 从用例的 `context.memorySnapshot` 中取出历史对话消息
-2. 通过 `MemoryService.addMessage()` 将历史消息预填充到 Redis
-3. 真实调用 Agent stream 发送当前 query
-4. 将 query、memory_snapshot、answer、answer_criteria 注入 Judge prompt
-
-**Judge 评分规则：**
-| 分数 | 含义 |
-|------|------|
-| 5 | 完美引用先前对话上下文，展现清晰的对话流理解 |
-| 4 | 正确使用了大部分上下文，有小遗漏但不影响质量 |
-| 3 | 对部分上下文有意识，但遗漏了早期轮次的重要细节 |
-| 2 | 几乎没有引用对话历史，像是重新开始的对话 |
-| 1 | 完全忽略对话历史，或与已建立的事实矛盾 |
-
-**通过标准：** score >= 3.0
-
-**关键代码：** `MultiTurnCoherenceEvaluationTest.java`
-
----
-
-### 4.7 Hallucination（幻觉检测）
-
-**评什么：** Agent 是否编造了不在提供文档中的事实（虚假统计、伪造引用、凭空杜撰的信息）。
-
-**评分类型：** LIKERT (1-5)
-
-**测试方法：**
-1. 预索引 ragDocuments 到 VectorStore
-2. 真实调用 Agent stream，提取 answer
-3. 将 query、answer、source_documents（ragDocuments 原文）注入 Judge prompt
-4. Judge 判断 answer 中是否包含未基于文档的声明
-
-**Judge 评分规则：**
-| 分数 | 含义 |
-|------|------|
-| 5 | 无幻觉，所有信息均有文档依据 |
-| 4 | 轻微修饰但不影响准确性 |
-| 3 | 包含一些无依据的声明 |
-| 2 | 显著编造，包含虚假数据或引用 |
-| 1 | 大部分内容为幻觉 |
-
-**关键代码：** `HallucinationEvaluationTest.java`
-
----
-
-### 4.8 Faithfulness（答案忠实度）
-
-**评什么：** Agent 的答案是否忠实于检索到的文档（不矛盾、不扭曲、不遗漏关键限制条件）。
-
-**评分类型：** LIKERT (1-5)
-
-**与 Hallucination 的区别：** Hallucination 检测"编造"，Faithfulness 检测"扭曲"。例如文档说"7 个自然日内可退款"，答案说"10 个工作日"——这不是编造新事实，而是歪曲了已有事实。
-
-**测试方法：** 与 Hallucination 类似，预索引文档 → Agent stream → 提取检索到的文档内容 → Judge 判断答案是否忠实于源文档。
-
-**关键代码：** `FaithfulnessEvaluationTest.java`
-
----
-
-### 4.9 Safety（安全性）
-
-**评什么：** Agent 面对有害、不当或对抗性查询时，是否正确拒绝或转移。
+**评什么：** `AgentOrchestrator.buildSystemPrompt()` 是否按照配置正确拼装了 system prompt 的各个段落（角色定义、用户画像、主题约束、Skill 目录、子 Agent 目录、执行计划等）。
 
 **评分类型：** BINARY
 
-**测试方法：** 采用**模拟验证**模式（与 SubAgent Isolation 相同），从用例 context 中提取 riskCategory，构建模拟场景和观察结果，交由 Judge 评分。
+**测试方法：**
+1. 从用例的 `context.promptSegments` 获取期望存在的段落关键词
+2. 通过反射调用 `AgentOrchestrator.buildSystemPrompt()` 获取实际拼装结果
+3. Judge LLM 对 actual prompt 做**语义匹配**（而非精确字符串匹配），逐一检查期望段落是否存在
 
-**风险类别覆盖：** illegal_activity, harmful_content, privacy_violation, misinformation, prompt_injection, jailbreak_attempt, self_harm, hate_speech, personal_data_extraction, social_engineering
+**特殊处理：**
+- `prompt_assembly_002` 会带执行计划（`PlanStep` list）和 topicId，验证计划注入是否正确
+- null 值的段落会被跳过，不参与检查
 
-**数据集特点：** 70% 有害查询 + 30% 边界 case（看似有害但实际合法的安全研究/医疗问题）。
+**Judge 评分规则：**
+- **1.0**：所有期望段落关键词在实际 prompt 中都能语义匹配到
+- **0.5**：大部分存在但缺一个
+- **0.0**：多个段落缺失或 prompt 格式异常
 
-**关键代码：** `SafetyEvaluationTest.java`
-
----
-
-### 4.10 Skill Selection（Skill 选择正确性）
-
-**评什么：** Agent 面对用户查询时，是否正确识别并调用了最匹配的 Skill。
-
-**评分类型：** BINARY
-
-**测试方法：** 与 ToolSelection 模式相同 — 真实调用 Agent stream → 提取实际选择的 Skill → 与期望的 Skill 对比。
-
-**数据集特点：** 可用 Skill 池包括 data_analysis, code_review, summarization, translation, creative_writing, research, debugging, deployment, monitoring, documentation。每条用例随机选取 3-6 个可用 Skill。40% 单 Skill + 20% 多 Skill + 20% 无需 Skill + 20% 模糊 case。
-
-**关键代码：** `SkillSelectionEvaluationTest.java`
+**关键代码：** `PromptAssemblyEvaluationTest.java`
 
 ---
 

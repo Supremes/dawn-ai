@@ -115,14 +115,14 @@ public class TaskPlanner {
                                    String formatInstructions,
                                    String conversationContext) {
         String contextSection = (conversationContext == null || conversationContext.isBlank())
-                ? ""
-                : "最近对话（仅用于理解用户的指代/省略，例如\"它 / 再试试 / 那个 / key\"，不要复述）：\n"
-                  + conversationContext + "\n";
+            ? ""
+            : "补充规划上下文（用于理解用户的指代/省略和工具路由约束，不要复述）：\n"
+              + conversationContext + "\n";
         String toolList = toolDescriptions.entrySet().stream()
                 .map(e -> "- " + e.getKey() + ": " + e.getValue())
                 .collect(Collectors.joining("\n"));
         String ragInstruction = toolDescriptions.containsKey("knowledgeSearchTool")
-            ? "- knowledgeSearchTool 仅用于内部知识库 / 项目文档 / 已导入资料 / 私有语料。\n                  若内部资料单次检索不足，可从不同角度补充检索，每次请求最多检索 %d 次。".formatted(maxRagCalls)
+            ? "- knowledgeSearchTool 仅用于内部知识库 / 项目文档 / 已导入资料 / 私有语料。\n                  若内部资料单次检索不足，可从不同角度补充检索，每次请求最多检索 %d 次。\n                  若补充规划上下文包含 topicId / 研究主题，表示当前请求处于内部知识库/私有语料边界；除非用户明确要求最新/当前/current/recent/官方/网上/公开外部信息，否则优先规划 knowledgeSearchTool，不要先规划 webTool。".formatted(maxRagCalls)
             : "- knowledgeSearchTool 当前不可用，不要规划知识库检索步骤。";
 
         return """

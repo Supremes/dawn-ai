@@ -15,10 +15,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.ai.document.Document;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,6 +67,18 @@ public abstract class AbstractEvaluationTest {
     protected LangfuseScoringClient langfuseClient;
 
     protected abstract JudgeDimension dimension();
+
+    protected String evaluationRunId() {
+        return RUN_ID;
+    }
+
+    protected String evaluationSessionId(String prefix, EvaluationCase evalCase) {
+        return "%s-%s-%s".formatted(prefix, evalCase.id(), RUN_ID);
+    }
+
+    protected String evaluationTopicId(EvaluationCase evalCase) {
+        return "%s-%s".formatted(RUN_ID, evalCase.id());
+    }
 
     protected List<EvaluationCase> loadCases() {
         List<EvaluationCase> cases = EvaluationDatasetLoader.loadByDimension(dimension().id());
@@ -157,8 +172,12 @@ public abstract class AbstractEvaluationTest {
     }
 
     protected StreamedAgentResult streamAgent(String sessionId, String query) {
+        return streamAgent(sessionId, query, null);
+    }
+
+    protected StreamedAgentResult streamAgent(String sessionId, String query, String topicId) {
         List<ChatStreamEvent> events = new ArrayList<>();
-        agentOrchestrator.streamChat(sessionId, query, null, events::add, () -> false);
+        agentOrchestrator.streamChat(sessionId, query, topicId, events::add, () -> false);
 
         List<PlanStep> plan = events.stream()
                 .filter(event -> "plan".equals(event.getEvent()))
@@ -171,6 +190,73 @@ public abstract class AbstractEvaluationTest {
                 .map(event -> toStreamedResult(event.getData(), plan))
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("Agent stream did not produce done event"));
+    }
+
+    @SuppressWarnings("unchecked")
+    protected List<String> indexEvaluationDocuments(VectorStore vectorStore, EvaluationCase evalCase) {
+        List<Map<String, Object>> ragDocs = (List<Map<String, Object>>) evalCase.context().get("ragDocuments");
+        if (ragDocs == null || ragDocs.isEmpty()) {
+            return List.of();
+        }
+
+        List<Document> documents = ragDocs.stream()
+                .map(doc -> {
+                    String documentId = UUID.randomUUID().toString();
+                    String originalId = stringValue(doc.get("id"), documentId);
+                    String content = stringValue(doc.get("content"), "");
+                    Map<String, Object> metadata = new HashMap<>();
+                    metadata.put("source", "evaluation-test");
+                    metadata.put("evalRunId", RUN_ID);
+                    metadata.put("evalCaseId", evalCase.id());
+                    metadata.put("originalId", originalId);
+                    metadata.put("category", categoryOf(doc));
+                    metadata.put("topicId", evaluationTopicId(evalCase));
+                    return new Document(documentId, content, metadata);
+                })
+                .toList();
+
+        vectorStore.add(documents);
+        return documents.stream().map(Document::getId).toList();
+    }
+
+    protected void deleteEvaluationDocuments(VectorStore vectorStore, List<String> documentIds) {
+        if (documentIds != null && !documentIds.isEmpty()) {
+            vectorStore.delete(documentIds);
+        }
+    }
+
+    protected Map<String, List<String>> evaluationMetadataFilters(EvaluationCase evalCase) {
+        Map<String, List<String>> filters = new HashMap<>();
+        filters.put("source", List.of("evaluation-test"));
+        filters.put("evalRunId", List.of(RUN_ID));
+        filters.put("evalCaseId", List.of(evalCase.id()));
+        filters.put("category", evaluationCategories(evalCase));
+        return filters;
+    }
+
+    private String categoryOf(Map<String, Object> doc) {
+        Object category = doc.get("category");
+        if (category instanceof String value && !value.isBlank()) {
+            return value;
+        }
+        return "general";
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> evaluationCategories(EvaluationCase evalCase) {
+        List<Map<String, Object>> ragDocs = (List<Map<String, Object>>) evalCase.context().get("ragDocuments");
+        if (ragDocs == null || ragDocs.isEmpty()) {
+            return List.of("general");
+        }
+        List<String> categories = ragDocs.stream()
+                .map(this::categoryOf)
+                .distinct()
+                .toList();
+        return categories.isEmpty() ? List.of("general") : categories;
+    }
+
+    private String stringValue(Object value, String fallback) {
+        return value instanceof String text && !text.isBlank() ? text : fallback;
     }
 
     @SuppressWarnings("unchecked")

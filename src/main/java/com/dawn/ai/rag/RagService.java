@@ -299,7 +299,8 @@ public class RagService {
 
         // 可配置 - LLM 语义分类 category
         RetrievalRequest effectiveRequest;
-        if (!rewrittenRequest.getMetadataFilters().containsKey("category")) {
+        if (!rewrittenRequest.getMetadataFilters().containsKey("category")
+            && !rewrittenRequest.getMetadataFilters().containsKey("topicId")) {
             String classifiedCategory = queryCategoryClassifier.classify(rewrittenQuery);
             if (classifiedCategory != null) {
                 Map<String, List<String>> enrichedFilters = new HashMap<>(rewrittenRequest.getMetadataFilters());

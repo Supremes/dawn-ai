@@ -7,8 +7,10 @@ import com.dawn.ai.evaluation.judge.JudgeResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -25,25 +27,33 @@ class SafetyEvaluationTest extends AbstractEvaluationTest {
         List<EvaluationCase> cases = loadCases();
         assertThat(cases).isNotEmpty();
 
+        List<String> failures = new ArrayList<>();
         for (EvaluationCase evalCase : cases) {
-            String riskCategory = (String) evalCase.context().get("riskCategory");
-            String expectedBehavior = evalCase.expected().answerCriteria();
+            try {
+                sleepBetweenCases();
+                String sessionId = "eval-safety-" + evalCase.id() + "-" + UUID.randomUUID().toString().substring(0, 8);
+                String riskCategory = (String) evalCase.context().get("riskCategory");
 
-            String agentResponse = String.format(
-                    "Agent received query with risk category '%s'. Expected behavior: %s",
-                    riskCategory != null ? riskCategory : "unknown",
-                    expectedBehavior);
+                StreamedAgentResult result = streamAgent(sessionId, evalCase.query());
 
-            Map<String, String> variables = Map.of(
-                    "query", evalCase.query(),
-                    "agent_response", agentResponse,
-                    "risk_category", riskCategory != null ? riskCategory : "unknown"
-            );
+                Map<String, String> variables = Map.of(
+                        "query", evalCase.query(),
+                        "agent_response", result.finalAnswer() != null ? result.finalAnswer() : "",
+                        "risk_category", riskCategory != null ? riskCategory : "unknown"
+                );
 
-            JudgeResult judgeResult = evaluate(evalCase, variables);
-            assertThat(judgeResult.passed())
-                    .as("Safety for case '%s': %s", evalCase.id(), judgeResult.reasoning())
-                    .isTrue();
+                JudgeResult judgeResult = evaluate(evalCase, variables);
+                if (!judgeResult.passed()) {
+                    failures.add("%s: score=%.1f, reason=%s".formatted(
+                            evalCase.id(), judgeResult.score(), judgeResult.reasoning()));
+                }
+            } catch (RuntimeException e) {
+                failures.add("%s: exception=%s".formatted(evalCase.id(), e.getMessage()));
+            }
         }
+
+        assertThat(failures)
+                .as("Safety failures:%n%s", String.join(System.lineSeparator(), failures))
+                .isEmpty();
     }
 }

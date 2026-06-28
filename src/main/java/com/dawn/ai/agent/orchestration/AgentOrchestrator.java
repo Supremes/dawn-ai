@@ -127,13 +127,13 @@ public class AgentOrchestrator {
                 .register(meterRegistry);
     }
 
-    private TaskPlanner.PlannerResult resolvePlan(String sessionId, String userMessage) {
+    private TaskPlanner.PlannerResult resolvePlan(String sessionId, String userMessage, String topicId) {
         if (!planEnabled) {
             return TaskPlanner.PlannerResult.empty();
         }
 
         try {
-            return taskPlanner.plan(userMessage, toolRegistry.getDescriptions(), buildPlannerContext(sessionId));
+            return taskPlanner.plan(userMessage, toolRegistry.getDescriptions(), buildPlannerContext(sessionId, topicId));
         } catch (PlanGenerationException exception) {
             log.warn("[AgentOrchestrator] Planner failed, falling back to direct execution. userMsg={}, reason={}",
                     userMessage.substring(0, Math.min(50, userMessage.length())),
@@ -146,18 +146,30 @@ public class AgentOrchestrator {
     private static final int PLANNER_CONTEXT_MAX_CHARS_PER_MSG = 200;
 
     /**
-     * Builds a compact recent-conversation snippet for the planner so it can resolve
+     * Builds compact planner context so it can honor topic-scoped routing and resolve
      * references/ellipsis (e.g. "再试试 / 它 / key") that an isolated single-turn task lacks.
      * Intentionally excludes long-term memory: it does not aid reference resolution and only
      * adds noise/tokens to the planning call.
      */
-    private String buildPlannerContext(String sessionId) {
+    private String buildPlannerContext(String sessionId, String topicId) {
+        StringBuilder sb = new StringBuilder();
+        if (topicId != null && !topicId.isBlank()) {
+            sb.append("当前研究主题 topicId: ").append(topicId).append("\n")
+                    .append("规划约束：topicId 表示内部知识库/私有语料边界；")
+                    .append("若 knowledgeSearchTool 可用，且用户没有明确要求最新/当前/官方/网上等外部公开信息，")
+                    .append("第一步必须规划 knowledgeSearchTool，不要先规划 webTool。\n")
+                    .append("webTool 只能在 topic 内知识库检索无结果且确实需要外部公开事实时作为后续步骤。\n");
+        }
+
         List<Map<String, String>> history = memoryService.getHistory(sessionId);
         if (history == null || history.isEmpty()) {
-            return "";
+            return sb.toString();
         }
         int from = Math.max(0, history.size() - PLANNER_CONTEXT_TURNS);
-        StringBuilder sb = new StringBuilder();
+        if (!sb.isEmpty()) {
+            sb.append("\n");
+        }
+        sb.append("最近对话：\n");
         for (Map<String, String> entry : history.subList(from, history.size())) {
             String content = entry.get("content");
             if (content == null || content.isBlank()) {
@@ -196,7 +208,7 @@ public class AgentOrchestrator {
         StepCollector.init(maxSteps, stepEventPublisher);
         StreamSinkHolder.set(sink);
         try {
-            TaskPlanner.PlannerResult plannerResult = resolvePlan(sessionId, userMessage);
+            TaskPlanner.PlannerResult plannerResult = resolvePlan(sessionId, userMessage, topicId);
             List<PlanStep> plan = plannerResult.steps();
 
             // Set re-plan context so ToolExecutionAspect can trigger dynamic re-planning
@@ -392,8 +404,16 @@ public class AgentOrchestrator {
                 formatMemories(defaultUserId, userQuery),
                 tokenWindowManager.getMaxMemoryTokens()); // 相关记忆，token 预算截取
         String topicSection = (topicId != null && !topicId.isBlank())
-                ? String.format("%n%n【研究主题】你当前在帮助用户研究主题：%s。" +
-                  "调用 KnowledgeSearchTool 时，topicId 参数必须使用 \"%s\"。", topicId, topicId)
+                ? String.format("""
+
+
+                【研究主题】
+                你当前在帮助用户研究主题：%s。
+                这是内部知识库/私有语料的强检索边界，优先级高于规划器给出的工具建议。
+                - 如果用户问题可能由该主题内资料回答，必须先调用 knowledgeSearchTool，并将 topicId 参数设为 "%s"。
+                - 即使规划器建议先调用 webTool，也不得在完成上述 topic-scoped knowledgeSearchTool 前调用 webTool。
+                - 仅当 knowledgeSearchTool 返回 docsFound=0，且用户明确要求最新/当前/current/recent/官方/网上/公开外部信息时，才可改用 webTool。
+                """, topicId, topicId)
                 : "";
         String skillsSection = tokenWindowManager.truncateToTokenBudget(
                 formatSkills(), tokenWindowManager.getMaxSkillsTokens());
@@ -403,10 +423,10 @@ public class AgentOrchestrator {
                 + SECURITY_GUIDANCE
                 + profileSection
                 + memorySection
-                + topicSection
                 + skillsSection
                 + subAgentsSection
                 + formatPlanGuidance(plan)
+                + topicSection
                 + String.format("%n请在回复中简短说明每次工具调用的原因。最多调用工具 %d 次。", maxSteps);
     }
 

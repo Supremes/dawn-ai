@@ -3,7 +3,6 @@ package com.dawn.ai.evaluation.dimensions;
 import com.dawn.ai.evaluation.base.AbstractEvaluationTest;
 import com.dawn.ai.evaluation.base.EvaluationCase;
 import com.dawn.ai.evaluation.judge.JudgeDimension;
-import com.dawn.ai.evaluation.judge.JudgeResult;
 import com.dawn.ai.rag.RagService;
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
 import org.junit.jupiter.api.DisplayName;
@@ -12,9 +11,9 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -37,77 +36,88 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
         List<EvaluationCase> cases = loadCases();
         assertThat(cases).isNotEmpty();
 
+        List<String> failures = new ArrayList<>();
         for (EvaluationCase evalCase : cases) {
             sleepBetweenCases();
 
-            indexTestDocuments(evalCase);
+            List<String> indexedDocumentIds = indexEvaluationDocuments(vectorStore, evalCase);
+            try {
+                RetrievalRequest request = RetrievalRequest.builder()
+                        .query(evalCase.query())
+                        .metadataFilters(evaluationMetadataFilters(evalCase))
+                        .topK(5)
+                        .rerankEnabled(false)
+                        .build();
+                List<Document> retrieved = ragService.retrieve(request);
 
-            RetrievalRequest request = RetrievalRequest.builder()
-                    .query(evalCase.query())
-                    .topK(5)
-                    .build();
-            List<Document> retrieved = ragService.retrieve(request);
+                List<String> retrievedDocIds = retrieved.stream()
+                        .map(this::originalDocumentId)
+                        .distinct()
+                        .toList();
 
-            List<String> retrievedDocIds = retrieved.stream()
-                    .map(doc -> {
-                        Object originalId = doc.getMetadata().get("originalId");
-                        return originalId != null ? originalId.toString() : doc.getId();
-                    })
-                    .distinct()
-                    .toList();
-
-            String retrievedDocsStr = retrievedDocIds.isEmpty() ? "none" : String.join(", ", retrievedDocIds);
-
-            List<String> expectedDocIds = evalCase.expected().docIds();
-            String expectedDocIdsStr = (expectedDocIds != null && !expectedDocIds.isEmpty())
-                    ? String.join(", ", expectedDocIds)
-                    : "none";
-
-            Map<String, String> variables = Map.of(
-                    "query", evalCase.query(),
-                    "retrieved_documents", retrievedDocsStr,
-                    "expected_doc_ids", expectedDocIdsStr
-            );
-
-            JudgeResult judgeResult = evaluate(evalCase, variables);
-            assertThat(judgeResult.score())
-                    .as("RAG recall for case '%s': %s", evalCase.id(), judgeResult.reasoning())
-                    .isGreaterThanOrEqualTo(3.0);
+                assertRecall(evalCase, retrievedDocIds);
+            } catch (AssertionError | RuntimeException e) {
+                failures.add("%s: %s".formatted(evalCase.id(), e.getMessage()));
+            } finally {
+                deleteEvaluationDocuments(vectorStore, indexedDocumentIds);
+            }
         }
+
+        assertThat(failures)
+                .as("RAG recall failures:%n%s", String.join(System.lineSeparator(), failures))
+                .isEmpty();
     }
 
-    @SuppressWarnings("unchecked")
-    private void indexTestDocuments(EvaluationCase evalCase) {
-        List<Map<String, Object>> ragDocs = (List<Map<String, Object>>) evalCase.context().get("ragDocuments");
-        if (ragDocs == null || ragDocs.isEmpty()) return;
-
-        try {
-            List<Document> documents = ragDocs.stream()
-                    .map(doc -> {
-                        String docId = (String) doc.get("id");
-                        String content = (String) doc.get("content");
-                        String category = categoryOf(doc);
-                        String uuid = UUID.randomUUID().toString();
-                        return new Document(uuid, content, Map.of(
-                                "source", "evaluation-test",
-                                "evalCaseId", evalCase.id(),
-                                "originalId", docId,
-                                "category", category
-                        ));
-                    })
-                    .toList();
-
-            vectorStore.add(documents);
-        } catch (Exception e) {
-            System.err.println("[Evaluation] Warning: failed to index test documents for " + evalCase.id() + ": " + e.getMessage());
+    private void assertRecall(EvaluationCase evalCase, List<String> retrievedDocIds) {
+        List<String> expectedDocIds = expectedDocIds(evalCase);
+        if (expectedDocIds.isEmpty()) {
+            List<String> evalCaseDocIds = evalCaseDocIds(evalCase);
+            assertThat(retrievedDocIds)
+                    .as("RAG recall@5 for case '%s': expected no docs from current case, retrieved=%s, currentCaseDocs=%s",
+                            evalCase.id(), retrievedDocIds, evalCaseDocIds)
+                    .doesNotContainAnyElementsOf(evalCaseDocIds);
+            return;
         }
+
+        long matchedCount = expectedDocIds.stream()
+                .filter(retrievedDocIds::contains)
+                .count();
+        double recallAt5 = matchedCount / (double) expectedDocIds.size();
+
+        assertThat(retrievedDocIds)
+                .as("RAG recall@5 for case '%s': expected=%s, retrieved=%s, recall@5=%.2f",
+                        evalCase.id(), expectedDocIds, retrievedDocIds, recallAt5)
+                .containsAll(expectedDocIds);
     }
 
-    private String categoryOf(Map<String, Object> doc) {
-        Object category = doc.get("category");
-        if (category instanceof String value && !value.isBlank()) {
-            return value;
+    private List<String> expectedDocIds(EvaluationCase evalCase) {
+        if (evalCase.expected() == null || evalCase.expected().docIds() == null) {
+            return List.of();
         }
-        return "general";
+        return evalCase.expected().docIds();
+    }
+
+    private String originalDocumentId(Document document) {
+        Object originalId = document.getMetadata().get("originalId");
+        return originalId != null ? originalId.toString() : document.getId();
+    }
+
+    private List<String> evalCaseDocIds(EvaluationCase evalCase) {
+        if (evalCase.context() == null) {
+            return List.of();
+        }
+
+        Object ragDocuments = evalCase.context().get("ragDocuments");
+        if (!(ragDocuments instanceof List<?> documents)) {
+            return List.of();
+        }
+
+        return documents.stream()
+                .filter(Map.class::isInstance)
+                .map(Map.class::cast)
+                .map(doc -> doc.get("id"))
+                .filter(String.class::isInstance)
+                .map(String.class::cast)
+                .toList();
     }
 }

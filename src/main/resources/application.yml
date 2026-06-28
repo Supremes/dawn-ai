@@ -139,14 +139,6 @@ app:
       Always be concise, accurate, and helpful.
       Before calling a tool, briefly explain your reasoning in one sentence.
   tools:
-    web-search:
-      api-url: ""                        # 搜索 API 端点，留空则该工具不可用
-      api-key: ""                        # 搜索 API 密钥
-      provider: serpapi                  # 提供商：serpapi / bing / custom
-      max-results: 5                     # 单次搜索最大结果数
-    web-fetch:
-      max-bytes: 512000                  # 抓取网页最大字节数（500KB）
-      timeout-seconds: 15               # 抓取超时秒数
     bash:
       timeout-seconds: 30               # Bash 命令执行超时秒数
       max-output-bytes: 51200           # 命令输出最大字节数（50KB）
