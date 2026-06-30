@@ -1,5 +1,5 @@
 ---
-updated: 2026-06-28 14:40
+updated: 2026-06-29 22:48
 ---
 # Dawn AI Agent Evaluation System
 
@@ -293,6 +293,15 @@ public record JudgeResult(JudgeDimension dimension, double score, String reasoni
 **通过标准：** score >= 3.0（注意：这里用 3.0 而非 JudgeResult 默认的 3.5，因为 RAG 召回用的是 AssertJ 的 `isGreaterThanOrEqualTo(3.0)`）
 
 **关键代码：** `RagRecallEvaluationTest.java`
+
+**RagRecall 确定性化**
+
+ - 不再调用 evaluate(...) 让 Judge 打分。
+ - 用 retrievedDocIds vs expectedDocIds 计算命中。
+ - 最小实现可先做： - expected 为空：retrieved 应为空或不包含 eval case 文档。
+ - expected 非空：retrievedDocIds 包含所有 expected。
+ - 后续再升级为 Recall@K / MRR / NDCG。
+ - 验证：mvn test -Dtest=RagRecallEvaluationTest -Dgroups=evaluation -Dexcluded.test.groups= -Deval.limit=10
 
 ---
 

@@ -328,23 +328,24 @@ public abstract class AbstractEvaluationTest {
 
     private void writeLocalReport(EvaluationReport report) {
         try {
-            String path = "target/evaluation-reports/" + RUN_ID + "-" + dimension().id() + ".json";
-            java.io.File dir = new java.io.File("target/evaluation-reports");
-            dir.mkdirs();
+            // Don't write JSON report for now, only HTML report is needed
+            // String path = "target/evaluation-reports/" + RUN_ID + "-" + dimension().id() + ".json";
+            // java.io.File dir = new java.io.File("target/evaluation-reports");
+            // dir.mkdirs();
 
-            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            mapper.writerWithDefaultPrettyPrinter().writeValue(new java.io.File(path), Map.of(
-                    "runId", RUN_ID,
-                    "dimension", dimension().id(),
-                    "totalCases", report.results().size(),
-                    "passRate", report.passRate(),
-                    "averageScore", report.averageScore(),
-                    "results", report.caseResults().isEmpty()
-                            ? report.results().stream().map(this::resultToMap).toList()
-                            : report.caseResults().stream().map(this::caseResultToMap).toList()
-            ));
+            // com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            // mapper.writerWithDefaultPrettyPrinter().writeValue(new java.io.File(path), Map.of(
+            //         "runId", RUN_ID,
+            //         "dimension", dimension().id(),
+            //         "totalCases", report.results().size(),
+            //         "passRate", report.passRate(),
+            //         "averageScore", report.averageScore(),
+            //         "results", report.caseResults().isEmpty()
+            //                 ? report.results().stream().map(this::resultToMap).toList()
+            //                 : report.caseResults().stream().map(this::caseResultToMap).toList()
+            // ));
 
-            log.info("[Evaluation] report written to {}", path);
+            // log.info("[Evaluation] report written to {}", path);
 
             // Generate HTML report alongside the JSON report
             com.dawn.ai.evaluation.report.HtmlReportWriter.write(
