@@ -233,15 +233,42 @@ public class HtmlReportWriter {
     }
 
     private static DomContent metadataGrid(EvaluationCaseResult caseResult, String badgeText, String badgeColor) {
-        return div(
-                metaItem("Status", badgeText, badgeColor),
-                metaItem("Score", String.format("%.2f", caseResult.result().score()), null),
-                metaItem("Session", caseResult.sessionId(), null),
-                metaItem("Expected Tools", formatList(caseResult.expectedTools()), null),
-                metaItem("Actual Tools", formatList(caseResult.actualTools()), null),
-                metaItem("Forbidden Tools", formatList(caseResult.forbiddenTools()), null),
-                metaItem("Allow Extra Tools", String.valueOf(caseResult.allowExtraTools()), null)
-        ).withClass("metadata-grid");
+        List<DomContent> items = new ArrayList<>();
+        // Always show basic info
+        items.add(metaItem("Status", badgeText, badgeColor));
+        items.add(metaItem("Score", String.format("%.2f", caseResult.result().score()), null));
+        items.add(metaItem("Session", caseResult.sessionId(), null));
+
+        if (isRagCase(caseResult)) {
+            // RAG IR metrics
+            items.add(metaItem("Expected Docs", formatList(caseResult.expectedDocIds()), null));
+            items.add(metaItem("Retrieved Docs", formatList(caseResult.retrievedDocIds()), null));
+            items.add(metaItem("Recall@K", String.format("%.4f", caseResult.recallAtK()), null));
+            items.add(metaItem("Precision@K", String.format("%.4f", caseResult.precisionAtK()), null));
+            items.add(metaItem("Hit@K", String.format("%.4f", caseResult.hitAtK()), null));
+            items.add(metaItem("MRR@K", String.format("%.4f", caseResult.mrrAtK()), null));
+            items.add(metaItem("NDCG@K", String.format("%.4f", caseResult.ndcgAtK()), null));
+            items.add(metaItem("Noise Rate", String.format("%.4f", 1.0 - caseResult.precisionAtK()), null));
+            items.add(metaItem("Retrieval Strategy", caseResult.retrievalStrategy(), null));
+        }
+
+        if (isToolCase(caseResult)) {
+            // Tool selection fields
+            items.add(metaItem("Expected Tools", formatList(caseResult.expectedTools()), null));
+            items.add(metaItem("Actual Tools", formatList(caseResult.actualTools()), null));
+            items.add(metaItem("Forbidden Tools", formatList(caseResult.forbiddenTools()), null));
+            items.add(metaItem("Allow Extra Tools", String.valueOf(caseResult.allowExtraTools()), null));
+        }
+
+        return div(items.toArray(new DomContent[0])).withClass("metadata-grid");
+    }
+
+    private static boolean isRagCase(EvaluationCaseResult caseResult) {
+        return !caseResult.expectedDocIds().isEmpty() || !caseResult.retrievedDocIds().isEmpty();
+    }
+
+    private static boolean isToolCase(EvaluationCaseResult caseResult) {
+        return !caseResult.expectedTools().isEmpty() || !caseResult.actualTools().isEmpty();
     }
 
     private static DomContent metaItem(String label, String value, String color) {
@@ -284,6 +311,55 @@ public class HtmlReportWriter {
     }
 
     private static String buildDecisionTrace(EvaluationCaseResult caseResult) {
+        if (isRagCase(caseResult)) {
+            return buildRagDecisionTrace(caseResult);
+        }
+        return buildToolDecisionTrace(caseResult);
+    }
+
+    private static String buildRagDecisionTrace(EvaluationCaseResult caseResult) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Retrieval Strategy: ")
+                .append(caseResult.retrievalStrategy().isEmpty() ? "(not specified)" : caseResult.retrievalStrategy())
+                .append("\n");
+
+        sb.append("Expected docs: ").append(formatList(caseResult.expectedDocIds())).append("\n");
+        sb.append("Retrieved docs: ").append(formatList(caseResult.retrievedDocIds())).append("\n");
+
+        int k = Math.max(caseResult.expectedDocIds().size(), caseResult.retrievedDocIds().size());
+        sb.append(String.format("Recall@%d: %.2f, Precision@%d: %.2f, MRR@%d: %.2f, NDCG@%d: %.2f",
+                k, caseResult.recallAtK(),
+                k, caseResult.precisionAtK(),
+                k, caseResult.mrrAtK(),
+                k, caseResult.ndcgAtK()))
+                .append("\n");
+
+        // Match/mismatch summary
+        List<String> expected = caseResult.expectedDocIds();
+        List<String> retrieved = caseResult.retrievedDocIds();
+        List<String> hits = retrieved.stream().filter(expected::contains).toList();
+        List<String> missed = expected.stream().filter(id -> !retrieved.contains(id)).toList();
+        List<String> noise = retrieved.stream().filter(id -> !expected.contains(id)).toList();
+
+        if (!hits.isEmpty()) {
+            sb.append("Hits: ").append(formatList(hits)).append("\n");
+        }
+        if (!missed.isEmpty()) {
+            sb.append("Missed: ").append(formatList(missed)).append("\n");
+        }
+        if (!noise.isEmpty()) {
+            sb.append("Noise (unexpected): ").append(formatList(noise)).append("\n");
+        }
+
+        if (caseResult.result().passed()) {
+            sb.append("Evaluation: retrieval quality met threshold.");
+        } else {
+            sb.append("Evaluation: retrieval quality below threshold.");
+        }
+        return sb.toString();
+    }
+
+    private static String buildToolDecisionTrace(EvaluationCaseResult caseResult) {
         StringBuilder sb = new StringBuilder();
         sb.append("Planner initially selected: ")
                 .append(caseResult.plannerSteps().isEmpty()

@@ -396,6 +396,27 @@ public abstract class AbstractEvaluationTest {
             stepMap.put("status", step.status());
             return stepMap;
         }).toList());
+
+        // RAG-specific fields (only when present)
+        if (caseResult.expectedDocIds() != null && !caseResult.expectedDocIds().isEmpty()) {
+            map.put("expectedDocIds", caseResult.expectedDocIds());
+        }
+        if (caseResult.retrievedDocIds() != null && !caseResult.retrievedDocIds().isEmpty()) {
+            map.put("retrievedDocIds", caseResult.retrievedDocIds());
+        }
+        if (caseResult.recallAtK() > 0 || caseResult.precisionAtK() > 0
+                || caseResult.hitAtK() > 0 || caseResult.mrrAtK() > 0
+                || caseResult.ndcgAtK() > 0) {
+            map.put("recallAtK", caseResult.recallAtK());
+            map.put("precisionAtK", caseResult.precisionAtK());
+            map.put("hitAtK", caseResult.hitAtK());
+            map.put("mrrAtK", caseResult.mrrAtK());
+            map.put("ndcgAtK", caseResult.ndcgAtK());
+        }
+        if (caseResult.retrievalStrategy() != null && !caseResult.retrievalStrategy().isEmpty()) {
+            map.put("retrievalStrategy", caseResult.retrievalStrategy());
+        }
+
         return map;
     }
 }

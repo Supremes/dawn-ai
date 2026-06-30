@@ -1911,6 +1911,1641 @@
   {
     "id": "rr_001",
     "dimension": "rag_recall",
+    "query": "详细介绍数据备份和恢复的完整流程",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-ops-backup-full",
+          "category": "运维",
+          "content": "全量备份每日凌晨3点自动执行，备份文件保存在 S3 bucket 中，保留30天。备份脚本位于 /opt/scripts/backup.sh，支持手动触发。"
+        },
+        {
+          "id": "doc-ops-backup-incremental",
+          "category": "运维",
+          "content": "增量备份每6小时执行一次，基于WAL日志实现，支持PITR到任意时间点。增量备份文件大小通常为全量备份的5%-10%。"
+        },
+        {
+          "id": "doc-ops-restore",
+          "category": "运维",
+          "content": "数据恢复流程：1.停止应用 2.选择备份版本 3.执行pg_restore 4.验证数据一致性 5.重启应用。恢复时间取决于数据量，通常在30分钟到2小时之间。"
+        },
+        {
+          "id": "doc-ops-monitoring",
+          "category": "运维",
+          "content": "Grafana监控面板显示服务器CPU、内存、磁盘IO等实时指标，告警阈值可自定义配置。"
+        },
+        {
+          "id": "doc-security-encryption",
+          "category": "安全",
+          "content": "数据传输使用TLS 1.3加密，存储使用AES-256加密。密钥由KMS服务统一管理。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应同时召回 backup-full, backup-incremental, restore 三个文档，覆盖完整备份恢复流程",
+      "docIds": [
+        "doc-ops-backup-full",
+        "doc-ops-backup-incremental",
+        "doc-ops-restore"
+      ]
+    }
+  },
+  {
+    "id": "rr_002",
+    "dimension": "rag_recall",
+    "query": "我们系统的用户认证、授权和审计分别是怎么做的？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-security-authn",
+          "category": "安全",
+          "content": "用户认证支持三种方式：用户名密码、OAuth2.0社交登录（Google/GitHub）、SAML SSO企业登录。密码必须8位以上包含大小写和特殊字符。"
+        },
+        {
+          "id": "doc-security-authz",
+          "category": "安全",
+          "content": "授权采用RBAC模型，预定义管理员、编辑者、查看者三种角色。支持自定义角色和细粒度权限控制，权限粒度到API端点级别。"
+        },
+        {
+          "id": "doc-security-audit",
+          "category": "安全",
+          "content": "审计日志记录所有管理操作和敏感数据访问，日志保留90天，支持导出为CSV/JSON格式。审计事件包括登录、权限变更、数据修改等。"
+        },
+        {
+          "id": "doc-ops-log-rotation",
+          "category": "运维",
+          "content": "日志轮转使用logrotate，每日压缩归档，保留30天。"
+        },
+        {
+          "id": "doc-api-rate-limit",
+          "category": "API",
+          "content": "API限流采用令牌桶算法，默认每分钟100次请求。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应同时召回 authn, authz, audit 三个安全文档，完整覆盖认证授权审计三个维度",
+      "docIds": [
+        "doc-security-authn",
+        "doc-security-authz",
+        "doc-security-audit"
+      ]
+    }
+  },
+  {
+    "id": "rr_003",
+    "dimension": "rag_recall",
+    "query": "请介绍我们的CI/CD流水线，包括构建、测试和部署各环节",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-cicd-build",
+          "category": "运维",
+          "content": "构建阶段使用GitHub Actions，触发条件为push到main分支或PR合并。构建产物为Docker镜像，推送到Harbor私有仓库，镜像标签格式为 git-sha-timestamp。"
+        },
+        {
+          "id": "doc-cicd-test",
+          "category": "运维",
+          "content": "测试阶段包含单元测试(JUnit5)、集成测试(Testcontainers)和E2E测试(Playwright)。覆盖率要求：单元测试80%以上，集成测试关键路径100%覆盖。"
+        },
+        {
+          "id": "doc-cicd-deploy",
+          "category": "运维",
+          "content": "部署采用蓝绿部署策略，通过Kubernetes实现。新版本先部署到green环境，健康检查通过后切换流量。回滚时间小于30秒。"
+        },
+        {
+          "id": "doc-cicd-notification",
+          "category": "运维",
+          "content": "流水线状态通知发送到Slack #ci-alerts频道，失败时@相关开发者。"
+        },
+        {
+          "id": "doc-ops-monitoring",
+          "category": "运维",
+          "content": "Prometheus + Grafana 监控体系，采集应用和基础设施指标。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 build, test, deploy 三个CI/CD文档，完整覆盖流水线各环节",
+      "docIds": [
+        "doc-cicd-build",
+        "doc-cicd-test",
+        "doc-cicd-deploy"
+      ]
+    }
+  },
+  {
+    "id": "rr_004",
+    "dimension": "rag_recall",
+    "query": "我们的缓存体系包括哪几层？各层的特点和适用场景是什么？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-cache-local",
+          "category": "缓存",
+          "content": "L1本地缓存使用Caffeine，容量最大10000条，TTL 5分钟。适用于热点数据和配置信息，命中率通常在85%以上。"
+        },
+        {
+          "id": "doc-cache-redis",
+          "category": "缓存",
+          "content": "L2分布式缓存使用Redis Cluster，6节点3主3从。支持字符串、哈希、有序集合等数据结构。TTL根据业务配置，默认30分钟。"
+        },
+        {
+          "id": "doc-cache-cdn",
+          "category": "缓存",
+          "content": "L3 CDN缓存用于静态资源和API响应缓存。使用CloudFront，边缘节点超过200个。缓存策略通过Cache-Control头控制，静态资源缓存1年，API响应缓存5分钟。"
+        },
+        {
+          "id": "doc-db-index",
+          "category": "数据库",
+          "content": "数据库索引策略：主键自动索引，外键建议索引，查询频繁的字段创建复合索引。"
+        },
+        {
+          "id": "doc-perf-benchmark",
+          "category": "性能",
+          "content": "性能基线：P99延迟200ms以内，QPS支持5000+。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 cache-local, cache-redis, cache-cdn 三个缓存层文档",
+      "docIds": [
+        "doc-cache-local",
+        "doc-cache-redis",
+        "doc-cache-cdn"
+      ]
+    }
+  },
+  {
+    "id": "rr_005",
+    "dimension": "rag_recall",
+    "query": "从网络层面来看，我们的安全防护措施有哪些？包括防火墙、DDoS防护和入侵检测",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-net-firewall",
+          "category": "网络",
+          "content": "网络防火墙使用AWS Security Group和Network ACL双层控制。入站规则仅开放80/443/22端口，22端口限制为运维VPN IP段。出站默认允许全部。"
+        },
+        {
+          "id": "doc-net-ddos",
+          "category": "网络",
+          "content": "DDoS防护采用AWS Shield Advanced，自动检测和缓解L3/L4/L7层攻击。配合WAF规则拦截恶意请求，包括SQL注入、XSS和CSRF防护。"
+        },
+        {
+          "id": "doc-net-ids",
+          "category": "网络",
+          "content": "入侵检测系统(IDS)使用Suricata，部署在VPC流量镜像上。检测规则每日更新，发现异常流量自动告警并生成安全事件。支持自定义检测规则。"
+        },
+        {
+          "id": "doc-security-encryption",
+          "category": "安全",
+          "content": "所有数据传输使用TLS 1.3，证书由ACM自动管理和续期。"
+        },
+        {
+          "id": "doc-ops-backup-full",
+          "category": "运维",
+          "content": "全量备份每日凌晨3点自动执行，备份文件保存在S3中。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 firewall, ddos, ids 三个网络安全文档",
+      "docIds": [
+        "doc-net-firewall",
+        "doc-net-ddos",
+        "doc-net-ids"
+      ]
+    }
+  },
+  {
+    "id": "rr_006",
+    "dimension": "rag_recall",
+    "query": "消息队列的生产者、消费者和死信队列的完整配置和最佳实践",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-mq-producer",
+          "category": "消息队列",
+          "content": "Kafka生产者配置：acks=all确保消息不丢失，retries=3，batch.size=16KB，linger.ms=5。使用幂等生产者避免重复消息。分区策略按业务ID哈希。"
+        },
+        {
+          "id": "doc-mq-consumer",
+          "category": "消息队列",
+          "content": "Kafka消费者配置：enable.auto.commit=false手动提交offset，max.poll.records=500，session.timeout.ms=30000。消费者组内自动负载均衡，支持优雅停机。"
+        },
+        {
+          "id": "doc-mq-dlq",
+          "category": "消息队列",
+          "content": "死信队列(DLQ)处理失败消息，最大重试3次后转入DLQ。DLQ消息保留7天，支持手动重放。监控DLQ积压量，超过阈值触发告警。"
+        },
+        {
+          "id": "doc-mq-monitoring",
+          "category": "消息队列",
+          "content": "Kafka集群监控：consumer lag、吞吐量、分区ISR状态等指标接入Prometheus。"
+        },
+        {
+          "id": "doc-perf-async",
+          "category": "性能",
+          "content": "异步任务使用线程池处理，核心线程数=CPU核数*2。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 producer, consumer, dlq 三个消息队列文档",
+      "docIds": [
+        "doc-mq-producer",
+        "doc-mq-consumer",
+        "doc-mq-dlq"
+      ]
+    }
+  },
+  {
+    "id": "rr_007",
+    "dimension": "rag_recall",
+    "query": "请完整说明数据库的读写分离、连接池和慢查询优化方案",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-db-rw-split",
+          "category": "数据库",
+          "content": "读写分离通过ProxySQL实现，写请求路由到主库，读请求按权重分发到2个只读副本。主从复制延迟通常在100ms以内，延迟超过1秒时自动切回主库读。"
+        },
+        {
+          "id": "doc-db-conn-pool",
+          "category": "数据库",
+          "content": "连接池使用HikariCP，配置：maximumPoolSize=20，minimumIdle=5，connectionTimeout=30s，idleTimeout=600s。每个微服务独立连接池，总连接数不超过数据库max_connections的80%。"
+        },
+        {
+          "id": "doc-db-slow-query",
+          "category": "数据库",
+          "content": "慢查询阈值设为200ms，自动记录到slow_query_log表。每周生成慢查询Top20报告。优化手段包括：添加索引、改写SQL、分表分库。pt-query-digest分析慢查询日志。"
+        },
+        {
+          "id": "doc-db-migration",
+          "category": "数据库",
+          "content": "数据库迁移使用Flyway，版本化管理DDL变更。"
+        },
+        {
+          "id": "doc-cache-redis",
+          "category": "缓存",
+          "content": "Redis Cluster用于分布式缓存，6节点3主3从部署。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 rw-split, conn-pool, slow-query 三个数据库文档",
+      "docIds": [
+        "doc-db-rw-split",
+        "doc-db-conn-pool",
+        "doc-db-slow-query"
+      ]
+    }
+  },
+  {
+    "id": "rr_008",
+    "dimension": "rag_recall",
+    "query": "日志系统的采集、存储和检索方案分别是什么？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-log-collect",
+          "category": "监控",
+          "content": "日志采集使用Filebeat agent部署在每个节点，采集应用日志和系统日志。支持多行日志合并，通过正则匹配堆栈跟踪。采集延迟小于5秒。"
+        },
+        {
+          "id": "doc-log-storage",
+          "category": "监控",
+          "content": "日志存储使用Elasticsearch集群，3个数据节点，每个节点2TB SSD。索引按天滚动，热数据保留7天，温数据保留30天，冷数据保留90天。ILM策略自动管理生命周期。"
+        },
+        {
+          "id": "doc-log-search",
+          "category": "监控",
+          "content": "日志检索通过Kibana界面，支持KQL和Lucene查询语法。预设仪表板展示错误率趋势、响应时间分布和异常事件。支持保存搜索和创建告警规则。"
+        },
+        {
+          "id": "doc-ops-monitoring",
+          "category": "运维",
+          "content": "Prometheus指标采集间隔15秒，Grafana展示实时面板。"
+        },
+        {
+          "id": "doc-security-audit",
+          "category": "安全",
+          "content": "审计日志独立存储，保留90天，不可篡改。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 log-collect, log-storage, log-search 三个日志文档",
+      "docIds": [
+        "doc-log-collect",
+        "doc-log-storage",
+        "doc-log-search"
+      ]
+    }
+  },
+  {
+    "id": "rr_009",
+    "dimension": "rag_recall",
+    "query": "完整介绍我们的API网关功能，包括路由、限流、熔断和认证",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-gw-routing",
+          "category": "API",
+          "content": "API网关使用Spring Cloud Gateway，支持基于路径、Header和查询参数的动态路由。路由配置存储在Nacos中，支持热更新无需重启。灰度发布通过路由权重控制。"
+        },
+        {
+          "id": "doc-gw-ratelimit",
+          "category": "API",
+          "content": "网关限流使用Redis令牌桶算法，支持按IP、用户ID和API Key三个维度限流。默认速率100请求/分钟，企业客户可申请提升到1000请求/分钟。超限返回HTTP 429。"
+        },
+        {
+          "id": "doc-gw-circuit",
+          "category": "API",
+          "content": "熔断器使用Resilience4j，配置：失败率阈值50%，慢调用率阈值80%（慢调用定义为超过2秒），滑动窗口100次调用。熔断后降级返回缓存数据或友好提示。"
+        },
+        {
+          "id": "doc-gw-auth",
+          "category": "API",
+          "content": "网关统一认证：JWT Token验证、OAuth2.0 scope检查、API Key鉴权。Token过期自动刷新，支持Token黑名单。所有认证失败返回标准RFC 7807错误格式。"
+        },
+        {
+          "id": "doc-ops-deploy-k8s",
+          "category": "部署",
+          "content": "Kubernetes集群3个master节点，10个worker节点，使用Flannel网络插件。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 routing, ratelimit, circuit, auth 四个网关文档",
+      "docIds": [
+        "doc-gw-routing",
+        "doc-gw-ratelimit",
+        "doc-gw-circuit",
+        "doc-gw-auth"
+      ]
+    }
+  },
+  {
+    "id": "rr_010",
+    "dimension": "rag_recall",
+    "query": "微服务架构中的服务注册发现、配置中心和链路追踪是怎么实现的？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-ms-registry",
+          "category": "部署",
+          "content": "服务注册发现使用Nacos，服务启动时自动注册实例信息（IP、端口、健康状态）。支持命名空间隔离不同环境。客户端负载均衡使用Spring Cloud LoadBalancer，支持轮询和加权随机策略。"
+        },
+        {
+          "id": "doc-ms-config",
+          "category": "部署",
+          "content": "配置中心使用Nacos Config，支持多环境、多格式（YAML/Properties/JSON）配置管理。配置变更实时推送到应用实例，无需重启。敏感配置使用Jasypt加密存储。"
+        },
+        {
+          "id": "doc-ms-tracing",
+          "category": "监控",
+          "content": "分布式链路追踪使用Micrometer Tracing + Zipkin。自动注入traceId和spanId到日志和HTTP Header。采样率配置为10%生产环境，100%测试环境。支持查看完整调用链路图和耗时分析。"
+        },
+        {
+          "id": "doc-ms-gateway",
+          "category": "API",
+          "content": "API网关统一入口，负责路由转发和认证鉴权。"
+        },
+        {
+          "id": "doc-ops-k8s-service",
+          "category": "部署",
+          "content": "Kubernetes Service提供集群内部DNS解析和负载均衡。"
+        },
+        {
+          "id": "doc-perf-benchmark",
+          "category": "性能",
+          "content": "系统性能基线：P99延迟200ms以内。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 registry, config, tracing 三个微服务基础设施文档",
+      "docIds": [
+        "doc-ms-registry",
+        "doc-ms-config",
+        "doc-ms-tracing"
+      ]
+    }
+  },
+  {
+    "id": "rr_011",
+    "dimension": "rag_recall",
+    "query": "最近的英超联赛积分榜是怎样的？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-ops-monitoring",
+          "category": "运维",
+          "content": "Grafana监控面板显示服务器CPU、内存、磁盘IO等实时指标和积分面板。"
+        },
+        {
+          "id": "doc-perf-benchmark",
+          "category": "性能",
+          "content": "性能评分基线：Lighthouse评分90+，Core Web Vitals全部达标。"
+        },
+        {
+          "id": "doc-api-versioning",
+          "category": "API",
+          "content": "API版本通过URL路径控制，当前最新版本为v3。"
+        },
+        {
+          "id": "doc-ops-schedule",
+          "category": "运维",
+          "content": "定时任务调度使用Quartz，支持Cron表达式配置执行计划。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "不应召回任何文档，英超积分榜与技术知识库完全无关",
+      "docIds": []
+    }
+  },
+  {
+    "id": "rr_012",
+    "dimension": "rag_recall",
+    "query": "帮我推荐几首适合工作时听的音乐",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-ops-workflow",
+          "category": "运维",
+          "content": "工作流引擎支持自定义审批流程，节点包括人工审批、自动判断和并行处理。"
+        },
+        {
+          "id": "doc-config-notification",
+          "category": "运维",
+          "content": "通知渠道支持邮件、Slack、钉钉和企业微信，可配置通知模板和触发条件。"
+        },
+        {
+          "id": "doc-perf-optimization",
+          "category": "性能",
+          "content": "前端性能优化：代码分割、懒加载、图片压缩、CDN加速。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "不应召回任何文档，音乐推荐与知识库内容无关",
+      "docIds": []
+    }
+  },
+  {
+    "id": "rr_013",
+    "dimension": "rag_recall",
+    "query": "Python的GIL锁机制是怎么工作的？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-db-lock",
+          "category": "数据库",
+          "content": "数据库行级锁使用SELECT FOR UPDATE，防止并发写入冲突。乐观锁通过version字段实现。"
+        },
+        {
+          "id": "doc-cache-redis-lock",
+          "category": "缓存",
+          "content": "分布式锁使用Redis SETNX实现，支持自动续期和防死锁。Redisson客户端封装了看门狗机制。"
+        },
+        {
+          "id": "doc-security-access-control",
+          "category": "安全",
+          "content": "访问控制采用RBAC模型，权限通过角色继承机制管理。"
+        },
+        {
+          "id": "doc-api-concurrency",
+          "category": "API",
+          "content": "并发控制使用信号量限制同时处理的请求数。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "不应召回任何文档，Python GIL是编程语言内部机制，虽然有锁相关文档但内容完全不同",
+      "docIds": []
+    }
+  },
+  {
+    "id": "rr_014",
+    "dimension": "rag_recall",
+    "query": "明天北京的天气怎么样？需要带伞吗？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-ops-disaster-recovery",
+          "category": "运维",
+          "content": "灾备方案：北京主机房和上海灾备机房双活部署，RTO < 15分钟，RPO < 1分钟。"
+        },
+        {
+          "id": "doc-deploy-region",
+          "category": "部署",
+          "content": "多地域部署支持北京、上海、广州三个可用区，数据就近访问。"
+        },
+        {
+          "id": "doc-config-timezone",
+          "category": "运维",
+          "content": "系统默认时区为Asia/Shanghai，支持用户自定义时区设置。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "不应召回任何文档，天气查询与知识库无关，虽然文档提到北京但语义完全不同",
+      "docIds": []
+    }
+  },
+  {
+    "id": "rr_015",
+    "dimension": "rag_recall",
+    "query": "如何制作一个巧克力蛋糕？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-cicd-build",
+          "category": "运维",
+          "content": "构建阶段使用GitHub Actions，触发条件为push到main分支或PR合并。构建产物为Docker镜像。"
+        },
+        {
+          "id": "doc-cicd-pipeline",
+          "category": "运维",
+          "content": "流水线分为build、test、deploy三个stage，每个stage可配置并行任务。"
+        },
+        {
+          "id": "doc-api-recipe",
+          "category": "API",
+          "content": "API设计遵循RESTful规范，资源命名使用小写复数名词。"
+        },
+        {
+          "id": "doc-config-template",
+          "category": "运维",
+          "content": "配置模板支持变量替换，使用${VAR_NAME}语法。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "不应召回任何文档，烹饪问题与技术知识库完全无关",
+      "docIds": []
+    }
+  },
+  {
+    "id": "rr_016",
+    "dimension": "rag_recall",
+    "query": "最新的iPhone售价是多少？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-billing-pricing",
+          "category": "金融",
+          "content": "订阅方案：免费版0元/月，专业版29元/月，企业版99元/月。年付享8折优惠。"
+        },
+        {
+          "id": "doc-config-mobile-app",
+          "category": "运维",
+          "content": "移动端支持iOS和Android原生应用，可在App Store和Google Play下载。"
+        },
+        {
+          "id": "doc-billing-payment",
+          "category": "金融",
+          "content": "支付方式支持支付宝、微信支付和银行卡。企业客户支持对公转账和发票。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "不应召回任何文档，iPhone售价与知识库定价或移动应用内容无关",
+      "docIds": []
+    }
+  },
+  {
+    "id": "rr_017",
+    "dimension": "rag_recall",
+    "query": "区块链技术的共识算法有哪些？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-security-encryption",
+          "category": "安全",
+          "content": "数据加密使用AES-256算法，密钥由KMS服务管理。传输层使用TLS 1.3。"
+        },
+        {
+          "id": "doc-db-consensus",
+          "category": "数据库",
+          "content": "数据库主从同步使用半同步复制，确保至少一个从库确认后才提交事务。"
+        },
+        {
+          "id": "doc-ms-registry",
+          "category": "部署",
+          "content": "服务注册发现使用Nacos，底层基于Raft协议实现一致性。"
+        },
+        {
+          "id": "doc-security-hash",
+          "category": "安全",
+          "content": "密码存储使用BCrypt哈希算法，cost factor设为12。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "不应召回任何文档，区块链共识算法与知识库中的加密和数据库同步是不同领域",
+      "docIds": []
+    }
+  },
+  {
+    "id": "rr_018",
+    "dimension": "rag_recall",
+    "query": "三体中的黑暗森林法则具体是什么内容？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-security-firewall",
+          "category": "安全",
+          "content": "Web应用防火墙(WAF)拦截SQL注入、XSS和CSRF攻击，规则每日自动更新。"
+        },
+        {
+          "id": "doc-net-dark-launch",
+          "category": "部署",
+          "content": "暗发布(Dark Launch)功能允许将新功能部署到生产但不对用户可见，通过Feature Flag控制。"
+        },
+        {
+          "id": "doc-ops-forest-view",
+          "category": "监控",
+          "content": "服务依赖关系图(Service Forest)展示微服务间的调用关系和健康状态。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "不应召回任何文档，科幻小说内容与技术知识库无关，虽然有dark launch和forest等词汇但语义完全不同",
+      "docIds": []
+    }
+  },
+  {
+    "id": "rr_019",
+    "dimension": "rag_recall",
+    "query": "账户安全设置在哪里配置？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-billing-account-balance",
+          "category": "金融",
+          "content": "账户余额可在控制台「费用中心」查看，支持设置余额不足告警。充值支持支付宝和微信支付。"
+        },
+        {
+          "id": "doc-security-audit-log",
+          "category": "安全",
+          "content": "安全审计日志记录所有登录尝试、权限变更和API调用。日志不可篡改，保留90天。支持按操作者、时间和事件类型筛选。"
+        },
+        {
+          "id": "doc-security-account-settings",
+          "category": "安全",
+          "content": "账户安全设置页面路径：设置 > 安全中心。支持开启双因素认证(2FA)、设置登录IP白名单、配置会话超时时间(默认30分钟)、管理已授权的第三方应用。"
+        },
+        {
+          "id": "doc-config-account-profile",
+          "category": "运维",
+          "content": "账户个人资料包括头像、昵称、邮箱和手机号设置。修改手机号需短信验证。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应仅召回 doc-security-account-settings，其他含'账户'或'安全'的文档是hard negatives",
+      "docIds": [
+        "doc-security-account-settings"
+      ]
+    }
+  },
+  {
+    "id": "rr_020",
+    "dimension": "rag_recall",
+    "query": "怎么查看服务的内存使用情况？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-cache-memory-policy",
+          "category": "缓存",
+          "content": "Redis内存淘汰策略设置为allkeys-lru，最大内存限制为8GB。当内存使用率超过80%时触发告警。"
+        },
+        {
+          "id": "doc-jvm-memory-tuning",
+          "category": "性能",
+          "content": "JVM内存调优：堆内存-Xms4g -Xmx4g，元空间-XX:MaxMetaspaceSize=512m。GC选择G1，目标暂停时间200ms。"
+        },
+        {
+          "id": "doc-ops-memory-monitoring",
+          "category": "监控",
+          "content": "服务内存监控通过Prometheus node_exporter采集，Grafana面板展示。查看路径：Grafana > Dashboards > Service Metrics > Memory Usage。包含堆内存、非堆内存、GC频率和耗时指标。"
+        },
+        {
+          "id": "doc-perf-memory-leak",
+          "category": "性能",
+          "content": "内存泄漏排查工具：jmap导出heap dump，MAT分析对象引用链。生产环境配置-XX:+HeapDumpOnOutOfMemoryError自动导出。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应仅召回 doc-ops-memory-monitoring，其他含'内存'的文档是关于缓存策略、JVM调优和泄漏排查的hard negatives",
+      "docIds": [
+        "doc-ops-memory-monitoring"
+      ]
+    }
+  },
+  {
+    "id": "rr_021",
+    "dimension": "rag_recall",
+    "query": "如何配置数据库的自动扩容？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-k8s-hpa",
+          "category": "部署",
+          "content": "Kubernetes HPA自动扩容：基于CPU使用率(阈值70%)和自定义指标(请求队列长度)。最小副本数2，最大10。扩容冷却时间3分钟。"
+        },
+        {
+          "id": "doc-db-storage-expand",
+          "category": "数据库",
+          "content": "数据库存储自动扩容：在RDS控制台开启Auto Scaling，设置最大存储上限(默认1TB)。存储使用率超过80%时自动扩容20%。扩容期间数据库可正常读写，IO性能可能有短暂波动。"
+        },
+        {
+          "id": "doc-cache-redis-cluster-scale",
+          "category": "缓存",
+          "content": "Redis集群扩容：添加新节点后执行reshard命令重新分配slot。在线扩容不中断服务。"
+        },
+        {
+          "id": "doc-db-conn-pool",
+          "category": "数据库",
+          "content": "连接池动态扩容：HikariCP支持运行时调整maximumPoolSize，通过JMX或配置中心热更新。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应仅召回 doc-db-storage-expand，K8s HPA是应用扩容、Redis是缓存扩容、连接池是连接数扩容，都是hard negatives",
+      "docIds": [
+        "doc-db-storage-expand"
+      ]
+    }
+  },
+  {
+    "id": "rr_022",
+    "dimension": "rag_recall",
+    "query": "用户登录失败的排查步骤",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-troubleshoot-login-failure",
+          "category": "运维",
+          "content": "用户登录失败排查：1.检查账号是否被锁定(连续5次失败自动锁定30分钟) 2.验证密码是否正确(注意大小写) 3.检查2FA是否启用且TOTP时间同步 4.查看登录审计日志确认失败原因码 5.检查IP是否在白名单内。"
+        },
+        {
+          "id": "doc-troubleshoot-api-auth-failure",
+          "category": "API",
+          "content": "API认证失败排查：检查API Key是否过期、OAuth Token是否有效、scope是否包含所需权限。常见错误码：401 Unauthorized、403 Forbidden。"
+        },
+        {
+          "id": "doc-troubleshoot-startup-failure",
+          "category": "运维",
+          "content": "服务启动失败排查：检查端口占用、环境变量配置、数据库连接和依赖服务健康状态。"
+        },
+        {
+          "id": "doc-security-login-policy",
+          "category": "安全",
+          "content": "登录安全策略：密码有效期90天，历史密码不可重复使用(记录最近5个)，异地登录需二次验证。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应仅召回 doc-troubleshoot-login-failure，API认证失败和登录策略是不同主题的hard negatives",
+      "docIds": [
+        "doc-troubleshoot-login-failure"
+      ]
+    }
+  },
+  {
+    "id": "rr_023",
+    "dimension": "rag_recall",
+    "query": "如何设置定时任务？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-ops-scheduled-task",
+          "category": "运维",
+          "content": "定时任务管理使用XXL-JOB调度平台，支持Cron表达式配置。任务类型包括Bean模式和GLUE模式。支持失败重试、超时终止、分片广播等特性。管理界面：http://xxl-job-admin:8080。"
+        },
+        {
+          "id": "doc-ops-crontab",
+          "category": "运维",
+          "content": "Linux crontab用于系统级定时任务，如日志清理和证书续期。所有crontab配置统一由Ansible管理。"
+        },
+        {
+          "id": "doc-mq-delayed-message",
+          "category": "消息队列",
+          "content": "延迟消息使用RocketMQ延迟级别，支持1s到2h共18个延迟等级。适用于订单超时取消等场景。"
+        },
+        {
+          "id": "doc-cache-ttl",
+          "category": "缓存",
+          "content": "缓存TTL设置：配置信息缓存5分钟，业务数据缓存30分钟，静态资源缓存24小时。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应仅召回 doc-ops-scheduled-task，crontab是系统级任务、延迟消息和TTL不是定时任务",
+      "docIds": [
+        "doc-ops-scheduled-task"
+      ]
+    }
+  },
+  {
+    "id": "rr_024",
+    "dimension": "rag_recall",
+    "query": "如何处理文件上传？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-api-file-upload",
+          "category": "API",
+          "content": "文件上传接口POST /api/v3/files，支持multipart/form-data格式。单文件最大50MB，支持断点续传。上传后返回文件ID和CDN访问URL。支持的格式：jpg/png/pdf/docx/xlsx。"
+        },
+        {
+          "id": "doc-ops-log-upload",
+          "category": "运维",
+          "content": "日志上传到ELK集群，Filebeat agent负责采集和推送。上传带宽限制为10MB/s避免影响业务。"
+        },
+        {
+          "id": "doc-db-data-import",
+          "category": "数据库",
+          "content": "数据批量导入使用COPY命令，支持CSV和JSON格式。导入前自动备份目标表。"
+        },
+        {
+          "id": "doc-config-upload-limit",
+          "category": "运维",
+          "content": "Nginx上传大小限制：client_max_body_size 100m。超过限制返回413错误。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应仅召回 doc-api-file-upload，日志上传、数据导入和Nginx配置虽含'上传'但是不同场景的hard negatives",
+      "docIds": [
+        "doc-api-file-upload"
+      ]
+    }
+  },
+  {
+    "id": "rr_025",
+    "dimension": "rag_recall",
+    "query": "告警规则怎么配置？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-monitor-alert-config",
+          "category": "监控",
+          "content": "告警规则在Prometheus Alertmanager中配置，支持基于指标阈值、持续时间和表达式触发。告警级别分为P1(紧急)、P2(重要)、P3(一般)。配置文件路径：/etc/alertmanager/rules.yml。"
+        },
+        {
+          "id": "doc-monitor-alert-notification",
+          "category": "监控",
+          "content": "告警通知路由：P1通过电话和短信通知值班人员，P2发送Slack和邮件，P3仅记录日志。"
+        },
+        {
+          "id": "doc-security-waf-rules",
+          "category": "安全",
+          "content": "WAF安全规则配置：自定义IP黑名单、URL访问频率限制、请求体大小限制。规则优先级从高到低执行。"
+        },
+        {
+          "id": "doc-api-validation-rules",
+          "category": "API",
+          "content": "请求参数校验规则使用Jakarta Validation注解，支持@NotNull、@Size、@Pattern等。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应仅召回 doc-monitor-alert-config，WAF规则和参数校验规则虽含'规则'但是不同领域的hard negatives",
+      "docIds": [
+        "doc-monitor-alert-config"
+      ]
+    }
+  },
+  {
+    "id": "rr_026",
+    "dimension": "rag_recall",
+    "query": "怎么进行版本回滚？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-deploy-rollback",
+          "category": "部署",
+          "content": "应用版本回滚：通过kubectl rollout undo deployment/<name>回滚到上一版本，或指定--to-revision=N回滚到特定版本。回滚前自动快照当前状态。回滚时间通常在30秒内完成。"
+        },
+        {
+          "id": "doc-db-migration-rollback",
+          "category": "数据库",
+          "content": "数据库迁移回滚使用Flyway undo命令，需提前编写对应的undo SQL脚本。回滚前必须备份数据库。"
+        },
+        {
+          "id": "doc-config-rollback",
+          "category": "运维",
+          "content": "配置回滚：Nacos配置中心保留最近30个历史版本，可在控制台一键回滚。回滚后自动推送到所有订阅实例。"
+        },
+        {
+          "id": "doc-git-revert",
+          "category": "运维",
+          "content": "代码回滚使用git revert创建反向提交，禁止在共享分支使用git reset --hard。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应仅召回 doc-deploy-rollback，数据库迁移回滚、配置回滚和代码回滚是不同层面的回滚，属于hard negatives",
+      "docIds": [
+        "doc-deploy-rollback"
+      ]
+    }
+  },
+  {
+    "id": "rr_027",
+    "dimension": "rag_recall",
+    "query": "退款",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-billing-refund",
+          "category": "金融",
+          "content": "退款政策：购买后7天内支持无理由退款。退款申请在「费用中心 > 退款管理」提交，审核周期1-3个工作日。退款原路返回支付账户。年付用户按剩余月份比例退款。"
+        },
+        {
+          "id": "doc-billing-invoice",
+          "category": "金融",
+          "content": "发票申请在费用中心提交，支持增值税普通发票和专用发票。"
+        },
+        {
+          "id": "doc-api-payment-callback",
+          "category": "API",
+          "content": "支付回调接口POST /api/v3/payment/callback，接收支付平台异步通知。"
+        },
+        {
+          "id": "doc-billing-pricing",
+          "category": "金融",
+          "content": "订阅方案：免费版0元/月，专业版29元/月，企业版99元/月。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-billing-refund，单关键词查询应精准匹配退款相关文档",
+      "docIds": [
+        "doc-billing-refund"
+      ]
+    }
+  },
+  {
+    "id": "rr_028",
+    "dimension": "rag_recall",
+    "query": "SSO",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-security-sso",
+          "category": "安全",
+          "content": "SSO单点登录支持SAML 2.0和OIDC两种协议。企业客户可配置自有Identity Provider（如Azure AD、Okta、OneLogin）。SSO配置页面：设置 > 企业 > 单点登录。支持JIT用户自动创建。"
+        },
+        {
+          "id": "doc-security-oauth",
+          "category": "安全",
+          "content": "OAuth 2.0授权码模式用于第三方应用集成，支持PKCE扩展。"
+        },
+        {
+          "id": "doc-security-session",
+          "category": "安全",
+          "content": "会话管理：JWT Token有效期2小时，Refresh Token有效期7天。支持并发会话限制。"
+        },
+        {
+          "id": "doc-api-auth-header",
+          "category": "API",
+          "content": "API认证Header格式：Authorization: Bearer <token>。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-security-sso，SSO缩写应精准匹配单点登录文档",
+      "docIds": [
+        "doc-security-sso"
+      ]
+    }
+  },
+  {
+    "id": "rr_029",
+    "dimension": "rag_recall",
+    "query": "API rate limit",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-api-rate-limiting",
+          "category": "API",
+          "content": "API限流策略：免费用户60次/分钟，专业用户300次/分钟，企业用户1000次/分钟。超限返回HTTP 429 Too Many Requests，响应头包含X-RateLimit-Remaining和Retry-After字段。支持按API Key和IP双维度限流。"
+        },
+        {
+          "id": "doc-api-pagination",
+          "category": "API",
+          "content": "API分页参数：page(页码，从1开始)和pageSize(每页数量，默认20，最大100)。返回total字段表示总记录数。"
+        },
+        {
+          "id": "doc-perf-qps",
+          "category": "性能",
+          "content": "系统QPS容量：单节点处理能力约2000 QPS，集群扩展后支持到20000 QPS。"
+        },
+        {
+          "id": "doc-gw-throttle",
+          "category": "API",
+          "content": "网关全局限流：总请求量超过10000/秒时触发降级，返回503 Service Unavailable。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-api-rate-limiting，短关键词查询应精准匹配API限流文档",
+      "docIds": [
+        "doc-api-rate-limiting"
+      ]
+    }
+  },
+  {
+    "id": "rr_030",
+    "dimension": "rag_recall",
+    "query": "密码策略",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-security-password-policy",
+          "category": "安全",
+          "content": "密码策略要求：最少8位，必须包含大写字母、小写字母、数字和特殊字符中的至少三种。密码有效期90天，不可使用最近5次使用过的密码。连续5次输入错误自动锁定账户30分钟。"
+        },
+        {
+          "id": "doc-security-encryption",
+          "category": "安全",
+          "content": "数据加密使用AES-256算法，密钥每90天轮换一次。"
+        },
+        {
+          "id": "doc-security-2fa",
+          "category": "安全",
+          "content": "双因素认证支持TOTP(Google Authenticator)和短信验证码两种方式。"
+        },
+        {
+          "id": "doc-api-key-rotation",
+          "category": "API",
+          "content": "API Key支持定期轮换，旧Key在新Key生成后24小时内仍然有效。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-security-password-policy，短关键词查询精准匹配密码策略文档",
+      "docIds": [
+        "doc-security-password-policy"
+      ]
+    }
+  },
+  {
+    "id": "rr_031",
+    "dimension": "rag_recall",
+    "query": "WebSocket",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-api-websocket",
+          "category": "API",
+          "content": "WebSocket连接端点：wss://api.platform.com/ws。支持实时消息推送、在线状态同步和协作编辑。心跳间隔30秒，超时60秒自动断开。重连策略：指数退避，最大重试5次。"
+        },
+        {
+          "id": "doc-api-sse",
+          "category": "API",
+          "content": "Server-Sent Events(SSE)用于单向实时数据推送，如进度通知和日志流。端点：GET /api/v3/events/stream。"
+        },
+        {
+          "id": "doc-api-webhook",
+          "category": "API",
+          "content": "Webhook回调支持POST方式推送事件通知到用户配置的URL。"
+        },
+        {
+          "id": "doc-net-load-balancer",
+          "category": "网络",
+          "content": "负载均衡器使用AWS ALB，支持HTTP/HTTPS/WebSocket协议。sticky session通过cookie实现。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-api-websocket，单词查询应精准匹配WebSocket文档而非仅提到WebSocket的负载均衡文档",
+      "docIds": [
+        "doc-api-websocket"
+      ]
+    }
+  },
+  {
+    "id": "rr_032",
+    "dimension": "rag_recall",
+    "query": "灰度发布",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-deploy-canary",
+          "category": "部署",
+          "content": "灰度发布(Canary Release)流程：1.部署新版本到canary Pod(占总流量5%) 2.观察15分钟错误率和延迟指标 3.指标正常则逐步增加流量(25%→50%→100%) 4.任何异常自动回滚。Istio VirtualService控制流量权重。"
+        },
+        {
+          "id": "doc-deploy-blue-green",
+          "category": "部署",
+          "content": "蓝绿部署维护两套完整环境，通过DNS切换实现零停机发布。"
+        },
+        {
+          "id": "doc-deploy-feature-flag",
+          "category": "部署",
+          "content": "Feature Flag使用LaunchDarkly管理，支持按用户属性、地区和百分比控制功能开关。"
+        },
+        {
+          "id": "doc-cicd-pipeline",
+          "category": "运维",
+          "content": "CI/CD流水线包含build、test、deploy三个阶段。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-deploy-canary，灰度发布关键词直接匹配",
+      "docIds": [
+        "doc-deploy-canary"
+      ]
+    }
+  },
+  {
+    "id": "rr_033",
+    "dimension": "rag_recall",
+    "query": "健康检查",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-ops-health-check",
+          "category": "监控",
+          "content": "健康检查端点GET /actuator/health，返回应用及各依赖组件状态。检查项包括：数据库连接、Redis连接、磁盘空间、自定义业务指标。Kubernetes livenessProbe间隔10秒，failureThreshold为3。readinessProbe检查下游依赖可用性。"
+        },
+        {
+          "id": "doc-ops-monitoring",
+          "category": "监控",
+          "content": "Prometheus采集应用指标，包含JVM、HTTP请求、数据库连接池等维度。"
+        },
+        {
+          "id": "doc-net-load-balancer",
+          "category": "网络",
+          "content": "ALB健康检查路径/health，间隔30秒，不健康阈值2次自动摘除实例。"
+        },
+        {
+          "id": "doc-ops-incident",
+          "category": "运维",
+          "content": "故障处理流程：告警触发→值班确认→问题定位→修复验证→复盘总结。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-ops-health-check，短关键词精准匹配应用健康检查文档",
+      "docIds": [
+        "doc-ops-health-check"
+      ]
+    }
+  },
+  {
+    "id": "rr_034",
+    "dimension": "rag_recall",
+    "query": "我们的系统在高并发场景下如何保证消息队列的可靠性？具体的消息重试策略和死信队列处理机制是什么？还有消息积压时的扩容方案是怎样的？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-mq-reliability",
+          "category": "消息队列",
+          "content": "消息可靠性保障：生产者端acks=all确保消息写入所有ISR副本；消费者端手动提交offset，处理成功后才确认。事务消息支持分布式事务最终一致性。消息重试策略：首次失败立即重试，第2次延迟1秒，第3次延迟5秒，超过3次进入死信队列。"
+        },
+        {
+          "id": "doc-perf-concurrency",
+          "category": "性能",
+          "content": "高并发优化：连接池预热、异步非阻塞IO、请求合并批处理。JMeter压测脚本位于/test/jmeter/目录。"
+        },
+        {
+          "id": "doc-mq-monitoring",
+          "category": "消息队列",
+          "content": "Kafka消费者组lag监控，lag超过10000条触发P2告警。分区数动态调整需要重启消费者。"
+        },
+        {
+          "id": "doc-k8s-hpa",
+          "category": "部署",
+          "content": "Kubernetes HPA自动扩容，基于CPU和自定义指标(如队列长度)触发。扩容冷却时间3分钟。"
+        },
+        {
+          "id": "doc-db-conn-pool",
+          "category": "数据库",
+          "content": "数据库连接池HikariCP配置：maximumPoolSize=20，支持运行时动态调整。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-mq-reliability，长自然语言问题应精准匹配消息队列可靠性文档",
+      "docIds": [
+        "doc-mq-reliability"
+      ]
+    }
+  },
+  {
+    "id": "rr_035",
+    "dimension": "rag_recall",
+    "query": "我想了解一下当我们的应用在Kubernetes集群中遇到Pod频繁重启的问题时，应该按照什么样的排查思路来定位根本原因？具体需要查看哪些日志和指标？常见的原因有哪些？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-troubleshoot-pod-restart",
+          "category": "运维",
+          "content": "Pod频繁重启排查指南：1.kubectl describe pod查看Events和Restart Count 2.kubectl logs --previous查看崩溃前日志 3.检查livenessProbe配置是否过于严格 4.查看OOMKilled(内存不足)或CrashLoopBackOff状态 5.检查资源requests/limits配置。常见原因：内存超限被OOM Kill、健康检查超时、应用启动时间过长、依赖服务不可用。"
+        },
+        {
+          "id": "doc-k8s-resource-quota",
+          "category": "部署",
+          "content": "Kubernetes资源配额：namespace级别限制CPU和内存总量，防止单个服务占用过多资源。"
+        },
+        {
+          "id": "doc-ops-incident-response",
+          "category": "运维",
+          "content": "故障响应流程：P1事件15分钟内响应，1小时内修复或给出临时方案。事后必须产出RCA报告。"
+        },
+        {
+          "id": "doc-ops-monitoring-alerts",
+          "category": "监控",
+          "content": "Prometheus告警规则配置，pod_restart_count超过5次/小时触发P2告警。"
+        },
+        {
+          "id": "doc-perf-jvm-tuning",
+          "category": "性能",
+          "content": "JVM堆内存建议设为容器limit的70%，避免被cgroup OOM Kill。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-troubleshoot-pod-restart，长问题描述应匹配Pod重启排查指南",
+      "docIds": [
+        "doc-troubleshoot-pod-restart"
+      ]
+    }
+  },
+  {
+    "id": "rr_036",
+    "dimension": "rag_recall",
+    "query": "请详细解释一下我们的分布式事务解决方案，包括在订单创建、库存扣减和支付确认这三个服务之间如何保证数据一致性？使用的是什么模式？补偿机制是怎么设计的？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-arch-distributed-tx",
+          "category": "性能",
+          "content": "分布式事务采用Saga模式实现最终一致性。订单创建流程：1.订单服务创建待支付订单 2.库存服务预扣库存 3.支付服务发起扣款 4.确认成功后各服务提交本地事务。补偿机制：任一步骤失败触发反向补偿，支付失败则释放库存并取消订单。补偿操作必须幂等，通过唯一事务ID防重。"
+        },
+        {
+          "id": "doc-db-transaction",
+          "category": "数据库",
+          "content": "本地事务使用Spring @Transactional注解，默认隔离级别READ_COMMITTED。嵌套事务使用REQUIRES_NEW传播行为。"
+        },
+        {
+          "id": "doc-mq-tx-message",
+          "category": "消息队列",
+          "content": "RocketMQ事务消息：半消息机制确保本地事务和消息发送的原子性。"
+        },
+        {
+          "id": "doc-api-idempotency",
+          "category": "API",
+          "content": "接口幂等性通过请求头X-Idempotency-Key实现，服务端使用Redis记录已处理的Key，有效期24小时。"
+        },
+        {
+          "id": "doc-billing-payment-flow",
+          "category": "金融",
+          "content": "支付流程：选择支付方式→生成支付单→调用第三方支付→异步回调确认→更新订单状态。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-arch-distributed-tx，详细的多服务事务问题应匹配分布式事务方案文档",
+      "docIds": [
+        "doc-arch-distributed-tx"
+      ]
+    }
+  },
+  {
+    "id": "rr_037",
+    "dimension": "rag_recall",
+    "query": "在我们的微服务架构中，当某个下游服务出现性能劣化或不可用时，上游服务是如何做到自我保护的？熔断器的具体配置参数是什么？降级策略和恢复策略分别是怎么设计的？有没有实际的案例说明？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-resilience-circuit-breaker",
+          "category": "性能",
+          "content": "服务熔断使用Resilience4j CircuitBreaker：slidingWindowSize=100次调用，failureRateThreshold=50%，slowCallRateThreshold=80%(超过2秒算慢调用)。熔断开启后等待60秒进入半开状态，放行10个探测请求。降级策略：返回缓存数据或默认值。案例：2024年3月支付网关超时，熔断器自动降级返回「支付繁忙请稍后重试」，保护了订单服务不被拖垮。"
+        },
+        {
+          "id": "doc-resilience-bulkhead",
+          "category": "性能",
+          "content": "舱壁隔离使用Resilience4j Bulkhead，限制并发调用数。各下游服务独立线程池，防止级联故障。"
+        },
+        {
+          "id": "doc-resilience-retry",
+          "category": "性能",
+          "content": "重试策略：最多重试3次，间隔使用指数退避(1s, 2s, 4s)。仅对5xx和超时错误重试，4xx不重试。"
+        },
+        {
+          "id": "doc-ops-sla",
+          "category": "运维",
+          "content": "SLA承诺：月度可用性99.9%，单次故障恢复时间不超过30分钟。"
+        },
+        {
+          "id": "doc-net-timeout",
+          "category": "网络",
+          "content": "HTTP客户端超时配置：连接超时3秒，读取超时10秒，写入超时10秒。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-resilience-circuit-breaker，长篇服务治理问题应匹配熔断器文档",
+      "docIds": [
+        "doc-resilience-circuit-breaker"
+      ]
+    }
+  },
+  {
+    "id": "rr_038",
+    "dimension": "rag_recall",
+    "query": "我们目前的数据脱敏方案是怎样的？对于用户的手机号、身份证号、银行卡号这些敏感信息，在日志输出、API响应和数据库存储三个层面分别采用了什么脱敏策略？脱敏规则是在哪里统一配置和管理的？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-security-data-masking",
+          "category": "安全",
+          "content": "数据脱敏方案：日志层使用Logback自定义PatternLayout，正则匹配手机号(保留前3后4)、身份证(保留前6后4)、银行卡(保留后4位)并替换为星号。API响应层通过Jackson自定义序列化注解@SensitiveField实现，支持配置脱敏类型。数据库层面存储明文但通过视图提供脱敏读取。脱敏规则统一在配置中心管理，路径：安全配置 > 数据脱敏规则。"
+        },
+        {
+          "id": "doc-security-encryption",
+          "category": "安全",
+          "content": "传输加密TLS 1.3，存储加密AES-256。密码使用BCrypt不可逆加密。"
+        },
+        {
+          "id": "doc-security-gdpr",
+          "category": "安全",
+          "content": "GDPR合规：支持用户数据导出和删除请求。数据保留策略：活跃用户数据永久保留，注销用户数据30天后清除。"
+        },
+        {
+          "id": "doc-log-format",
+          "category": "监控",
+          "content": "日志格式：JSON结构化输出，包含timestamp、level、traceId、message字段。"
+        },
+        {
+          "id": "doc-api-response-format",
+          "category": "API",
+          "content": "API统一响应格式：{code, message, data}。成功code=0，失败code对应具体错误码。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-security-data-masking，详细的数据脱敏问题应匹配脱敏方案文档",
+      "docIds": [
+        "doc-security-data-masking"
+      ]
+    }
+  },
+  {
+    "id": "rr_039",
+    "dimension": "rag_recall",
+    "query": "我们的系统是如何实现多租户隔离的？不同租户之间的数据是如何保证互不可见的？计算资源的隔离粒度到什么程度？租户级别的配额和限制是怎么管控的？如果一个租户的异常流量不会影响其他租户吗？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-arch-multi-tenancy",
+          "category": "安全",
+          "content": "多租户隔离方案：数据隔离采用共享数据库+Schema隔离模式，每个租户独立Schema，通过TenantContext ThreadLocal自动路由。计算资源隔离使用Kubernetes namespace + ResourceQuota，每个租户限制CPU和内存上限。API限流按租户维度独立配额。网络层通过NetworkPolicy隔离租户间Pod通信。异常流量隔离：租户级别熔断器，单租户QPS超限不影响其他租户。"
+        },
+        {
+          "id": "doc-security-rbac",
+          "category": "安全",
+          "content": "RBAC角色模型：超级管理员、租户管理员、普通用户。租户管理员只能管理本租户的用户和权限。"
+        },
+        {
+          "id": "doc-db-sharding",
+          "category": "数据库",
+          "content": "分库分表使用ShardingSphere，按租户ID取模分片。分片数固定为16，扩容需要数据迁移。"
+        },
+        {
+          "id": "doc-billing-tenant",
+          "category": "金融",
+          "content": "租户计费：按使用量(API调用次数、存储空间、计算时长)计费。支持预付费和后付费模式。"
+        },
+        {
+          "id": "doc-k8s-namespace",
+          "category": "部署",
+          "content": "Kubernetes namespace划分：按环境(dev/staging/prod)和租户(tenant-xxx)组织。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-arch-multi-tenancy，复杂的多租户隔离问题应匹配多租户方案文档",
+      "docIds": [
+        "doc-arch-multi-tenancy"
+      ]
+    }
+  },
+  {
+    "id": "rr_040",
+    "dimension": "rag_recall",
+    "query": "我最近在排查一个生产问题，发现某些API请求的响应时间突然从平时的50ms飙升到了5秒以上。请问我应该怎么系统性地排查这个性能问题？从网络层、应用层、数据库层分别应该检查哪些指标和日志？有没有现成的排查手册或checklist？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-troubleshoot-perf-degradation",
+          "category": "性能",
+          "content": "API性能劣化排查checklist：网络层 - 检查DNS解析时间、TCP连接耗时(Grafana Network Dashboard)、是否有丢包重传。应用层 - 查看Skywalking链路追踪定位慢span、检查线程池是否满、GC STW是否频繁(jstat -gcutil)。数据库层 - 检查慢查询日志(>200ms)、活跃连接数、锁等待(pg_stat_activity)、索引是否缺失(EXPLAIN ANALYZE)。辅助工具：arthas在线诊断、async-profiler火焰图、tcpdump抓包分析。"
+        },
+        {
+          "id": "doc-perf-benchmark",
+          "category": "性能",
+          "content": "性能基线：P50 < 50ms, P95 < 200ms, P99 < 500ms。超过基线触发性能告警。"
+        },
+        {
+          "id": "doc-ops-incident-template",
+          "category": "运维",
+          "content": "故障报告模板：故障时间、影响范围、根本原因、修复措施、预防计划。"
+        },
+        {
+          "id": "doc-db-slow-query",
+          "category": "数据库",
+          "content": "慢查询阈值200ms，自动记录到slow_query_log表，每周生成Top20报告。"
+        },
+        {
+          "id": "doc-net-latency",
+          "category": "网络",
+          "content": "跨可用区网络延迟通常在1-2ms，跨Region延迟30-80ms。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-troubleshoot-perf-degradation，详细的性能排查问题应匹配性能劣化排查checklist文档",
+      "docIds": [
+        "doc-troubleshoot-perf-degradation"
+      ]
+    }
+  },
+  {
+    "id": "rr_041",
+    "dimension": "rag_recall",
     "query": "退款政策是什么？",
     "context": {
       "ragDocuments": [
@@ -1921,8 +3556,18 @@
         },
         {
           "id": "doc-billing-invoice",
-          "category": "金融",
+          "category": "API",
           "content": "发票可在设置页面下载，支持PDF和电子发票格式。"
+        },
+        {
+          "id": "doc-fin-tax-invoice",
+          "category": "金融",
+          "content": "增值税专用发票需提供公司税号、开户行及账号，申请后 3 个工作日内开具。"
+        },
+        {
+          "id": "doc-ops-incident-response",
+          "category": "运维",
+          "content": "P0 事故响应流程：5 分钟内拉群 → 15 分钟初步定位 → 1 小时内恢复服务。"
         }
       ],
       "availableTools": [
@@ -1938,7 +3583,46 @@
     }
   },
   {
-    "id": "rr_002",
+    "id": "rr_042",
+    "dimension": "rag_recall",
+    "query": "买了之后不满意能不能把钱要回来？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-billing-refund",
+          "category": "金融",
+          "content": "用户可在购买后7天内申请全额退款，需提供订单号。超过7天不支持退款。"
+        },
+        {
+          "id": "doc-billing-pricing",
+          "category": "API",
+          "content": "订阅方案：免费版0元/月，专业版29元/月，企业版定制价格。"
+        },
+        {
+          "id": "doc-billing-invoice",
+          "category": "监控",
+          "content": "发票可在设置页面下载。"
+        },
+        {
+          "id": "doc-fin-currency-support",
+          "category": "API",
+          "content": "系统支持 CNY、USD、EUR 三种结算币种，汇率每日 UTC 0:00 自动更新。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-billing-refund，用户使用口语化表达退款需求",
+      "docIds": [
+        "doc-billing-refund"
+      ]
+    }
+  },
+  {
+    "id": "rr_043",
     "dimension": "rag_recall",
     "query": "如何重置密码？",
     "context": {
@@ -1957,6 +3641,11 @@
           "id": "doc-billing-account",
           "category": "金融",
           "content": "账户余额可在个人中心查看。"
+        },
+        {
+          "id": "doc-tech-container-orchestration",
+          "category": "技术",
+          "content": "Kubernetes 集群采用 3 master + N worker 架构，通过 HPA 自动扩缩容。"
         }
       ],
       "availableTools": [
@@ -1972,7 +3661,7 @@
     }
   },
   {
-    "id": "rr_003",
+    "id": "rr_044",
     "dimension": "rag_recall",
     "query": "How do I enable two-factor authentication?",
     "context": {
@@ -1984,13 +3673,18 @@
         },
         {
           "id": "doc-auth-sso",
-          "category": "技术",
+          "category": "部署",
           "content": "SSO integration supports SAML 2.0 and OAuth 2.0 protocols."
         },
         {
           "id": "doc-security-audit",
           "category": "技术",
           "content": "Audit logs record all user login events and administrative actions."
+        },
+        {
+          "id": "doc-monitor-log-aggregation",
+          "category": "监控",
+          "content": "ELK 日志聚合平台收集所有微服务日志，Kibana 面板支持全文检索和告警规则配置。"
         }
       ],
       "availableTools": [
@@ -2006,7 +3700,7 @@
     }
   },
   {
-    "id": "rr_004",
+    "id": "rr_045",
     "dimension": "rag_recall",
     "query": "服务器部署需要什么配置？",
     "context": {
@@ -2018,13 +3712,23 @@
         },
         {
           "id": "doc-infra-monitoring",
-          "category": "技术",
+          "category": "运维",
           "content": "监控系统使用Prometheus+Grafana技术栈，默认采集CPU、内存、磁盘指标。"
         },
         {
           "id": "doc-api-versioning",
           "category": "技术",
           "content": "API版本通过URL路径控制，当前最新版本为v3。"
+        },
+        {
+          "id": "doc-tech-cicd-pipeline",
+          "category": "部署",
+          "content": "CI/CD 流水线使用 GitHub Actions，每次 PR 合并触发自动构建、单元测试和容器镜像推送。"
+        },
+        {
+          "id": "doc-monitor-log-aggregation",
+          "category": "监控",
+          "content": "ELK 日志聚合平台收集所有微服务日志，Kibana 面板支持全文检索和告警规则配置。"
         }
       ],
       "availableTools": [
@@ -2040,7 +3744,7 @@
     }
   },
   {
-    "id": "rr_005",
+    "id": "rr_046",
     "dimension": "rag_recall",
     "query": "What are the API rate limits?",
     "context": {
@@ -2059,6 +3763,11 @@
           "id": "doc-billing-pricing",
           "category": "金融",
           "content": "Pricing tiers: Free $0/mo, Pro $29/mo, Enterprise custom pricing."
+        },
+        {
+          "id": "doc-tech-feature-flags",
+          "category": "技术",
+          "content": "Feature flag 系统支持灰度发布，可按用户百分比、地域或账户类型控制功能开关。"
         }
       ],
       "availableTools": [
@@ -2074,7 +3783,46 @@
     }
   },
   {
-    "id": "rr_006",
+    "id": "rr_047",
+    "dimension": "rag_recall",
+    "query": "接口报错429是什么原因？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-api-rate-limits",
+          "category": "技术",
+          "content": "API请求频率限制：免费版100次/分钟，专业版1000次/分钟。超出限制将返回HTTP 429状态码，响应头中包含Retry-After字段。"
+        },
+        {
+          "id": "doc-troubleshoot-api-errors",
+          "category": "技术",
+          "content": "常见API错误代码：400参数错误、401未授权、403权限不足、404资源不存在、500内部错误。"
+        },
+        {
+          "id": "doc-api-auth",
+          "category": "部署",
+          "content": "API认证使用Bearer令牌，令牌可在开发者控制台生成。"
+        },
+        {
+          "id": "doc-api-graphql-subscription",
+          "category": "API",
+          "content": "GraphQL Subscription 基于 WebSocket 实现，支持实时推送订单状态和通知事件。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-api-rate-limits，429错误直接关联频率限制",
+      "docIds": [
+        "doc-api-rate-limits"
+      ]
+    }
+  },
+  {
+    "id": "rr_048",
     "dimension": "rag_recall",
     "query": "数据库备份怎么做？",
     "context": {
@@ -2093,6 +3841,11 @@
           "id": "doc-config-database",
           "category": "技术",
           "content": "数据库连接池默认大小为20，可通过环境变量DB_POOL_SIZE调整。"
+        },
+        {
+          "id": "doc-api-graphql-subscription",
+          "category": "API",
+          "content": "GraphQL Subscription 基于 WebSocket 实现，支持实时推送订单状态和通知事件。"
         }
       ],
       "availableTools": [
@@ -2108,7 +3861,7 @@
     }
   },
   {
-    "id": "rr_007",
+    "id": "rr_049",
     "dimension": "rag_recall",
     "query": "How to configure SSO with SAML?",
     "context": {
@@ -2120,13 +3873,18 @@
         },
         {
           "id": "doc-auth-password-reset",
-          "category": "技术",
+          "category": "安全",
           "content": "Password reset requires email verification. Reset links expire after 24 hours."
         },
         {
           "id": "doc-security-encryption",
-          "category": "技术",
+          "category": "部署",
           "content": "All data is encrypted at rest using AES-256 and in transit using TLS 1.3."
+        },
+        {
+          "id": "doc-api-graphql-subscription",
+          "category": "API",
+          "content": "GraphQL Subscription 基于 WebSocket 实现，支持实时推送订单状态和通知事件。"
         }
       ],
       "availableTools": [
@@ -2142,7 +3900,7 @@
     }
   },
   {
-    "id": "rr_008",
+    "id": "rr_050",
     "dimension": "rag_recall",
     "query": "告警通知怎么设置？",
     "context": {
@@ -2154,13 +3912,23 @@
         },
         {
           "id": "doc-infra-monitoring",
-          "category": "技术",
+          "category": "安全",
           "content": "监控系统使用Prometheus+Grafana技术栈，默认采集CPU、内存、磁盘指标。"
         },
         {
           "id": "doc-config-logging",
-          "category": "技术",
+          "category": "安全",
           "content": "日志级别可通过LOG_LEVEL环境变量配置，支持debug、info、warn、error四个级别。"
+        },
+        {
+          "id": "doc-tech-feature-flags",
+          "category": "技术",
+          "content": "Feature flag 系统支持灰度发布，可按用户百分比、地域或账户类型控制功能开关。"
+        },
+        {
+          "id": "doc-perf-caching-strategy",
+          "category": "性能",
+          "content": "热点数据使用 Redis 集群缓存，TTL 默认 30 分钟，支持 Cache-Aside 和 Write-Through 两种模式。"
         }
       ],
       "availableTools": [
@@ -2176,7 +3944,51 @@
     }
   },
   {
-    "id": "rr_009",
+    "id": "rr_051",
+    "dimension": "rag_recall",
+    "query": "How do I integrate with Slack for team notifications?",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-config-alerts",
+          "category": "技术",
+          "content": "Alert notifications support email, Slack, DingTalk and WeChat Work. For Slack: add the Slack integration in Settings > Notifications, authorize the app, select a channel. Supports custom message templates."
+        },
+        {
+          "id": "doc-api-webhooks",
+          "category": "运维",
+          "content": "Webhooks support custom URL endpoints and event subscriptions."
+        },
+        {
+          "id": "doc-config-smtp",
+          "category": "运维",
+          "content": "SMTP config via SMTP_HOST, SMTP_PORT env vars."
+        },
+        {
+          "id": "doc-tech-cicd-pipeline",
+          "category": "技术",
+          "content": "CI/CD 流水线使用 GitHub Actions，每次 PR 合并触发自动构建、单元测试和容器镜像推送。"
+        },
+        {
+          "id": "doc-tech-service-mesh",
+          "category": "技术",
+          "content": "Istio 服务网格负责服务间流量管理、mTLS 加密通信和链路追踪。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "Should recall doc-config-alerts with Slack integration setup steps",
+      "docIds": [
+        "doc-config-alerts"
+      ]
+    }
+  },
+  {
+    "id": "rr_052",
     "dimension": "rag_recall",
     "query": "What encryption methods are used for data protection?",
     "context": {
@@ -2193,8 +4005,18 @@
         },
         {
           "id": "doc-auth-2fa",
-          "category": "技术",
+          "category": "部署",
           "content": "Two-factor authentication supports TOTP and SMS verification methods."
+        },
+        {
+          "id": "doc-ops-incident-response",
+          "category": "运维",
+          "content": "P0 事故响应流程：5 分钟内拉群 → 15 分钟初步定位 → 1 小时内恢复服务。"
+        },
+        {
+          "id": "doc-tech-graphql",
+          "category": "技术",
+          "content": "GraphQL gateway 聚合后端微服务，支持字段级权限控制和查询深度限制。"
         }
       ],
       "availableTools": [
@@ -2210,7 +4032,7 @@
     }
   },
   {
-    "id": "rr_010",
+    "id": "rr_053",
     "dimension": "rag_recall",
     "query": "怎么获取API密钥？",
     "context": {
@@ -2229,6 +4051,11 @@
           "id": "doc-security-access-control",
           "category": "技术",
           "content": "基于角色的访问控制(RBAC)支持管理员、编辑者、查看者三种角色。"
+        },
+        {
+          "id": "doc-tech-feature-flags",
+          "category": "运维",
+          "content": "Feature flag 系统支持灰度发布，可按用户百分比、地域或账户类型控制功能开关。"
         }
       ],
       "availableTools": [
@@ -2244,25 +4071,35 @@
     }
   },
   {
-    "id": "rr_011",
+    "id": "rr_054",
     "dimension": "rag_recall",
-    "query": "买了之后不满意能不能把钱要回来？",
+    "query": "How can I restrict API access to specific IP addresses?",
     "context": {
       "ragDocuments": [
         {
-          "id": "doc-billing-refund",
-          "category": "金融",
-          "content": "用户可在购买后7天内申请全额退款，需提供订单号。超过7天不支持退款。"
+          "id": "doc-api-auth",
+          "category": "技术",
+          "content": "API keys can be generated in the developer console. Each project supports up to 5 keys. Keys support IP whitelist and permission scope configuration."
         },
         {
-          "id": "doc-billing-pricing",
-          "category": "金融",
-          "content": "订阅方案：免费版0元/月，专业版29元/月，企业版定制价格。"
+          "id": "doc-security-access-control",
+          "category": "技术",
+          "content": "RBAC supports admin, editor, and viewer roles with different permissions."
         },
         {
-          "id": "doc-billing-invoice",
-          "category": "金融",
-          "content": "发票可在设置页面下载。"
+          "id": "doc-api-webhooks",
+          "category": "部署",
+          "content": "Webhooks support custom URL endpoints and event subscriptions."
+        },
+        {
+          "id": "doc-tech-container-orchestration",
+          "category": "部署",
+          "content": "Kubernetes 集群采用 3 master + N worker 架构，通过 HPA 自动扩缩容。"
+        },
+        {
+          "id": "doc-monitor-log-aggregation",
+          "category": "监控",
+          "content": "ELK 日志聚合平台收集所有微服务日志，Kibana 面板支持全文检索和告警规则配置。"
         }
       ],
       "availableTools": [
@@ -2271,14 +4108,14 @@
     },
     "expected": {
       "tools": null,
-      "answerCriteria": "应召回 doc-billing-refund，用户使用口语化表达退款需求",
+      "answerCriteria": "Should recall doc-api-auth mentioning IP whitelist functionality on API keys",
       "docIds": [
-        "doc-billing-refund"
+        "doc-api-auth"
       ]
     }
   },
   {
-    "id": "rr_012",
+    "id": "rr_055",
     "dimension": "rag_recall",
     "query": "My application keeps crashing on startup, what should I check?",
     "context": {
@@ -2290,13 +4127,23 @@
         },
         {
           "id": "doc-troubleshoot-performance",
-          "category": "技术",
+          "category": "性能",
           "content": "Performance degradation: Check memory usage, database query times, and connection pool exhaustion."
         },
         {
           "id": "doc-infra-deploy-requirements",
-          "category": "技术",
+          "category": "运维",
           "content": "Production deployment minimum: 4-core CPU, 8GB RAM, 50GB SSD."
+        },
+        {
+          "id": "doc-tech-container-orchestration",
+          "category": "技术",
+          "content": "Kubernetes 集群采用 3 master + N worker 架构，通过 HPA 自动扩缩容。"
+        },
+        {
+          "id": "doc-ops-incident-response",
+          "category": "运维",
+          "content": "P0 事故响应流程：5 分钟内拉群 → 15 分钟初步定位 → 1 小时内恢复服务。"
         }
       ],
       "availableTools": [
@@ -2312,7 +4159,7 @@
     }
   },
   {
-    "id": "rr_013",
+    "id": "rr_056",
     "dimension": "rag_recall",
     "query": "日志在哪里查看，怎么调整日志级别？",
     "context": {
@@ -2331,6 +4178,16 @@
           "id": "doc-troubleshoot-startup",
           "category": "技术",
           "content": "启动失败时请检查/var/log/app/startup.log日志文件。"
+        },
+        {
+          "id": "doc-monitor-log-aggregation",
+          "category": "监控",
+          "content": "ELK 日志聚合平台收集所有微服务日志，Kibana 面板支持全文检索和告警规则配置。"
+        },
+        {
+          "id": "doc-tech-graphql",
+          "category": "部署",
+          "content": "GraphQL gateway 聚合后端微服务，支持字段级权限控制和查询深度限制。"
         }
       ],
       "availableTools": [
@@ -2346,7 +4203,7 @@
     }
   },
   {
-    "id": "rr_014",
+    "id": "rr_057",
     "dimension": "rag_recall",
     "query": "How do I set up webhooks for event notifications?",
     "context": {
@@ -2365,6 +4222,11 @@
           "id": "doc-api-rate-limits",
           "category": "技术",
           "content": "API rate limits: Free tier 100 req/min, Pro tier 1000 req/min."
+        },
+        {
+          "id": "doc-perf-caching-strategy",
+          "category": "性能",
+          "content": "热点数据使用 Redis 集群缓存，TTL 默认 30 分钟，支持 Cache-Aside 和 Write-Through 两种模式。"
         }
       ],
       "availableTools": [
@@ -2380,7 +4242,46 @@
     }
   },
   {
-    "id": "rr_015",
+    "id": "rr_058",
+    "dimension": "rag_recall",
+    "query": "Can I get notified when a deployment finishes?",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-api-webhooks",
+          "category": "技术",
+          "content": "Webhooks support event subscriptions including: deployment.completed, deployment.failed, user.created, data.imported. Configure in Settings > Integrations > Webhooks."
+        },
+        {
+          "id": "doc-config-alerts",
+          "category": "运维",
+          "content": "Alert notifications support email, Slack, DingTalk and WeChat Work channels."
+        },
+        {
+          "id": "doc-infra-deploy-requirements",
+          "category": "技术",
+          "content": "Production deployment minimum: 4-core CPU, 8GB RAM."
+        },
+        {
+          "id": "doc-sec-penetration-testing",
+          "category": "安全",
+          "content": "每季度由第三方安全团队执行渗透测试，报告在 Confluence 安全空间归档。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "Should recall doc-api-webhooks with deployment.completed event subscription",
+      "docIds": [
+        "doc-api-webhooks"
+      ]
+    }
+  },
+  {
+    "id": "rr_059",
     "dimension": "rag_recall",
     "query": "权限管理怎么配置？不同角色有什么区别？",
     "context": {
@@ -2392,13 +4293,18 @@
         },
         {
           "id": "doc-auth-sso",
-          "category": "技术",
+          "category": "运维",
           "content": "SSO集成支持SAML 2.0和OAuth 2.0协议。"
         },
         {
           "id": "doc-security-audit",
           "category": "技术",
           "content": "审计日志记录所有用户登录和管理操作。"
+        },
+        {
+          "id": "doc-api-graphql-subscription",
+          "category": "API",
+          "content": "GraphQL Subscription 基于 WebSocket 实现，支持实时推送订单状态和通知事件。"
         }
       ],
       "availableTools": [
@@ -2414,7 +4320,51 @@
     }
   },
   {
-    "id": "rr_016",
+    "id": "rr_060",
+    "dimension": "rag_recall",
+    "query": "怎么给团队成员分配不同的项目权限？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-security-access-control",
+          "category": "技术",
+          "content": "RBAC支持管理员、编辑者、查看者三种角色。角色权限可精确到项目级别，在项目设置 > 成员管理中配置。"
+        },
+        {
+          "id": "doc-security-multitenancy",
+          "category": "运维",
+          "content": "多租户架构采用逻辑隔离，每个租户独立schema。"
+        },
+        {
+          "id": "doc-config-branding",
+          "category": "技术",
+          "content": "支持自定义品牌样式，仅企业版可用。"
+        },
+        {
+          "id": "doc-monitor-log-aggregation",
+          "category": "监控",
+          "content": "ELK 日志聚合平台收集所有微服务日志，Kibana 面板支持全文检索和告警规则配置。"
+        },
+        {
+          "id": "doc-ops-incident-response",
+          "category": "运维",
+          "content": "P0 事故响应流程：5 分钟内拉群 → 15 分钟初步定位 → 1 小时内恢复服务。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-security-access-control，包含项目级角色权限分配",
+      "docIds": [
+        "doc-security-access-control"
+      ]
+    }
+  },
+  {
+    "id": "rr_061",
     "dimension": "rag_recall",
     "query": "What compliance certifications does the platform have?",
     "context": {
@@ -2433,6 +4383,11 @@
           "id": "doc-billing-pricing",
           "category": "金融",
           "content": "Pricing: Free $0/mo, Pro $29/mo, Enterprise custom."
+        },
+        {
+          "id": "doc-tech-container-orchestration",
+          "category": "运维",
+          "content": "Kubernetes 集群采用 3 master + N worker 架构，通过 HPA 自动扩缩容。"
         }
       ],
       "availableTools": [
@@ -2448,41 +4403,7 @@
     }
   },
   {
-    "id": "rr_017",
-    "dimension": "rag_recall",
-    "query": "接口报错429是什么原因？",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-api-rate-limits",
-          "category": "技术",
-          "content": "API请求频率限制：免费版100次/分钟，专业版1000次/分钟。超出限制将返回HTTP 429状态码，响应头中包含Retry-After字段。"
-        },
-        {
-          "id": "doc-troubleshoot-api-errors",
-          "category": "技术",
-          "content": "常见API错误代码：400参数错误、401未授权、403权限不足、404资源不存在、500内部错误。"
-        },
-        {
-          "id": "doc-api-auth",
-          "category": "技术",
-          "content": "API认证使用Bearer令牌，令牌可在开发者控制台生成。"
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "应召回 doc-api-rate-limits，429错误直接关联频率限制",
-      "docIds": [
-        "doc-api-rate-limits"
-      ]
-    }
-  },
-  {
-    "id": "rr_018",
+    "id": "rr_062",
     "dimension": "rag_recall",
     "query": "How do I migrate data from the old system?",
     "context": {
@@ -2501,6 +4422,11 @@
           "id": "doc-config-database",
           "category": "技术",
           "content": "Database connection pool default size is 20."
+        },
+        {
+          "id": "doc-tech-feature-flags",
+          "category": "技术",
+          "content": "Feature flag 系统支持灰度发布，可按用户百分比、地域或账户类型控制功能开关。"
         }
       ],
       "availableTools": [
@@ -2516,7 +4442,51 @@
     }
   },
   {
-    "id": "rr_019",
+    "id": "rr_063",
+    "dimension": "rag_recall",
+    "query": "What file formats are supported for data import?",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-infra-migration",
+          "category": "技术",
+          "content": "Data migration tool supports CSV, JSON, and SQL dump imports. Run the migration wizard from Admin > Data > Import. CLI tool available for datasets larger than 1GB."
+        },
+        {
+          "id": "doc-billing-invoice",
+          "category": "金融",
+          "content": "Invoices available in PDF and electronic formats."
+        },
+        {
+          "id": "doc-infra-backup",
+          "category": "性能",
+          "content": "Daily full database backups at 2 AM, retained for 30 days."
+        },
+        {
+          "id": "doc-tech-container-orchestration",
+          "category": "部署",
+          "content": "Kubernetes 集群采用 3 master + N worker 架构，通过 HPA 自动扩缩容。"
+        },
+        {
+          "id": "doc-tech-feature-flags",
+          "category": "性能",
+          "content": "Feature flag 系统支持灰度发布，可按用户百分比、地域或账户类型控制功能开关。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "Should recall doc-infra-migration with supported import formats CSV, JSON, SQL",
+      "docIds": [
+        "doc-infra-migration"
+      ]
+    }
+  },
+  {
+    "id": "rr_064",
     "dimension": "rag_recall",
     "query": "系统挂了怎么快速恢复？",
     "context": {
@@ -2535,6 +4505,11 @@
           "id": "doc-troubleshoot-performance",
           "category": "技术",
           "content": "性能问题排查：检查内存使用、数据库查询时间、连接池耗尽等。"
+        },
+        {
+          "id": "doc-sec-penetration-testing",
+          "category": "安全",
+          "content": "每季度由第三方安全团队执行渗透测试，报告在 Confluence 安全空间归档。"
         }
       ],
       "availableTools": [
@@ -2550,7 +4525,7 @@
     }
   },
   {
-    "id": "rr_020",
+    "id": "rr_065",
     "dimension": "rag_recall",
     "query": "What is the difference between the pricing tiers?",
     "context": {
@@ -2567,8 +4542,18 @@
         },
         {
           "id": "doc-api-rate-limits",
-          "category": "技术",
+          "category": "运维",
           "content": "API rate limits vary by tier: Free 100 req/min, Pro 1000 req/min."
+        },
+        {
+          "id": "doc-perf-caching-strategy",
+          "category": "性能",
+          "content": "热点数据使用 Redis 集群缓存，TTL 默认 30 分钟，支持 Cache-Aside 和 Write-Through 两种模式。"
+        },
+        {
+          "id": "doc-ops-incident-response",
+          "category": "运维",
+          "content": "P0 事故响应流程：5 分钟内拉群 → 15 分钟初步定位 → 1 小时内恢复服务。"
         }
       ],
       "availableTools": [
@@ -2584,25 +4569,30 @@
     }
   },
   {
-    "id": "rr_021",
+    "id": "rr_066",
     "dimension": "rag_recall",
-    "query": "怎么把系统接入我们的企业微信？",
+    "query": "这个产品要多少钱一个月？有免费的吗？",
     "context": {
       "ragDocuments": [
         {
-          "id": "doc-config-alerts",
-          "category": "技术",
-          "content": "告警通知支持邮件、Slack、钉钉和企业微信渠道。可在设置 > 通知管理中配置。"
+          "id": "doc-billing-pricing",
+          "category": "金融",
+          "content": "订阅方案：免费版0元/月（1个项目，1GB存储），专业版29元/月（无限项目，100GB存储），企业版定制价格。"
         },
         {
-          "id": "doc-api-webhooks",
-          "category": "技术",
-          "content": "Webhooks可在设置 > 集成 > Webhooks中配置。支持自定义URL和事件订阅。"
+          "id": "doc-billing-refund",
+          "category": "API",
+          "content": "购买后7天内可申请全额退款。"
         },
         {
-          "id": "doc-auth-sso",
-          "category": "技术",
-          "content": "SSO集成支持SAML 2.0和OAuth 2.0协议。"
+          "id": "doc-billing-sla",
+          "category": "金融",
+          "content": "企业版SLA：99.95%可用性保证。"
+        },
+        {
+          "id": "doc-api-rate-limits",
+          "category": "性能",
+          "content": "免费版100次/分钟，专业版1000次/分钟。"
         }
       ],
       "availableTools": [
@@ -2611,14 +4601,14 @@
     },
     "expected": {
       "tools": null,
-      "answerCriteria": "应召回 doc-config-alerts，企业微信集成属于告警通知渠道",
+      "answerCriteria": "应召回 doc-billing-pricing，口语化的价格咨询",
       "docIds": [
-        "doc-config-alerts"
+        "doc-billing-pricing"
       ]
     }
   },
   {
-    "id": "rr_022",
+    "id": "rr_067",
     "dimension": "rag_recall",
     "query": "How to troubleshoot slow database queries?",
     "context": {
@@ -2637,6 +4627,11 @@
           "id": "doc-infra-monitoring",
           "category": "技术",
           "content": "Monitoring uses Prometheus+Grafana stack for CPU, memory, disk metrics."
+        },
+        {
+          "id": "doc-ops-incident-response",
+          "category": "运维",
+          "content": "P0 事故响应流程：5 分钟内拉群 → 15 分钟初步定位 → 1 小时内恢复服务。"
         }
       ],
       "availableTools": [
@@ -2652,7 +4647,51 @@
     }
   },
   {
-    "id": "rr_023",
+    "id": "rr_068",
+    "dimension": "rag_recall",
+    "query": "页面加载很慢，是服务器的问题还是前端的问题？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-troubleshoot-performance",
+          "category": "技术",
+          "content": "性能排查：1) 检查服务端响应时间（/admin/metrics中的P95延迟）。2) 数据库慢查询日志。3) 前端可使用浏览器DevTools的Network面板分析。4) CDN缓存命中率。"
+        },
+        {
+          "id": "doc-infra-monitoring",
+          "category": "安全",
+          "content": "监控系统采集CPU、内存、磁盘和请求延迟指标。"
+        },
+        {
+          "id": "doc-config-cache",
+          "category": "技术",
+          "content": "缓存使用Redis，默认TTL 3600秒。"
+        },
+        {
+          "id": "doc-tech-feature-flags",
+          "category": "技术",
+          "content": "Feature flag 系统支持灰度发布，可按用户百分比、地域或账户类型控制功能开关。"
+        },
+        {
+          "id": "doc-tech-graphql",
+          "category": "运维",
+          "content": "GraphQL gateway 聚合后端微服务，支持字段级权限控制和查询深度限制。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-troubleshoot-performance，包含前后端性能排查方法",
+      "docIds": [
+        "doc-troubleshoot-performance"
+      ]
+    }
+  },
+  {
+    "id": "rr_069",
     "dimension": "rag_recall",
     "query": "审计日志能看到哪些操作记录？",
     "context": {
@@ -2671,6 +4710,11 @@
           "id": "doc-security-access-control",
           "category": "技术",
           "content": "RBAC支持管理员、编辑者、查看者三种角色。"
+        },
+        {
+          "id": "doc-monitor-log-aggregation",
+          "category": "监控",
+          "content": "ELK 日志聚合平台收集所有微服务日志，Kibana 面板支持全文检索和告警规则配置。"
         }
       ],
       "availableTools": [
@@ -2686,7 +4730,7 @@
     }
   },
   {
-    "id": "rr_024",
+    "id": "rr_070",
     "dimension": "rag_recall",
     "query": "Can I use the API without writing code?",
     "context": {
@@ -2703,8 +4747,13 @@
         },
         {
           "id": "doc-api-versioning",
-          "category": "技术",
+          "category": "安全",
           "content": "API versions are controlled via URL path, current latest is v3."
+        },
+        {
+          "id": "doc-api-graphql-subscription",
+          "category": "API",
+          "content": "GraphQL Subscription 基于 WebSocket 实现，支持实时推送订单状态和通知事件。"
         }
       ],
       "availableTools": [
@@ -2720,7 +4769,7 @@
     }
   },
   {
-    "id": "rr_025",
+    "id": "rr_071",
     "dimension": "rag_recall",
     "query": "环境变量有哪些是必须配置的？",
     "context": {
@@ -2732,13 +4781,18 @@
         },
         {
           "id": "doc-config-database",
-          "category": "技术",
+          "category": "运维",
           "content": "数据库连接池默认大小为20，可通过DB_POOL_SIZE调整。"
         },
         {
           "id": "doc-infra-deploy-requirements",
           "category": "技术",
           "content": "生产环境部署最低要求：4核CPU、8GB内存、50GB SSD。"
+        },
+        {
+          "id": "doc-tech-service-mesh",
+          "category": "性能",
+          "content": "Istio 服务网格负责服务间流量管理、mTLS 加密通信和链路追踪。"
         }
       ],
       "availableTools": [
@@ -2754,7 +4808,7 @@
     }
   },
   {
-    "id": "rr_026",
+    "id": "rr_072",
     "dimension": "rag_recall",
     "query": "I want to know about both the backup strategy and disaster recovery plan",
     "context": {
@@ -2773,6 +4827,16 @@
           "id": "doc-infra-monitoring",
           "category": "技术",
           "content": "Monitoring stack uses Prometheus+Grafana for CPU, memory, disk metrics."
+        },
+        {
+          "id": "doc-sec-penetration-testing",
+          "category": "安全",
+          "content": "每季度由第三方安全团队执行渗透测试，报告在 Confluence 安全空间归档。"
+        },
+        {
+          "id": "doc-tech-graphql",
+          "category": "技术",
+          "content": "GraphQL gateway 聚合后端微服务，支持字段级权限控制和查询深度限制。"
         }
       ],
       "availableTools": [
@@ -2789,7 +4853,7 @@
     }
   },
   {
-    "id": "rr_027",
+    "id": "rr_073",
     "dimension": "rag_recall",
     "query": "登录和安全相关的功能有哪些？",
     "context": {
@@ -2806,8 +4870,13 @@
         },
         {
           "id": "doc-billing-pricing",
-          "category": "金融",
+          "category": "监控",
           "content": "订阅方案：免费版0元/月，专业版29元/月。"
+        },
+        {
+          "id": "doc-ops-incident-response",
+          "category": "运维",
+          "content": "P0 事故响应流程：5 分钟内拉群 → 15 分钟初步定位 → 1 小时内恢复服务。"
         }
       ],
       "availableTools": [
@@ -2824,7 +4893,7 @@
     }
   },
   {
-    "id": "rr_028",
+    "id": "rr_074",
     "dimension": "rag_recall",
     "query": "How do I monitor system health and set up alerts?",
     "context": {
@@ -2843,6 +4912,11 @@
           "id": "doc-config-logging",
           "category": "技术",
           "content": "Log levels configurable via LOG_LEVEL env var: debug, info, warn, error."
+        },
+        {
+          "id": "doc-tech-feature-flags",
+          "category": "运维",
+          "content": "Feature flag 系统支持灰度发布，可按用户百分比、地域或账户类型控制功能开关。"
         }
       ],
       "availableTools": [
@@ -2859,7 +4933,7 @@
     }
   },
   {
-    "id": "rr_029",
+    "id": "rr_075",
     "dimension": "rag_recall",
     "query": "为啥我调接口一直返回401？",
     "context": {
@@ -2876,8 +4950,13 @@
         },
         {
           "id": "doc-api-rate-limits",
-          "category": "技术",
+          "category": "部署",
           "content": "API请求频率限制：免费版100次/分钟，专业版1000次/分钟。"
+        },
+        {
+          "id": "doc-ops-incident-response",
+          "category": "运维",
+          "content": "P0 事故响应流程：5 分钟内拉群 → 15 分钟初步定位 → 1 小时内恢复服务。"
         }
       ],
       "availableTools": [
@@ -2894,7 +4973,7 @@
     }
   },
   {
-    "id": "rr_030",
+    "id": "rr_076",
     "dimension": "rag_recall",
     "query": "Tell me about your security posture including encryption and compliance",
     "context": {
@@ -2916,7 +4995,7 @@
         },
         {
           "id": "doc-billing-pricing",
-          "category": "金融",
+          "category": "监控",
           "content": "Pricing tiers: Free, Pro $29/mo, Enterprise custom."
         }
       ],
@@ -2934,7 +5013,7 @@
     }
   },
   {
-    "id": "rr_031",
+    "id": "rr_077",
     "dimension": "rag_recall",
     "query": "连接池满了怎么办？",
     "context": {
@@ -2953,6 +5032,16 @@
           "id": "doc-infra-deploy-requirements",
           "category": "技术",
           "content": "生产环境部署最低要求：4核CPU、8GB内存。"
+        },
+        {
+          "id": "doc-tech-graphql",
+          "category": "技术",
+          "content": "GraphQL gateway 聚合后端微服务，支持字段级权限控制和查询深度限制。"
+        },
+        {
+          "id": "doc-tech-container-orchestration",
+          "category": "部署",
+          "content": "Kubernetes 集群采用 3 master + N worker 架构，通过 HPA 自动扩缩容。"
         }
       ],
       "availableTools": [
@@ -2969,41 +5058,7 @@
     }
   },
   {
-    "id": "rr_032",
-    "dimension": "rag_recall",
-    "query": "How can I restrict API access to specific IP addresses?",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-api-auth",
-          "category": "技术",
-          "content": "API keys can be generated in the developer console. Each project supports up to 5 keys. Keys support IP whitelist and permission scope configuration."
-        },
-        {
-          "id": "doc-security-access-control",
-          "category": "技术",
-          "content": "RBAC supports admin, editor, and viewer roles with different permissions."
-        },
-        {
-          "id": "doc-api-webhooks",
-          "category": "技术",
-          "content": "Webhooks support custom URL endpoints and event subscriptions."
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "Should recall doc-api-auth mentioning IP whitelist functionality on API keys",
-      "docIds": [
-        "doc-api-auth"
-      ]
-    }
-  },
-  {
-    "id": "rr_033",
+    "id": "rr_078",
     "dimension": "rag_recall",
     "query": "发票怎么开？",
     "context": {
@@ -3022,6 +5077,11 @@
           "id": "doc-billing-pricing",
           "category": "金融",
           "content": "订阅方案：免费版0元/月，专业版29元/月。"
+        },
+        {
+          "id": "doc-sec-penetration-testing",
+          "category": "安全",
+          "content": "每季度由第三方安全团队执行渗透测试，报告在 Confluence 安全空间归档。"
         }
       ],
       "availableTools": [
@@ -3037,7 +5097,7 @@
     }
   },
   {
-    "id": "rr_034",
+    "id": "rr_079",
     "dimension": "rag_recall",
     "query": "What happens when a node goes down in the cluster?",
     "context": {
@@ -3049,13 +5109,18 @@
         },
         {
           "id": "doc-infra-disaster-recovery",
-          "category": "技术",
+          "category": "运维",
           "content": "Disaster recovery: RTO 4 hours, RPO 1 hour. Cross-region failover supported."
         },
         {
           "id": "doc-infra-deploy-requirements",
           "category": "技术",
           "content": "Production requires 4-core CPU, 8GB RAM, 50GB SSD per node."
+        },
+        {
+          "id": "doc-perf-caching-strategy",
+          "category": "性能",
+          "content": "热点数据使用 Redis 集群缓存，TTL 默认 30 分钟，支持 Cache-Aside 和 Write-Through 两种模式。"
         }
       ],
       "availableTools": [
@@ -3071,7 +5136,7 @@
     }
   },
   {
-    "id": "rr_035",
+    "id": "rr_080",
     "dimension": "rag_recall",
     "query": "多租户数据是怎么隔离的？",
     "context": {
@@ -3088,8 +5153,18 @@
         },
         {
           "id": "doc-config-database",
-          "category": "技术",
+          "category": "运维",
           "content": "数据库连接池默认大小为20。"
+        },
+        {
+          "id": "doc-perf-caching-strategy",
+          "category": "性能",
+          "content": "热点数据使用 Redis 集群缓存，TTL 默认 30 分钟，支持 Cache-Aside 和 Write-Through 两种模式。"
+        },
+        {
+          "id": "doc-tech-service-mesh",
+          "category": "技术",
+          "content": "Istio 服务网格负责服务间流量管理、mTLS 加密通信和链路追踪。"
         }
       ],
       "availableTools": [
@@ -3105,7 +5180,7 @@
     }
   },
   {
-    "id": "rr_036",
+    "id": "rr_081",
     "dimension": "rag_recall",
     "query": "How to paginate through large API result sets?",
     "context": {
@@ -3122,8 +5197,18 @@
         },
         {
           "id": "doc-api-versioning",
-          "category": "技术",
+          "category": "安全",
           "content": "API versioning via URL path, current latest is v3."
+        },
+        {
+          "id": "doc-tech-service-mesh",
+          "category": "性能",
+          "content": "Istio 服务网格负责服务间流量管理、mTLS 加密通信和链路追踪。"
+        },
+        {
+          "id": "doc-tech-feature-flags",
+          "category": "技术",
+          "content": "Feature flag 系统支持灰度发布，可按用户百分比、地域或账户类型控制功能开关。"
         }
       ],
       "availableTools": [
@@ -3139,7 +5224,7 @@
     }
   },
   {
-    "id": "rr_037",
+    "id": "rr_082",
     "dimension": "rag_recall",
     "query": "能不能自定义登录页面的样式？",
     "context": {
@@ -3158,6 +5243,16 @@
           "id": "doc-auth-password-reset",
           "category": "技术",
           "content": "密码重置通过邮箱验证码完成。"
+        },
+        {
+          "id": "doc-monitor-log-aggregation",
+          "category": "监控",
+          "content": "ELK 日志聚合平台收集所有微服务日志，Kibana 面板支持全文检索和告警规则配置。"
+        },
+        {
+          "id": "doc-sec-penetration-testing",
+          "category": "安全",
+          "content": "每季度由第三方安全团队执行渗透测试，报告在 Confluence 安全空间归档。"
         }
       ],
       "availableTools": [
@@ -3173,41 +5268,7 @@
     }
   },
   {
-    "id": "rr_038",
-    "dimension": "rag_recall",
-    "query": "What file formats are supported for data import?",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-infra-migration",
-          "category": "技术",
-          "content": "Data migration tool supports CSV, JSON, and SQL dump imports. Run the migration wizard from Admin > Data > Import. CLI tool available for datasets larger than 1GB."
-        },
-        {
-          "id": "doc-billing-invoice",
-          "category": "金融",
-          "content": "Invoices available in PDF and electronic formats."
-        },
-        {
-          "id": "doc-infra-backup",
-          "category": "技术",
-          "content": "Daily full database backups at 2 AM, retained for 30 days."
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "Should recall doc-infra-migration with supported import formats CSV, JSON, SQL",
-      "docIds": [
-        "doc-infra-migration"
-      ]
-    }
-  },
-  {
-    "id": "rr_039",
+    "id": "rr_083",
     "dimension": "rag_recall",
     "query": "缓存配置怎么调优？",
     "context": {
@@ -3224,8 +5285,18 @@
         },
         {
           "id": "doc-troubleshoot-performance",
-          "category": "技术",
+          "category": "安全",
           "content": "性能问题排查：检查内存使用、数据库查询时间。"
+        },
+        {
+          "id": "doc-ops-incident-response",
+          "category": "运维",
+          "content": "P0 事故响应流程：5 分钟内拉群 → 15 分钟初步定位 → 1 小时内恢复服务。"
+        },
+        {
+          "id": "doc-tech-feature-flags",
+          "category": "技术",
+          "content": "Feature flag 系统支持灰度发布，可按用户百分比、地域或账户类型控制功能开关。"
         }
       ],
       "availableTools": [
@@ -3241,7 +5312,7 @@
     }
   },
   {
-    "id": "rr_040",
+    "id": "rr_084",
     "dimension": "rag_recall",
     "query": "Is there an SDK for Python?",
     "context": {
@@ -3253,13 +5324,18 @@
         },
         {
           "id": "doc-api-playground",
-          "category": "技术",
+          "category": "部署",
           "content": "API Playground provides an interactive UI for testing endpoints without code."
         },
         {
           "id": "doc-api-versioning",
           "category": "技术",
           "content": "API versions via URL path, current latest v3."
+        },
+        {
+          "id": "doc-api-graphql-subscription",
+          "category": "API",
+          "content": "GraphQL Subscription 基于 WebSocket 实现，支持实时推送订单状态和通知事件。"
         }
       ],
       "availableTools": [
@@ -3275,7 +5351,7 @@
     }
   },
   {
-    "id": "rr_041",
+    "id": "rr_085",
     "dimension": "rag_recall",
     "query": "密码有什么复杂度要求？",
     "context": {
@@ -3294,6 +5370,16 @@
           "id": "doc-auth-2fa",
           "category": "技术",
           "content": "双因素认证支持TOTP和短信验证。"
+        },
+        {
+          "id": "doc-tech-container-orchestration",
+          "category": "安全",
+          "content": "Kubernetes 集群采用 3 master + N worker 架构，通过 HPA 自动扩缩容。"
+        },
+        {
+          "id": "doc-tech-cicd-pipeline",
+          "category": "技术",
+          "content": "CI/CD 流水线使用 GitHub Actions，每次 PR 合并触发自动构建、单元测试和容器镜像推送。"
         }
       ],
       "availableTools": [
@@ -3309,314 +5395,7 @@
     }
   },
   {
-    "id": "rr_042",
-    "dimension": "rag_recall",
-    "query": "How do I handle file uploads via the API?",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-api-file-upload",
-          "category": "技术",
-          "content": "File uploads use multipart/form-data. Max file size: 100MB (Free), 1GB (Pro). Endpoint: POST /api/v3/files/upload. Supported types: images, documents, archives. Returns a file_id for referencing."
-        },
-        {
-          "id": "doc-api-rate-limits",
-          "category": "技术",
-          "content": "Rate limits: Free 100 req/min, Pro 1000 req/min."
-        },
-        {
-          "id": "doc-api-pagination",
-          "category": "技术",
-          "content": "Cursor-based pagination with default page size 20."
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "Should recall doc-api-file-upload with upload endpoint, limits, and supported types",
-      "docIds": [
-        "doc-api-file-upload"
-      ]
-    }
-  },
-  {
-    "id": "rr_043",
-    "dimension": "rag_recall",
-    "query": "出了安全事故怎么上报？",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-security-incident",
-          "category": "技术",
-          "content": "安全事件上报流程：1) 立即通知security@ourplatform.com。2) 在管理面板 > 安全 > 事件上报中提交工单。3) 严重事件24小时内响应。4) 所有事件将触发自动取证日志收集。"
-        },
-        {
-          "id": "doc-security-audit",
-          "category": "技术",
-          "content": "审计日志记录所有用户登录和管理操作。"
-        },
-        {
-          "id": "doc-security-compliance",
-          "category": "法律",
-          "content": "平台持有SOC 2 Type II认证。"
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "应召回 doc-security-incident，包含安全事件上报流程",
-      "docIds": [
-        "doc-security-incident"
-      ]
-    }
-  },
-  {
-    "id": "rr_044",
-    "dimension": "rag_recall",
-    "query": "Can I get notified when a deployment finishes?",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-api-webhooks",
-          "category": "技术",
-          "content": "Webhooks support event subscriptions including: deployment.completed, deployment.failed, user.created, data.imported. Configure in Settings > Integrations > Webhooks."
-        },
-        {
-          "id": "doc-config-alerts",
-          "category": "技术",
-          "content": "Alert notifications support email, Slack, DingTalk and WeChat Work channels."
-        },
-        {
-          "id": "doc-infra-deploy-requirements",
-          "category": "技术",
-          "content": "Production deployment minimum: 4-core CPU, 8GB RAM."
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "Should recall doc-api-webhooks with deployment.completed event subscription",
-      "docIds": [
-        "doc-api-webhooks"
-      ]
-    }
-  },
-  {
-    "id": "rr_045",
-    "dimension": "rag_recall",
-    "query": "我们公司想本地化部署，支持吗？",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-infra-on-premise",
-          "category": "技术",
-          "content": "本地化部署仅企业版支持。提供Docker Compose和Kubernetes Helm Chart两种部署方式。需要自备PostgreSQL 14+和Redis 7+。详细安装指南见私有化部署文档。"
-        },
-        {
-          "id": "doc-infra-deploy-requirements",
-          "category": "技术",
-          "content": "云端生产环境最低要求：4核CPU、8GB内存、50GB SSD。"
-        },
-        {
-          "id": "doc-billing-pricing",
-          "category": "金融",
-          "content": "企业版定制价格，联系销售获取报价。"
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "应召回 doc-infra-on-premise，包含本地化部署方式和要求",
-      "docIds": [
-        "doc-infra-on-premise"
-      ]
-    }
-  },
-  {
-    "id": "rr_046",
-    "dimension": "rag_recall",
-    "query": "What GraphQL endpoints are available?",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-api-graphql",
-          "category": "技术",
-          "content": "GraphQL endpoint: POST /api/graphql. Introspection enabled in development. Schema explorer available at /api/graphql/playground. Supports queries, mutations, and subscriptions via WebSocket."
-        },
-        {
-          "id": "doc-api-versioning",
-          "category": "技术",
-          "content": "REST API versioning via URL path, latest is v3."
-        },
-        {
-          "id": "doc-api-auth",
-          "category": "技术",
-          "content": "API authentication uses Bearer tokens."
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "Should recall doc-api-graphql with GraphQL endpoint and capabilities",
-      "docIds": [
-        "doc-api-graphql"
-      ]
-    }
-  },
-  {
-    "id": "rr_047",
-    "dimension": "rag_recall",
-    "query": "用户数据怎么导出？要符合GDPR的那种",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-security-data-export",
-          "category": "法律",
-          "content": "GDPR数据导出：用户可在个人设置中请求数据导出，系统将在48小时内生成包含所有个人数据的ZIP文件。管理员可在Admin > GDPR > Data Export中批量导出。"
-        },
-        {
-          "id": "doc-security-compliance",
-          "category": "法律",
-          "content": "平台通过GDPR合规认证，支持数据主体权利（访问权、删除权、可携带权）。"
-        },
-        {
-          "id": "doc-infra-migration",
-          "category": "技术",
-          "content": "数据迁移工具支持CSV、JSON和SQL导入。"
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "应同时召回 doc-security-data-export 和 doc-security-compliance，GDPR导出需要操作指南和合规背景",
-      "docIds": [
-        "doc-security-data-export",
-        "doc-security-compliance"
-      ]
-    }
-  },
-  {
-    "id": "rr_048",
-    "dimension": "rag_recall",
-    "query": "How do I configure CORS for my frontend application?",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-config-cors",
-          "category": "技术",
-          "content": "CORS configuration: Set ALLOWED_ORIGINS env var with comma-separated domains. Example: ALLOWED_ORIGINS=https://app.example.com,https://staging.example.com. Wildcard (*) supported but not recommended for production."
-        },
-        {
-          "id": "doc-config-env-vars",
-          "category": "技术",
-          "content": "Required env vars: DATABASE_URL, JWT_SECRET, REDIS_URL."
-        },
-        {
-          "id": "doc-security-encryption",
-          "category": "技术",
-          "content": "Data in transit uses TLS 1.3."
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "Should recall doc-config-cors with CORS environment variable configuration",
-      "docIds": [
-        "doc-config-cors"
-      ]
-    }
-  },
-  {
-    "id": "rr_049",
-    "dimension": "rag_recall",
-    "query": "系统支持哪些语言？怎么切换？",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-config-i18n",
-          "category": "技术",
-          "content": "系统支持中文简体、中文繁体、英语、日语、韩语五种语言。用户可在个人设置中切换界面语言。管理员可设置组织默认语言。API响应语言通过Accept-Language头控制。"
-        },
-        {
-          "id": "doc-config-branding",
-          "category": "技术",
-          "content": "支持自定义登录页面品牌样式。"
-        },
-        {
-          "id": "doc-api-versioning",
-          "category": "技术",
-          "content": "API版本通过URL路径控制。"
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "应召回 doc-config-i18n，包含支持的语言列表和切换方式",
-      "docIds": [
-        "doc-config-i18n"
-      ]
-    }
-  },
-  {
-    "id": "rr_050",
-    "dimension": "rag_recall",
-    "query": "What is the SLA for enterprise customers?",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-billing-sla",
-          "category": "金融",
-          "content": "Enterprise SLA: 99.95% uptime guarantee, 1-hour response time for P1 issues, 4-hour for P2, dedicated support engineer, quarterly business reviews. Credits issued for SLA breaches."
-        },
-        {
-          "id": "doc-billing-pricing",
-          "category": "金融",
-          "content": "Enterprise tier has custom pricing, contact sales."
-        },
-        {
-          "id": "doc-infra-ha",
-          "category": "技术",
-          "content": "3-node minimum cluster with automatic failover."
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "Should recall doc-billing-sla with uptime guarantee and response time commitments",
-      "docIds": [
-        "doc-billing-sla"
-      ]
-    }
-  },
-  {
-    "id": "rr_051",
+    "id": "rr_086",
     "dimension": "rag_recall",
     "query": "我的账号被锁了，登不进去",
     "context": {
@@ -3635,6 +5414,11 @@
           "id": "doc-troubleshoot-startup",
           "category": "技术",
           "content": "启动失败时请检查环境变量和数据库连接。"
+        },
+        {
+          "id": "doc-tech-service-mesh",
+          "category": "性能",
+          "content": "Istio 服务网格负责服务间流量管理、mTLS 加密通信和链路追踪。"
         }
       ],
       "availableTools": [
@@ -3650,230 +5434,30 @@
     }
   },
   {
-    "id": "rr_052",
+    "id": "rr_087",
     "dimension": "rag_recall",
-    "query": "How to set up CI/CD pipeline integration?",
+    "query": "How do I handle file uploads via the API?",
     "context": {
       "ragDocuments": [
         {
-          "id": "doc-infra-cicd",
+          "id": "doc-api-file-upload",
           "category": "技术",
-          "content": "CI/CD integration: Supports GitHub Actions, GitLab CI, and Jenkins. Use the deploy CLI: deploy-cli push --env production. Webhook triggers available for automated deployments on git push."
-        },
-        {
-          "id": "doc-api-webhooks",
-          "category": "技术",
-          "content": "Webhooks support deployment.completed and deployment.failed events."
-        },
-        {
-          "id": "doc-infra-deploy-requirements",
-          "category": "技术",
-          "content": "Production requires 4-core CPU, 8GB RAM."
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "Should recall doc-infra-cicd with CI/CD platform support and CLI usage",
-      "docIds": [
-        "doc-infra-cicd"
-      ]
-    }
-  },
-  {
-    "id": "rr_053",
-    "dimension": "rag_recall",
-    "query": "数据保留多久会被自动清理？",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-security-data-retention",
-          "category": "法律",
-          "content": "数据保留策略：活跃数据永久保留，已删除数据在回收站保留30天后永久清除。审计日志保留180天。用户可自定义项目级数据保留期限（最短7天，最长无限期）。"
-        },
-        {
-          "id": "doc-infra-backup",
-          "category": "技术",
-          "content": "数据库备份保留最近30天。"
-        },
-        {
-          "id": "doc-security-compliance",
-          "category": "法律",
-          "content": "GDPR合规，支持数据主体权利。"
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "应召回 doc-security-data-retention，包含数据保留和清理策略",
-      "docIds": [
-        "doc-security-data-retention"
-      ]
-    }
-  },
-  {
-    "id": "rr_054",
-    "dimension": "rag_recall",
-    "query": "Can I use OAuth to let users sign in with Google?",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-auth-social-login",
-          "category": "技术",
-          "content": "Social login supports Google, GitHub, and Microsoft. Configure OAuth credentials in Settings > Authentication > Social Providers. Requires OAuth 2.0 client ID and secret from the provider."
-        },
-        {
-          "id": "doc-auth-sso",
-          "category": "技术",
-          "content": "Enterprise SSO supports SAML 2.0 and OAuth 2.0 protocols for IdP integration."
-        },
-        {
-          "id": "doc-auth-2fa",
-          "category": "技术",
-          "content": "Two-factor authentication supports TOTP and SMS."
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "Should recall doc-auth-social-login with Google OAuth setup details",
-      "docIds": [
-        "doc-auth-social-login"
-      ]
-    }
-  },
-  {
-    "id": "rr_055",
-    "dimension": "rag_recall",
-    "query": "怎么给团队成员分配不同的项目权限？",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-security-access-control",
-          "category": "技术",
-          "content": "RBAC支持管理员、编辑者、查看者三种角色。角色权限可精确到项目级别，在项目设置 > 成员管理中配置。"
-        },
-        {
-          "id": "doc-security-multitenancy",
-          "category": "技术",
-          "content": "多租户架构采用逻辑隔离，每个租户独立schema。"
-        },
-        {
-          "id": "doc-config-branding",
-          "category": "技术",
-          "content": "支持自定义品牌样式，仅企业版可用。"
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "应召回 doc-security-access-control，包含项目级角色权限分配",
-      "docIds": [
-        "doc-security-access-control"
-      ]
-    }
-  },
-  {
-    "id": "rr_056",
-    "dimension": "rag_recall",
-    "query": "What are the differences between REST and GraphQL APIs?",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-api-versioning",
-          "category": "技术",
-          "content": "REST API uses URL-path versioning, current latest is v3. Endpoints follow RESTful conventions with JSON request/response bodies."
-        },
-        {
-          "id": "doc-api-graphql",
-          "category": "技术",
-          "content": "GraphQL endpoint at POST /api/graphql. Supports queries, mutations, and subscriptions. Schema explorer available at /api/graphql/playground."
-        },
-        {
-          "id": "doc-api-rate-limits",
-          "category": "技术",
-          "content": "Rate limits apply to both REST and GraphQL: Free 100 req/min, Pro 1000 req/min."
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "Should recall both doc-api-versioning AND doc-api-graphql to compare REST and GraphQL",
-      "docIds": [
-        "doc-api-versioning",
-        "doc-api-graphql"
-      ]
-    }
-  },
-  {
-    "id": "rr_057",
-    "dimension": "rag_recall",
-    "query": "页面加载很慢，是服务器的问题还是前端的问题？",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-troubleshoot-performance",
-          "category": "技术",
-          "content": "性能排查：1) 检查服务端响应时间（/admin/metrics中的P95延迟）。2) 数据库慢查询日志。3) 前端可使用浏览器DevTools的Network面板分析。4) CDN缓存命中率。"
-        },
-        {
-          "id": "doc-infra-monitoring",
-          "category": "技术",
-          "content": "监控系统采集CPU、内存、磁盘和请求延迟指标。"
-        },
-        {
-          "id": "doc-config-cache",
-          "category": "技术",
-          "content": "缓存使用Redis，默认TTL 3600秒。"
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "应召回 doc-troubleshoot-performance，包含前后端性能排查方法",
-      "docIds": [
-        "doc-troubleshoot-performance"
-      ]
-    }
-  },
-  {
-    "id": "rr_058",
-    "dimension": "rag_recall",
-    "query": "How do I batch process multiple items through the API?",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-api-batch",
-          "category": "技术",
-          "content": "Batch API: POST /api/v3/batch accepts an array of operations (max 100 per request). Each operation specifies method, path, and body. Responses include individual status codes. Batch requests count as a single rate limit hit."
-        },
-        {
-          "id": "doc-api-pagination",
-          "category": "技术",
-          "content": "Cursor-based pagination with default page size 20, max 100."
+          "content": "File uploads use multipart/form-data. Max file size: 100MB (Free), 1GB (Pro). Endpoint: POST /api/v3/files/upload. Supported types: images, documents, archives. Returns a file_id for referencing."
         },
         {
           "id": "doc-api-rate-limits",
           "category": "技术",
           "content": "Rate limits: Free 100 req/min, Pro 1000 req/min."
+        },
+        {
+          "id": "doc-api-pagination",
+          "category": "技术",
+          "content": "Cursor-based pagination with default page size 20."
+        },
+        {
+          "id": "doc-sec-penetration-testing",
+          "category": "安全",
+          "content": "每季度由第三方安全团队执行渗透测试，报告在 Confluence 安全空间归档。"
         }
       ],
       "availableTools": [
@@ -3882,241 +5466,37 @@
     },
     "expected": {
       "tools": null,
-      "answerCriteria": "Should recall doc-api-batch with batch endpoint details and limits",
+      "answerCriteria": "Should recall doc-api-file-upload with upload endpoint, limits, and supported types",
       "docIds": [
-        "doc-api-batch"
+        "doc-api-file-upload"
       ]
     }
   },
   {
-    "id": "rr_059",
+    "id": "rr_088",
     "dimension": "rag_recall",
-    "query": "怎么配置邮件发送服务？",
+    "query": "出了安全事故怎么上报？",
     "context": {
       "ragDocuments": [
-        {
-          "id": "doc-config-smtp",
-          "category": "技术",
-          "content": "邮件服务配置：设置SMTP_HOST、SMTP_PORT、SMTP_USER、SMTP_PASS环境变量。支持TLS加密。测试邮件发送可在Admin > 邮件设置中操作。默认使用平台自带邮件服务。"
-        },
-        {
-          "id": "doc-config-alerts",
-          "category": "技术",
-          "content": "告警通知支持邮件、Slack、钉钉和企业微信渠道。"
-        },
-        {
-          "id": "doc-config-env-vars",
-          "category": "技术",
-          "content": "可选变量包括SMTP_HOST。"
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "应召回 doc-config-smtp，包含SMTP配置参数和测试方法",
-      "docIds": [
-        "doc-config-smtp"
-      ]
-    }
-  },
-  {
-    "id": "rr_060",
-    "dimension": "rag_recall",
-    "query": "Is there a way to automatically scale the infrastructure?",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-infra-autoscaling",
-          "category": "技术",
-          "content": "Auto-scaling: Configure min/max instances in Settings > Infrastructure. Scaling triggers based on CPU (default >70%), memory (>80%), or request queue depth. Cooldown period is 5 minutes. Kubernetes HPA supported for on-premise."
-        },
-        {
-          "id": "doc-infra-ha",
-          "category": "技术",
-          "content": "Minimum 3-node cluster with automatic failover."
-        },
-        {
-          "id": "doc-infra-monitoring",
-          "category": "技术",
-          "content": "Monitoring stack covers CPU, memory, disk metrics."
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "Should recall doc-infra-autoscaling with auto-scaling configuration and triggers",
-      "docIds": [
-        "doc-infra-autoscaling"
-      ]
-    }
-  },
-  {
-    "id": "rr_061",
-    "dimension": "rag_recall",
-    "query": "这个产品要多少钱一个月？有免费的吗？",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-billing-pricing",
-          "category": "金融",
-          "content": "订阅方案：免费版0元/月（1个项目，1GB存储），专业版29元/月（无限项目，100GB存储），企业版定制价格。"
-        },
-        {
-          "id": "doc-billing-refund",
-          "category": "金融",
-          "content": "购买后7天内可申请全额退款。"
-        },
-        {
-          "id": "doc-billing-sla",
-          "category": "金融",
-          "content": "企业版SLA：99.95%可用性保证。"
-        },
-        {
-          "id": "doc-api-rate-limits",
-          "category": "技术",
-          "content": "免费版100次/分钟，专业版1000次/分钟。"
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "应召回 doc-billing-pricing，口语化的价格咨询",
-      "docIds": [
-        "doc-billing-pricing"
-      ]
-    }
-  },
-  {
-    "id": "rr_062",
-    "dimension": "rag_recall",
-    "query": "How to implement real-time updates using WebSocket?",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-api-websocket",
-          "category": "技术",
-          "content": "WebSocket endpoint: wss://api.ourplatform.com/ws. Authenticate with Bearer token in the initial handshake. Supports channels for real-time updates: subscribe to topics like item.updated, notification.new. Heartbeat interval: 30 seconds."
-        },
-        {
-          "id": "doc-api-graphql",
-          "category": "技术",
-          "content": "GraphQL supports subscriptions via WebSocket."
-        },
-        {
-          "id": "doc-api-webhooks",
-          "category": "技术",
-          "content": "Webhooks for server-to-server event delivery."
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "Should recall doc-api-websocket with WebSocket connection details and topics",
-      "docIds": [
-        "doc-api-websocket"
-      ]
-    }
-  },
-  {
-    "id": "rr_063",
-    "dimension": "rag_recall",
-    "query": "负载均衡怎么配？",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-infra-lb",
-          "category": "技术",
-          "content": "负载均衡支持Nginx和HAProxy。推荐使用轮询(round-robin)或最少连接(least-connections)策略。健康检查路径为/health，间隔10秒。SSL终止建议在负载均衡层完成。"
-        },
-        {
-          "id": "doc-infra-ha",
-          "category": "技术",
-          "content": "高可用最少3节点集群，自动故障转移。"
-        },
-        {
-          "id": "doc-infra-deploy-requirements",
-          "category": "技术",
-          "content": "每节点最低4核CPU、8GB内存。"
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "应召回 doc-infra-lb，包含负载均衡策略和健康检查配置",
-      "docIds": [
-        "doc-infra-lb"
-      ]
-    }
-  },
-  {
-    "id": "rr_064",
-    "dimension": "rag_recall",
-    "query": "How can I export data for analytics purposes?",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-api-data-export",
-          "category": "技术",
-          "content": "Analytics data export: Use GET /api/v3/export with date range parameters. Formats: CSV, JSON, Parquet. For large exports, use async mode: POST /api/v3/export/async returns a job_id; poll GET /api/v3/export/jobs/{job_id} for completion."
-        },
-        {
-          "id": "doc-security-data-export",
-          "category": "法律",
-          "content": "GDPR data export for personal data, generates ZIP within 48 hours."
-        },
-        {
-          "id": "doc-infra-migration",
-          "category": "技术",
-          "content": "Data migration tool supports CSV, JSON, SQL imports."
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "Should recall doc-api-data-export with analytics export API details",
-      "docIds": [
-        "doc-api-data-export"
-      ]
-    }
-  },
-  {
-    "id": "rr_065",
-    "dimension": "rag_recall",
-    "query": "网站被攻击了怎么办？有没有防护措施？",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-security-waf",
-          "category": "技术",
-          "content": "Web应用防火墙(WAF)默认启用，防护SQL注入、XSS、CSRF等常见攻击。DDoS防护通过Cloudflare提供，可在安全设置中配置IP黑名单和地理位置封锁。"
-        },
         {
           "id": "doc-security-incident",
           "category": "技术",
-          "content": "安全事件上报：通知security@ourplatform.com，严重事件24小时内响应。"
+          "content": "安全事件上报流程：1) 立即通知security@ourplatform.com。2) 在管理面板 > 安全 > 事件上报中提交工单。3) 严重事件24小时内响应。4) 所有事件将触发自动取证日志收集。"
         },
         {
-          "id": "doc-security-encryption",
+          "id": "doc-security-audit",
           "category": "技术",
-          "content": "数据静态加密AES-256，传输加密TLS 1.3。"
+          "content": "审计日志记录所有用户登录和管理操作。"
+        },
+        {
+          "id": "doc-security-compliance",
+          "category": "法律",
+          "content": "平台持有SOC 2 Type II认证。"
+        },
+        {
+          "id": "doc-sec-penetration-testing",
+          "category": "安全",
+          "content": "每季度由第三方安全团队执行渗透测试，报告在 Confluence 安全空间归档。"
         }
       ],
       "availableTools": [
@@ -4125,23 +5505,71 @@
     },
     "expected": {
       "tools": null,
-      "answerCriteria": "应同时召回 doc-security-waf 和 doc-security-incident，既需要防护措施也需要事件响应流程",
+      "answerCriteria": "应召回 doc-security-incident，包含安全事件上报流程",
       "docIds": [
-        "doc-security-waf",
         "doc-security-incident"
       ]
     }
   },
   {
-    "id": "rr_066",
+    "id": "rr_089",
     "dimension": "rag_recall",
-    "query": "What API versioning strategy is used and how do I migrate between versions?",
+    "query": "我们公司想本地化部署，支持吗？",
     "context": {
       "ragDocuments": [
         {
-          "id": "doc-api-versioning",
+          "id": "doc-infra-on-premise",
           "category": "技术",
-          "content": "API uses URL-path versioning: /api/v1, /api/v2, /api/v3. Deprecated versions are supported for 12 months after the next version release. Migration guides available at docs.ourplatform.com/migration. Breaking changes are documented in the changelog."
+          "content": "本地化部署仅企业版支持。提供Docker Compose和Kubernetes Helm Chart两种部署方式。需要自备PostgreSQL 14+和Redis 7+。详细安装指南见私有化部署文档。"
+        },
+        {
+          "id": "doc-infra-deploy-requirements",
+          "category": "安全",
+          "content": "云端生产环境最低要求：4核CPU、8GB内存、50GB SSD。"
+        },
+        {
+          "id": "doc-billing-pricing",
+          "category": "金融",
+          "content": "企业版定制价格，联系销售获取报价。"
+        },
+        {
+          "id": "doc-monitor-log-aggregation",
+          "category": "监控",
+          "content": "ELK 日志聚合平台收集所有微服务日志，Kibana 面板支持全文检索和告警规则配置。"
+        },
+        {
+          "id": "doc-perf-caching-strategy",
+          "category": "性能",
+          "content": "热点数据使用 Redis 集群缓存，TTL 默认 30 分钟，支持 Cache-Aside 和 Write-Through 两种模式。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-infra-on-premise，包含本地化部署方式和要求",
+      "docIds": [
+        "doc-infra-on-premise"
+      ]
+    }
+  },
+  {
+    "id": "rr_090",
+    "dimension": "rag_recall",
+    "query": "What GraphQL endpoints are available?",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-api-graphql",
+          "category": "技术",
+          "content": "GraphQL endpoint: POST /api/graphql. Introspection enabled in development. Schema explorer available at /api/graphql/playground. Supports queries, mutations, and subscriptions via WebSocket."
+        },
+        {
+          "id": "doc-api-versioning",
+          "category": "运维",
+          "content": "REST API versioning via URL path, latest is v3."
         },
         {
           "id": "doc-api-auth",
@@ -4149,9 +5577,14 @@
           "content": "API authentication uses Bearer tokens."
         },
         {
-          "id": "doc-infra-migration",
-          "category": "技术",
-          "content": "Data migration tool supports CSV, JSON, SQL dump imports."
+          "id": "doc-api-graphql-subscription",
+          "category": "API",
+          "content": "GraphQL Subscription 基于 WebSocket 实现，支持实时推送订单状态和通知事件。"
+        },
+        {
+          "id": "doc-tech-cicd-pipeline",
+          "category": "部署",
+          "content": "CI/CD 流水线使用 GitHub Actions，每次 PR 合并触发自动构建、单元测试和容器镜像推送。"
         }
       ],
       "availableTools": [
@@ -4160,100 +5593,37 @@
     },
     "expected": {
       "tools": null,
-      "answerCriteria": "Should recall doc-api-versioning with versioning strategy and migration timeline",
+      "answerCriteria": "Should recall doc-api-graphql with GraphQL endpoint and capabilities",
       "docIds": [
-        "doc-api-versioning"
+        "doc-api-graphql"
       ]
     }
   },
   {
-    "id": "rr_067",
+    "id": "rr_091",
     "dimension": "rag_recall",
-    "query": "第三方登录配置好了但是回调一直报错",
+    "query": "用户数据怎么导出？要符合GDPR的那种",
     "context": {
       "ragDocuments": [
         {
-          "id": "doc-auth-social-login",
-          "category": "技术",
-          "content": "社交登录支持Google、GitHub和Microsoft。配置OAuth凭据时注意回调URL必须精确匹配，包括协议(https)和路径。常见错误：回调URL未在OAuth提供商处注册。"
-        },
-        {
-          "id": "doc-troubleshoot-api-errors",
-          "category": "技术",
-          "content": "常见API错误：400参数错误、401未授权、403权限不足。"
-        },
-        {
-          "id": "doc-auth-sso",
-          "category": "技术",
-          "content": "SSO集成支持SAML 2.0和OAuth 2.0协议。"
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "应召回 doc-auth-social-login，包含回调URL配置常见问题",
-      "docIds": [
-        "doc-auth-social-login"
-      ]
-    }
-  },
-  {
-    "id": "rr_068",
-    "dimension": "rag_recall",
-    "query": "How do I configure the database connection for the application?",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-config-database",
-          "category": "技术",
-          "content": "Database connection: Set DATABASE_URL env var in format postgresql://user:pass@host:5432/dbname. Connection pool size default 20 (DB_POOL_SIZE). Supports PostgreSQL 14+ and MySQL 8+. SSL mode configurable via DB_SSL_MODE."
-        },
-        {
-          "id": "doc-config-env-vars",
-          "category": "技术",
-          "content": "Required: DATABASE_URL, JWT_SECRET, REDIS_URL."
-        },
-        {
-          "id": "doc-infra-backup",
-          "category": "技术",
-          "content": "Daily database backups at 2 AM, retained 30 days."
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "Should recall doc-config-database with connection string format and pool settings",
-      "docIds": [
-        "doc-config-database"
-      ]
-    }
-  },
-  {
-    "id": "rr_069",
-    "dimension": "rag_recall",
-    "query": "已经删掉的数据还能找回来吗？",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-security-data-retention",
+          "id": "doc-security-data-export",
           "category": "法律",
-          "content": "已删除数据在回收站保留30天后永久清除。30天内可在回收站中恢复。永久清除后无法找回，需从备份恢复。"
+          "content": "GDPR数据导出：用户可在个人设置中请求数据导出，系统将在48小时内生成包含所有个人数据的ZIP文件。管理员可在Admin > GDPR > Data Export中批量导出。"
         },
         {
-          "id": "doc-infra-backup",
-          "category": "技术",
-          "content": "数据库每日凌晨2点全量备份，保留30天。可在管理面板触发手动备份。"
+          "id": "doc-security-compliance",
+          "category": "法律",
+          "content": "平台通过GDPR合规认证，支持数据主体权利（访问权、删除权、可携带权）。"
         },
         {
-          "id": "doc-infra-disaster-recovery",
-          "category": "技术",
-          "content": "灾难恢复RTO 4小时，RPO 1小时。"
+          "id": "doc-infra-migration",
+          "category": "安全",
+          "content": "数据迁移工具支持CSV、JSON和SQL导入。"
+        },
+        {
+          "id": "doc-api-graphql-subscription",
+          "category": "API",
+          "content": "GraphQL Subscription 基于 WebSocket 实现，支持实时推送订单状态和通知事件。"
         }
       ],
       "availableTools": [
@@ -4262,330 +5632,22 @@
     },
     "expected": {
       "tools": null,
-      "answerCriteria": "应同时召回 doc-security-data-retention 和 doc-infra-backup，恢复删除数据需要回收站和备份两种途径",
+      "answerCriteria": "应同时召回 doc-security-data-export 和 doc-security-compliance，GDPR导出需要操作指南和合规背景",
       "docIds": [
-        "doc-security-data-retention",
-        "doc-infra-backup"
+        "doc-security-data-export",
+        "doc-security-compliance"
       ]
     }
   },
   {
-    "id": "rr_070",
-    "dimension": "rag_recall",
-    "query": "What are the error response formats and how should I handle them?",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-troubleshoot-api-errors",
-          "category": "技术",
-          "content": "API error responses follow RFC 7807: {type, title, status, detail, instance}. Common codes: 400 Bad Request (validation), 401 Unauthorized, 403 Forbidden, 404 Not Found, 409 Conflict, 422 Unprocessable Entity, 429 Rate Limited, 500 Internal Error. Retry with exponential backoff for 429 and 5xx."
-        },
-        {
-          "id": "doc-api-rate-limits",
-          "category": "技术",
-          "content": "Rate limit headers included in every response: X-RateLimit-Limit, X-RateLimit-Remaining."
-        },
-        {
-          "id": "doc-api-auth",
-          "category": "技术",
-          "content": "API uses Bearer token authentication."
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "Should recall doc-troubleshoot-api-errors with RFC 7807 error format and handling guidance",
-      "docIds": [
-        "doc-troubleshoot-api-errors"
-      ]
-    }
-  },
-  {
-    "id": "rr_071",
-    "dimension": "rag_recall",
-    "query": "有没有提供移动端的应用？",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-config-mobile-app",
-          "category": "技术",
-          "content": "移动端支持iOS和Android原生应用，可在App Store和Google Play下载。移动端支持推送通知、离线访问和生物识别登录。最低系统要求：iOS 15+、Android 10+。"
-        },
-        {
-          "id": "doc-api-sdk",
-          "category": "技术",
-          "content": "官方SDK支持Python、JavaScript、Go和Java。"
-        },
-        {
-          "id": "doc-config-branding",
-          "category": "技术",
-          "content": "支持自定义登录页面品牌样式。"
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "应召回 doc-config-mobile-app，包含移动端应用信息和系统要求",
-      "docIds": [
-        "doc-config-mobile-app"
-      ]
-    }
-  },
-  {
-    "id": "rr_072",
-    "dimension": "rag_recall",
-    "query": "我只想让某些接口对外暴露怎么做？",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-api-auth",
-          "category": "技术",
-          "content": "API密钥支持设置权限范围(scope)，可限制密钥只能访问特定端点。在开发者控制台创建密钥时选择需要的权限。"
-        },
-        {
-          "id": "doc-security-access-control",
-          "category": "技术",
-          "content": "RBAC支持管理员、编辑者、查看者三种角色。"
-        },
-        {
-          "id": "doc-config-cors",
-          "category": "技术",
-          "content": "CORS通过ALLOWED_ORIGINS环境变量配置。"
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "应召回 doc-api-auth，包含API密钥权限范围限制功能",
-      "docIds": [
-        "doc-api-auth"
-      ]
-    }
-  },
-  {
-    "id": "rr_073",
-    "dimension": "rag_recall",
-    "query": "Where can I find the API changelog?",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-api-versioning",
-          "category": "技术",
-          "content": "API changelog published at docs.ourplatform.com/changelog. Breaking changes documented with migration guides. Deprecated versions supported for 12 months. Subscribe to changelog RSS feed for updates."
-        },
-        {
-          "id": "doc-api-sdk",
-          "category": "技术",
-          "content": "Official SDKs for Python, JavaScript, Go, Java."
-        },
-        {
-          "id": "doc-security-audit",
-          "category": "技术",
-          "content": "Audit logs record all administrative actions."
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "Should recall doc-api-versioning with changelog location and RSS subscription",
-      "docIds": [
-        "doc-api-versioning"
-      ]
-    }
-  },
-  {
-    "id": "rr_074",
-    "dimension": "rag_recall",
-    "query": "生产环境和测试环境的配置有什么区别？",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-config-environments",
-          "category": "技术",
-          "content": "环境区分：通过NODE_ENV环境变量控制（production/staging/development）。生产环境默认启用SSL、禁用调试模式、开启缓存；测试环境启用详细日志、允许API Playground、使用独立数据库。"
-        },
-        {
-          "id": "doc-config-env-vars",
-          "category": "技术",
-          "content": "必须配置：DATABASE_URL、JWT_SECRET、REDIS_URL。"
-        },
-        {
-          "id": "doc-infra-deploy-requirements",
-          "category": "技术",
-          "content": "生产环境最低4核CPU、8GB内存。"
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "应召回 doc-config-environments，包含不同环境配置差异",
-      "docIds": [
-        "doc-config-environments"
-      ]
-    }
-  },
-  {
-    "id": "rr_075",
-    "dimension": "rag_recall",
-    "query": "How do I integrate with Slack for team notifications?",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-config-alerts",
-          "category": "技术",
-          "content": "Alert notifications support email, Slack, DingTalk and WeChat Work. For Slack: add the Slack integration in Settings > Notifications, authorize the app, select a channel. Supports custom message templates."
-        },
-        {
-          "id": "doc-api-webhooks",
-          "category": "技术",
-          "content": "Webhooks support custom URL endpoints and event subscriptions."
-        },
-        {
-          "id": "doc-config-smtp",
-          "category": "技术",
-          "content": "SMTP config via SMTP_HOST, SMTP_PORT env vars."
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "Should recall doc-config-alerts with Slack integration setup steps",
-      "docIds": [
-        "doc-config-alerts"
-      ]
-    }
-  },
-  {
-    "id": "rr_076",
-    "dimension": "rag_recall",
-    "query": "上传文件大小有限制吗？存储空间够不够用？",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-api-file-upload",
-          "category": "技术",
-          "content": "文件上传大小限制：免费版100MB，专业版1GB。支持图片、文档和压缩包格式。"
-        },
-        {
-          "id": "doc-billing-pricing",
-          "category": "金融",
-          "content": "免费版1GB存储，专业版100GB存储，企业版无限存储。"
-        },
-        {
-          "id": "doc-config-cache",
-          "category": "技术",
-          "content": "缓存层使用Redis，默认TTL 3600秒。"
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "应同时召回 doc-api-file-upload 和 doc-billing-pricing，需要文件大小限制和存储空间两方面信息",
-      "docIds": [
-        "doc-api-file-upload",
-        "doc-billing-pricing"
-      ]
-    }
-  },
-  {
-    "id": "rr_077",
-    "dimension": "rag_recall",
-    "query": "Does the platform provide any scheduled task or cron job functionality?",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-config-scheduled-tasks",
-          "category": "技术",
-          "content": "Scheduled tasks: Configure in Admin > Automation > Scheduled Tasks. Supports cron syntax for scheduling. Built-in tasks: data cleanup, report generation, certificate renewal. Custom tasks via the Task API: POST /api/v3/tasks/schedule."
-        },
-        {
-          "id": "doc-infra-backup",
-          "category": "技术",
-          "content": "Database backups run daily at 2 AM."
-        },
-        {
-          "id": "doc-api-batch",
-          "category": "技术",
-          "content": "Batch API processes up to 100 operations per request."
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "Should recall doc-config-scheduled-tasks with cron job configuration and Task API",
-      "docIds": [
-        "doc-config-scheduled-tasks"
-      ]
-    }
-  },
-  {
-    "id": "rr_078",
-    "dimension": "rag_recall",
-    "query": "帮我看看这几个问题：怎么配置SSL证书，还有数据库连接报超时",
-    "context": {
-      "ragDocuments": [
-        {
-          "id": "doc-config-ssl",
-          "category": "技术",
-          "content": "SSL证书配置：支持Let's Encrypt自动签发和手动上传自定义证书。在Settings > Security > SSL中配置。证书自动续期在到期前30天触发。"
-        },
-        {
-          "id": "doc-config-database",
-          "category": "技术",
-          "content": "数据库连接超时默认30秒，可通过DB_CONNECT_TIMEOUT调整。连接池大小通过DB_POOL_SIZE配置，默认20。"
-        },
-        {
-          "id": "doc-infra-monitoring",
-          "category": "技术",
-          "content": "监控使用Prometheus+Grafana。"
-        }
-      ],
-      "availableTools": [
-        "knowledgeSearchTool"
-      ]
-    },
-    "expected": {
-      "tools": null,
-      "answerCriteria": "应同时召回 doc-config-ssl 和 doc-config-database，用户提出两个独立问题",
-      "docIds": [
-        "doc-config-ssl",
-        "doc-config-database"
-      ]
-    }
-  },
-  {
-    "id": "rr_079",
+    "id": "rr_092",
     "dimension": "rag_recall",
     "query": "How do I completely delete a user account and all associated data?",
     "context": {
       "ragDocuments": [
         {
           "id": "doc-security-data-retention",
-          "category": "法律",
+          "category": "安全",
           "content": "Deleted data stays in recycle bin for 30 days, then permanently purged. Users can customize project-level retention periods."
         },
         {
@@ -4595,7 +5657,7 @@
         },
         {
           "id": "doc-auth-password-reset",
-          "category": "技术",
+          "category": "性能",
           "content": "Password reset via email verification code."
         },
         {
@@ -4618,7 +5680,1047 @@
     }
   },
   {
-    "id": "rr_080",
+    "id": "rr_093",
+    "dimension": "rag_recall",
+    "query": "How do I configure CORS for my frontend application?",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-config-cors",
+          "category": "技术",
+          "content": "CORS configuration: Set ALLOWED_ORIGINS env var with comma-separated domains. Example: ALLOWED_ORIGINS=https://app.example.com,https://staging.example.com. Wildcard (*) supported but not recommended for production."
+        },
+        {
+          "id": "doc-config-env-vars",
+          "category": "技术",
+          "content": "Required env vars: DATABASE_URL, JWT_SECRET, REDIS_URL."
+        },
+        {
+          "id": "doc-security-encryption",
+          "category": "技术",
+          "content": "Data in transit uses TLS 1.3."
+        },
+        {
+          "id": "doc-ops-incident-response",
+          "category": "运维",
+          "content": "P0 事故响应流程：5 分钟内拉群 → 15 分钟初步定位 → 1 小时内恢复服务。"
+        },
+        {
+          "id": "doc-tech-container-orchestration",
+          "category": "部署",
+          "content": "Kubernetes 集群采用 3 master + N worker 架构，通过 HPA 自动扩缩容。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "Should recall doc-config-cors with CORS environment variable configuration",
+      "docIds": [
+        "doc-config-cors"
+      ]
+    }
+  },
+  {
+    "id": "rr_094",
+    "dimension": "rag_recall",
+    "query": "系统支持哪些语言？怎么切换？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-config-i18n",
+          "category": "技术",
+          "content": "系统支持中文简体、中文繁体、英语、日语、韩语五种语言。用户可在个人设置中切换界面语言。管理员可设置组织默认语言。API响应语言通过Accept-Language头控制。"
+        },
+        {
+          "id": "doc-config-branding",
+          "category": "技术",
+          "content": "支持自定义登录页面品牌样式。"
+        },
+        {
+          "id": "doc-api-versioning",
+          "category": "技术",
+          "content": "API版本通过URL路径控制。"
+        },
+        {
+          "id": "doc-sec-penetration-testing",
+          "category": "安全",
+          "content": "每季度由第三方安全团队执行渗透测试，报告在 Confluence 安全空间归档。"
+        },
+        {
+          "id": "doc-tech-service-mesh",
+          "category": "运维",
+          "content": "Istio 服务网格负责服务间流量管理、mTLS 加密通信和链路追踪。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-config-i18n，包含支持的语言列表和切换方式",
+      "docIds": [
+        "doc-config-i18n"
+      ]
+    }
+  },
+  {
+    "id": "rr_095",
+    "dimension": "rag_recall",
+    "query": "What is the SLA for enterprise customers?",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-billing-sla",
+          "category": "金融",
+          "content": "Enterprise SLA: 99.95% uptime guarantee, 1-hour response time for P1 issues, 4-hour for P2, dedicated support engineer, quarterly business reviews. Credits issued for SLA breaches."
+        },
+        {
+          "id": "doc-billing-pricing",
+          "category": "监控",
+          "content": "Enterprise tier has custom pricing, contact sales."
+        },
+        {
+          "id": "doc-infra-ha",
+          "category": "性能",
+          "content": "3-node minimum cluster with automatic failover."
+        },
+        {
+          "id": "doc-tech-cicd-pipeline",
+          "category": "部署",
+          "content": "CI/CD 流水线使用 GitHub Actions，每次 PR 合并触发自动构建、单元测试和容器镜像推送。"
+        },
+        {
+          "id": "doc-tech-graphql",
+          "category": "性能",
+          "content": "GraphQL gateway 聚合后端微服务，支持字段级权限控制和查询深度限制。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "Should recall doc-billing-sla with uptime guarantee and response time commitments",
+      "docIds": [
+        "doc-billing-sla"
+      ]
+    }
+  },
+  {
+    "id": "rr_096",
+    "dimension": "rag_recall",
+    "query": "How to set up CI/CD pipeline integration?",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-infra-cicd",
+          "category": "技术",
+          "content": "CI/CD integration: Supports GitHub Actions, GitLab CI, and Jenkins. Use the deploy CLI: deploy-cli push --env production. Webhook triggers available for automated deployments on git push."
+        },
+        {
+          "id": "doc-api-webhooks",
+          "category": "技术",
+          "content": "Webhooks support deployment.completed and deployment.failed events."
+        },
+        {
+          "id": "doc-infra-deploy-requirements",
+          "category": "技术",
+          "content": "Production requires 4-core CPU, 8GB RAM."
+        },
+        {
+          "id": "doc-api-graphql-subscription",
+          "category": "API",
+          "content": "GraphQL Subscription 基于 WebSocket 实现，支持实时推送订单状态和通知事件。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "Should recall doc-infra-cicd with CI/CD platform support and CLI usage",
+      "docIds": [
+        "doc-infra-cicd"
+      ]
+    }
+  },
+  {
+    "id": "rr_097",
+    "dimension": "rag_recall",
+    "query": "数据保留多久会被自动清理？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-security-data-retention",
+          "category": "法律",
+          "content": "数据保留策略：活跃数据永久保留，已删除数据在回收站保留30天后永久清除。审计日志保留180天。用户可自定义项目级数据保留期限（最短7天，最长无限期）。"
+        },
+        {
+          "id": "doc-infra-backup",
+          "category": "安全",
+          "content": "数据库备份保留最近30天。"
+        },
+        {
+          "id": "doc-security-compliance",
+          "category": "合规",
+          "content": "GDPR合规，支持数据主体权利。"
+        },
+        {
+          "id": "doc-tech-graphql",
+          "category": "安全",
+          "content": "GraphQL gateway 聚合后端微服务，支持字段级权限控制和查询深度限制。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-security-data-retention，包含数据保留和清理策略",
+      "docIds": [
+        "doc-security-data-retention"
+      ]
+    }
+  },
+  {
+    "id": "rr_098",
+    "dimension": "rag_recall",
+    "query": "Can I use OAuth to let users sign in with Google?",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-auth-social-login",
+          "category": "技术",
+          "content": "Social login supports Google, GitHub, and Microsoft. Configure OAuth credentials in Settings > Authentication > Social Providers. Requires OAuth 2.0 client ID and secret from the provider."
+        },
+        {
+          "id": "doc-auth-sso",
+          "category": "运维",
+          "content": "Enterprise SSO supports SAML 2.0 and OAuth 2.0 protocols for IdP integration."
+        },
+        {
+          "id": "doc-auth-2fa",
+          "category": "技术",
+          "content": "Two-factor authentication supports TOTP and SMS."
+        },
+        {
+          "id": "doc-tech-service-mesh",
+          "category": "技术",
+          "content": "Istio 服务网格负责服务间流量管理、mTLS 加密通信和链路追踪。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "Should recall doc-auth-social-login with Google OAuth setup details",
+      "docIds": [
+        "doc-auth-social-login"
+      ]
+    }
+  },
+  {
+    "id": "rr_099",
+    "dimension": "rag_recall",
+    "query": "第三方登录配置好了但是回调一直报错",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-auth-social-login",
+          "category": "技术",
+          "content": "社交登录支持Google、GitHub和Microsoft。配置OAuth凭据时注意回调URL必须精确匹配，包括协议(https)和路径。常见错误：回调URL未在OAuth提供商处注册。"
+        },
+        {
+          "id": "doc-troubleshoot-api-errors",
+          "category": "技术",
+          "content": "常见API错误：400参数错误、401未授权、403权限不足。"
+        },
+        {
+          "id": "doc-auth-sso",
+          "category": "技术",
+          "content": "SSO集成支持SAML 2.0和OAuth 2.0协议。"
+        },
+        {
+          "id": "doc-tech-service-mesh",
+          "category": "性能",
+          "content": "Istio 服务网格负责服务间流量管理、mTLS 加密通信和链路追踪。"
+        },
+        {
+          "id": "doc-api-graphql-subscription",
+          "category": "API",
+          "content": "GraphQL Subscription 基于 WebSocket 实现，支持实时推送订单状态和通知事件。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-auth-social-login，包含回调URL配置常见问题",
+      "docIds": [
+        "doc-auth-social-login"
+      ]
+    }
+  },
+  {
+    "id": "rr_100",
+    "dimension": "rag_recall",
+    "query": "What are the differences between REST and GraphQL APIs?",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-api-versioning",
+          "category": "技术",
+          "content": "REST API uses URL-path versioning, current latest is v3. Endpoints follow RESTful conventions with JSON request/response bodies."
+        },
+        {
+          "id": "doc-api-graphql",
+          "category": "技术",
+          "content": "GraphQL endpoint at POST /api/graphql. Supports queries, mutations, and subscriptions. Schema explorer available at /api/graphql/playground."
+        },
+        {
+          "id": "doc-api-rate-limits",
+          "category": "技术",
+          "content": "Rate limits apply to both REST and GraphQL: Free 100 req/min, Pro 1000 req/min."
+        },
+        {
+          "id": "doc-monitor-log-aggregation",
+          "category": "监控",
+          "content": "ELK 日志聚合平台收集所有微服务日志，Kibana 面板支持全文检索和告警规则配置。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "Should recall both doc-api-versioning AND doc-api-graphql to compare REST and GraphQL",
+      "docIds": [
+        "doc-api-versioning",
+        "doc-api-graphql"
+      ]
+    }
+  },
+  {
+    "id": "rr_101",
+    "dimension": "rag_recall",
+    "query": "How do I batch process multiple items through the API?",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-api-batch",
+          "category": "技术",
+          "content": "Batch API: POST /api/v3/batch accepts an array of operations (max 100 per request). Each operation specifies method, path, and body. Responses include individual status codes. Batch requests count as a single rate limit hit."
+        },
+        {
+          "id": "doc-api-pagination",
+          "category": "技术",
+          "content": "Cursor-based pagination with default page size 20, max 100."
+        },
+        {
+          "id": "doc-api-rate-limits",
+          "category": "性能",
+          "content": "Rate limits: Free 100 req/min, Pro 1000 req/min."
+        },
+        {
+          "id": "doc-perf-caching-strategy",
+          "category": "性能",
+          "content": "热点数据使用 Redis 集群缓存，TTL 默认 30 分钟，支持 Cache-Aside 和 Write-Through 两种模式。"
+        },
+        {
+          "id": "doc-tech-cicd-pipeline",
+          "category": "技术",
+          "content": "CI/CD 流水线使用 GitHub Actions，每次 PR 合并触发自动构建、单元测试和容器镜像推送。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "Should recall doc-api-batch with batch endpoint details and limits",
+      "docIds": [
+        "doc-api-batch"
+      ]
+    }
+  },
+  {
+    "id": "rr_102",
+    "dimension": "rag_recall",
+    "query": "怎么配置邮件发送服务？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-config-smtp",
+          "category": "技术",
+          "content": "邮件服务配置：设置SMTP_HOST、SMTP_PORT、SMTP_USER、SMTP_PASS环境变量。支持TLS加密。测试邮件发送可在Admin > 邮件设置中操作。默认使用平台自带邮件服务。"
+        },
+        {
+          "id": "doc-config-alerts",
+          "category": "部署",
+          "content": "告警通知支持邮件、Slack、钉钉和企业微信渠道。"
+        },
+        {
+          "id": "doc-config-env-vars",
+          "category": "技术",
+          "content": "可选变量包括SMTP_HOST。"
+        },
+        {
+          "id": "doc-ops-incident-response",
+          "category": "运维",
+          "content": "P0 事故响应流程：5 分钟内拉群 → 15 分钟初步定位 → 1 小时内恢复服务。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-config-smtp，包含SMTP配置参数和测试方法",
+      "docIds": [
+        "doc-config-smtp"
+      ]
+    }
+  },
+  {
+    "id": "rr_103",
+    "dimension": "rag_recall",
+    "query": "Is there a way to automatically scale the infrastructure?",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-infra-autoscaling",
+          "category": "技术",
+          "content": "Auto-scaling: Configure min/max instances in Settings > Infrastructure. Scaling triggers based on CPU (default >70%), memory (>80%), or request queue depth. Cooldown period is 5 minutes. Kubernetes HPA supported for on-premise."
+        },
+        {
+          "id": "doc-infra-ha",
+          "category": "技术",
+          "content": "Minimum 3-node cluster with automatic failover."
+        },
+        {
+          "id": "doc-infra-monitoring",
+          "category": "技术",
+          "content": "Monitoring stack covers CPU, memory, disk metrics."
+        },
+        {
+          "id": "doc-tech-feature-flags",
+          "category": "运维",
+          "content": "Feature flag 系统支持灰度发布，可按用户百分比、地域或账户类型控制功能开关。"
+        },
+        {
+          "id": "doc-tech-cicd-pipeline",
+          "category": "安全",
+          "content": "CI/CD 流水线使用 GitHub Actions，每次 PR 合并触发自动构建、单元测试和容器镜像推送。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "Should recall doc-infra-autoscaling with auto-scaling configuration and triggers",
+      "docIds": [
+        "doc-infra-autoscaling"
+      ]
+    }
+  },
+  {
+    "id": "rr_104",
+    "dimension": "rag_recall",
+    "query": "How to implement real-time updates using WebSocket?",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-api-websocket",
+          "category": "技术",
+          "content": "WebSocket endpoint: wss://api.ourplatform.com/ws. Authenticate with Bearer token in the initial handshake. Supports channels for real-time updates: subscribe to topics like item.updated, notification.new. Heartbeat interval: 30 seconds."
+        },
+        {
+          "id": "doc-api-graphql",
+          "category": "技术",
+          "content": "GraphQL supports subscriptions via WebSocket."
+        },
+        {
+          "id": "doc-api-webhooks",
+          "category": "技术",
+          "content": "Webhooks for server-to-server event delivery."
+        },
+        {
+          "id": "doc-monitor-log-aggregation",
+          "category": "监控",
+          "content": "ELK 日志聚合平台收集所有微服务日志，Kibana 面板支持全文检索和告警规则配置。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "Should recall doc-api-websocket with WebSocket connection details and topics",
+      "docIds": [
+        "doc-api-websocket"
+      ]
+    }
+  },
+  {
+    "id": "rr_105",
+    "dimension": "rag_recall",
+    "query": "负载均衡怎么配？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-infra-lb",
+          "category": "技术",
+          "content": "负载均衡支持Nginx和HAProxy。推荐使用轮询(round-robin)或最少连接(least-connections)策略。健康检查路径为/health，间隔10秒。SSL终止建议在负载均衡层完成。"
+        },
+        {
+          "id": "doc-infra-ha",
+          "category": "技术",
+          "content": "高可用最少3节点集群，自动故障转移。"
+        },
+        {
+          "id": "doc-infra-deploy-requirements",
+          "category": "技术",
+          "content": "每节点最低4核CPU、8GB内存。"
+        },
+        {
+          "id": "doc-tech-container-orchestration",
+          "category": "技术",
+          "content": "Kubernetes 集群采用 3 master + N worker 架构，通过 HPA 自动扩缩容。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-infra-lb，包含负载均衡策略和健康检查配置",
+      "docIds": [
+        "doc-infra-lb"
+      ]
+    }
+  },
+  {
+    "id": "rr_106",
+    "dimension": "rag_recall",
+    "query": "How can I export data for analytics purposes?",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-api-data-export",
+          "category": "技术",
+          "content": "Analytics data export: Use GET /api/v3/export with date range parameters. Formats: CSV, JSON, Parquet. For large exports, use async mode: POST /api/v3/export/async returns a job_id; poll GET /api/v3/export/jobs/{job_id} for completion."
+        },
+        {
+          "id": "doc-security-data-export",
+          "category": "合规",
+          "content": "GDPR data export for personal data, generates ZIP within 48 hours."
+        },
+        {
+          "id": "doc-infra-migration",
+          "category": "技术",
+          "content": "Data migration tool supports CSV, JSON, SQL imports."
+        },
+        {
+          "id": "doc-tech-container-orchestration",
+          "category": "技术",
+          "content": "Kubernetes 集群采用 3 master + N worker 架构，通过 HPA 自动扩缩容。"
+        },
+        {
+          "id": "doc-api-graphql-subscription",
+          "category": "API",
+          "content": "GraphQL Subscription 基于 WebSocket 实现，支持实时推送订单状态和通知事件。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "Should recall doc-api-data-export with analytics export API details",
+      "docIds": [
+        "doc-api-data-export"
+      ]
+    }
+  },
+  {
+    "id": "rr_107",
+    "dimension": "rag_recall",
+    "query": "网站被攻击了怎么办？有没有防护措施？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-security-waf",
+          "category": "技术",
+          "content": "Web应用防火墙(WAF)默认启用，防护SQL注入、XSS、CSRF等常见攻击。DDoS防护通过Cloudflare提供，可在安全设置中配置IP黑名单和地理位置封锁。"
+        },
+        {
+          "id": "doc-security-incident",
+          "category": "技术",
+          "content": "安全事件上报：通知security@ourplatform.com，严重事件24小时内响应。"
+        },
+        {
+          "id": "doc-security-encryption",
+          "category": "技术",
+          "content": "数据静态加密AES-256，传输加密TLS 1.3。"
+        },
+        {
+          "id": "doc-tech-service-mesh",
+          "category": "技术",
+          "content": "Istio 服务网格负责服务间流量管理、mTLS 加密通信和链路追踪。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应同时召回 doc-security-waf 和 doc-security-incident，既需要防护措施也需要事件响应流程",
+      "docIds": [
+        "doc-security-waf",
+        "doc-security-incident"
+      ]
+    }
+  },
+  {
+    "id": "rr_108",
+    "dimension": "rag_recall",
+    "query": "What API versioning strategy is used and how do I migrate between versions?",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-api-versioning",
+          "category": "技术",
+          "content": "API uses URL-path versioning: /api/v1, /api/v2, /api/v3. Deprecated versions are supported for 12 months after the next version release. Migration guides available at docs.ourplatform.com/migration. Breaking changes are documented in the changelog."
+        },
+        {
+          "id": "doc-api-auth",
+          "category": "性能",
+          "content": "API authentication uses Bearer tokens."
+        },
+        {
+          "id": "doc-infra-migration",
+          "category": "安全",
+          "content": "Data migration tool supports CSV, JSON, SQL dump imports."
+        },
+        {
+          "id": "doc-api-graphql-subscription",
+          "category": "API",
+          "content": "GraphQL Subscription 基于 WebSocket 实现，支持实时推送订单状态和通知事件。"
+        },
+        {
+          "id": "doc-tech-service-mesh",
+          "category": "技术",
+          "content": "Istio 服务网格负责服务间流量管理、mTLS 加密通信和链路追踪。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "Should recall doc-api-versioning with versioning strategy and migration timeline",
+      "docIds": [
+        "doc-api-versioning"
+      ]
+    }
+  },
+  {
+    "id": "rr_109",
+    "dimension": "rag_recall",
+    "query": "Where can I find the API changelog?",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-api-versioning",
+          "category": "技术",
+          "content": "API changelog published at docs.ourplatform.com/changelog. Breaking changes documented with migration guides. Deprecated versions supported for 12 months. Subscribe to changelog RSS feed for updates."
+        },
+        {
+          "id": "doc-api-sdk",
+          "category": "安全",
+          "content": "Official SDKs for Python, JavaScript, Go, Java."
+        },
+        {
+          "id": "doc-security-audit",
+          "category": "运维",
+          "content": "Audit logs record all administrative actions."
+        },
+        {
+          "id": "doc-api-graphql-subscription",
+          "category": "API",
+          "content": "GraphQL Subscription 基于 WebSocket 实现，支持实时推送订单状态和通知事件。"
+        },
+        {
+          "id": "doc-sec-penetration-testing",
+          "category": "安全",
+          "content": "每季度由第三方安全团队执行渗透测试，报告在 Confluence 安全空间归档。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "Should recall doc-api-versioning with changelog location and RSS subscription",
+      "docIds": [
+        "doc-api-versioning"
+      ]
+    }
+  },
+  {
+    "id": "rr_110",
+    "dimension": "rag_recall",
+    "query": "How do I configure the database connection for the application?",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-config-database",
+          "category": "技术",
+          "content": "Database connection: Set DATABASE_URL env var in format postgresql://user:pass@host:5432/dbname. Connection pool size default 20 (DB_POOL_SIZE). Supports PostgreSQL 14+ and MySQL 8+. SSL mode configurable via DB_SSL_MODE."
+        },
+        {
+          "id": "doc-config-env-vars",
+          "category": "部署",
+          "content": "Required: DATABASE_URL, JWT_SECRET, REDIS_URL."
+        },
+        {
+          "id": "doc-infra-backup",
+          "category": "技术",
+          "content": "Daily database backups at 2 AM, retained 30 days."
+        },
+        {
+          "id": "doc-api-graphql-subscription",
+          "category": "API",
+          "content": "GraphQL Subscription 基于 WebSocket 实现，支持实时推送订单状态和通知事件。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "Should recall doc-config-database with connection string format and pool settings",
+      "docIds": [
+        "doc-config-database"
+      ]
+    }
+  },
+  {
+    "id": "rr_111",
+    "dimension": "rag_recall",
+    "query": "已经删掉的数据还能找回来吗？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-security-data-retention",
+          "category": "法律",
+          "content": "已删除数据在回收站保留30天后永久清除。30天内可在回收站中恢复。永久清除后无法找回，需从备份恢复。"
+        },
+        {
+          "id": "doc-infra-backup",
+          "category": "技术",
+          "content": "数据库每日凌晨2点全量备份，保留30天。可在管理面板触发手动备份。"
+        },
+        {
+          "id": "doc-infra-disaster-recovery",
+          "category": "技术",
+          "content": "灾难恢复RTO 4小时，RPO 1小时。"
+        },
+        {
+          "id": "doc-tech-graphql",
+          "category": "技术",
+          "content": "GraphQL gateway 聚合后端微服务，支持字段级权限控制和查询深度限制。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应同时召回 doc-security-data-retention 和 doc-infra-backup，恢复删除数据需要回收站和备份两种途径",
+      "docIds": [
+        "doc-security-data-retention",
+        "doc-infra-backup"
+      ]
+    }
+  },
+  {
+    "id": "rr_112",
+    "dimension": "rag_recall",
+    "query": "What are the error response formats and how should I handle them?",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-troubleshoot-api-errors",
+          "category": "技术",
+          "content": "API error responses follow RFC 7807: {type, title, status, detail, instance}. Common codes: 400 Bad Request (validation), 401 Unauthorized, 403 Forbidden, 404 Not Found, 409 Conflict, 422 Unprocessable Entity, 429 Rate Limited, 500 Internal Error. Retry with exponential backoff for 429 and 5xx."
+        },
+        {
+          "id": "doc-api-rate-limits",
+          "category": "技术",
+          "content": "Rate limit headers included in every response: X-RateLimit-Limit, X-RateLimit-Remaining."
+        },
+        {
+          "id": "doc-api-auth",
+          "category": "技术",
+          "content": "API uses Bearer token authentication."
+        },
+        {
+          "id": "doc-ops-incident-response",
+          "category": "运维",
+          "content": "P0 事故响应流程：5 分钟内拉群 → 15 分钟初步定位 → 1 小时内恢复服务。"
+        },
+        {
+          "id": "doc-perf-caching-strategy",
+          "category": "性能",
+          "content": "热点数据使用 Redis 集群缓存，TTL 默认 30 分钟，支持 Cache-Aside 和 Write-Through 两种模式。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "Should recall doc-troubleshoot-api-errors with RFC 7807 error format and handling guidance",
+      "docIds": [
+        "doc-troubleshoot-api-errors"
+      ]
+    }
+  },
+  {
+    "id": "rr_113",
+    "dimension": "rag_recall",
+    "query": "有没有提供移动端的应用？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-config-mobile-app",
+          "category": "技术",
+          "content": "移动端支持iOS和Android原生应用，可在App Store和Google Play下载。移动端支持推送通知、离线访问和生物识别登录。最低系统要求：iOS 15+、Android 10+。"
+        },
+        {
+          "id": "doc-api-sdk",
+          "category": "技术",
+          "content": "官方SDK支持Python、JavaScript、Go和Java。"
+        },
+        {
+          "id": "doc-config-branding",
+          "category": "部署",
+          "content": "支持自定义登录页面品牌样式。"
+        },
+        {
+          "id": "doc-tech-container-orchestration",
+          "category": "运维",
+          "content": "Kubernetes 集群采用 3 master + N worker 架构，通过 HPA 自动扩缩容。"
+        },
+        {
+          "id": "doc-tech-feature-flags",
+          "category": "技术",
+          "content": "Feature flag 系统支持灰度发布，可按用户百分比、地域或账户类型控制功能开关。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-config-mobile-app，包含移动端应用信息和系统要求",
+      "docIds": [
+        "doc-config-mobile-app"
+      ]
+    }
+  },
+  {
+    "id": "rr_114",
+    "dimension": "rag_recall",
+    "query": "生产环境和测试环境的配置有什么区别？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-config-environments",
+          "category": "技术",
+          "content": "环境区分：通过NODE_ENV环境变量控制（production/staging/development）。生产环境默认启用SSL、禁用调试模式、开启缓存；测试环境启用详细日志、允许API Playground、使用独立数据库。"
+        },
+        {
+          "id": "doc-config-env-vars",
+          "category": "技术",
+          "content": "必须配置：DATABASE_URL、JWT_SECRET、REDIS_URL。"
+        },
+        {
+          "id": "doc-infra-deploy-requirements",
+          "category": "技术",
+          "content": "生产环境最低4核CPU、8GB内存。"
+        },
+        {
+          "id": "doc-tech-container-orchestration",
+          "category": "技术",
+          "content": "Kubernetes 集群采用 3 master + N worker 架构，通过 HPA 自动扩缩容。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应召回 doc-config-environments，包含不同环境配置差异",
+      "docIds": [
+        "doc-config-environments"
+      ]
+    }
+  },
+  {
+    "id": "rr_115",
+    "dimension": "rag_recall",
+    "query": "上传文件大小有限制吗？存储空间够不够用？",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-api-file-upload",
+          "category": "技术",
+          "content": "文件上传大小限制：免费版100MB，专业版1GB。支持图片、文档和压缩包格式。"
+        },
+        {
+          "id": "doc-billing-pricing",
+          "category": "金融",
+          "content": "免费版1GB存储，专业版100GB存储，企业版无限存储。"
+        },
+        {
+          "id": "doc-config-cache",
+          "category": "部署",
+          "content": "缓存层使用Redis，默认TTL 3600秒。"
+        },
+        {
+          "id": "doc-tech-cicd-pipeline",
+          "category": "安全",
+          "content": "CI/CD 流水线使用 GitHub Actions，每次 PR 合并触发自动构建、单元测试和容器镜像推送。"
+        },
+        {
+          "id": "doc-api-graphql-subscription",
+          "category": "API",
+          "content": "GraphQL Subscription 基于 WebSocket 实现，支持实时推送订单状态和通知事件。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应同时召回 doc-api-file-upload 和 doc-billing-pricing，需要文件大小限制和存储空间两方面信息",
+      "docIds": [
+        "doc-api-file-upload",
+        "doc-billing-pricing"
+      ]
+    }
+  },
+  {
+    "id": "rr_116",
+    "dimension": "rag_recall",
+    "query": "Does the platform provide any scheduled task or cron job functionality?",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-config-scheduled-tasks",
+          "category": "技术",
+          "content": "Scheduled tasks: Configure in Admin > Automation > Scheduled Tasks. Supports cron syntax for scheduling. Built-in tasks: data cleanup, report generation, certificate renewal. Custom tasks via the Task API: POST /api/v3/tasks/schedule."
+        },
+        {
+          "id": "doc-infra-backup",
+          "category": "技术",
+          "content": "Database backups run daily at 2 AM."
+        },
+        {
+          "id": "doc-api-batch",
+          "category": "安全",
+          "content": "Batch API processes up to 100 operations per request."
+        },
+        {
+          "id": "doc-monitor-log-aggregation",
+          "category": "监控",
+          "content": "ELK 日志聚合平台收集所有微服务日志，Kibana 面板支持全文检索和告警规则配置。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "Should recall doc-config-scheduled-tasks with cron job configuration and Task API",
+      "docIds": [
+        "doc-config-scheduled-tasks"
+      ]
+    }
+  },
+  {
+    "id": "rr_117",
+    "dimension": "rag_recall",
+    "query": "帮我看看这几个问题：怎么配置SSL证书，还有数据库连接报超时",
+    "context": {
+      "ragDocuments": [
+        {
+          "id": "doc-config-ssl",
+          "category": "技术",
+          "content": "SSL证书配置：支持Let's Encrypt自动签发和手动上传自定义证书。在Settings > Security > SSL中配置。证书自动续期在到期前30天触发。"
+        },
+        {
+          "id": "doc-config-database",
+          "category": "技术",
+          "content": "数据库连接超时默认30秒，可通过DB_CONNECT_TIMEOUT调整。连接池大小通过DB_POOL_SIZE配置，默认20。"
+        },
+        {
+          "id": "doc-infra-monitoring",
+          "category": "技术",
+          "content": "监控使用Prometheus+Grafana。"
+        },
+        {
+          "id": "doc-tech-cicd-pipeline",
+          "category": "技术",
+          "content": "CI/CD 流水线使用 GitHub Actions，每次 PR 合并触发自动构建、单元测试和容器镜像推送。"
+        }
+      ],
+      "availableTools": [
+        "knowledgeSearchTool"
+      ]
+    },
+    "expected": {
+      "tools": null,
+      "answerCriteria": "应同时召回 doc-config-ssl 和 doc-config-database，用户提出两个独立问题",
+      "docIds": [
+        "doc-config-ssl",
+        "doc-config-database"
+      ]
+    }
+  },
+  {
+    "id": "rr_118",
     "dimension": "rag_recall",
     "query": "请问天气怎么样？",
     "context": {
@@ -4637,6 +6739,11 @@
           "id": "doc-troubleshoot-startup",
           "category": "技术",
           "content": "启动失败请检查环境变量和数据库连接。"
+        },
+        {
+          "id": "doc-tech-cicd-pipeline",
+          "category": "技术",
+          "content": "CI/CD 流水线使用 GitHub Actions，每次 PR 合并触发自动构建、单元测试和容器镜像推送。"
         }
       ],
       "availableTools": [

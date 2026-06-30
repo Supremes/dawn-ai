@@ -45,7 +45,7 @@ class ToolSelectionEvaluationTest extends AbstractEvaluationTest {
                         .toList();
 
                 JudgeResult resultByRules = evaluateByRules(evalCase, actualTools);
-                recordCaseResult(new EvaluationCaseResult(
+                recordCaseResult(EvaluationCaseResult.forToolSelection(
                         evalCase,
                         resultByRules,
                         sessionId,
@@ -63,7 +63,7 @@ class ToolSelectionEvaluationTest extends AbstractEvaluationTest {
             } catch (RuntimeException e) {
                 JudgeResult errorResult = new JudgeResult(dimension(), 0.0,
                         "Evaluation case failed with exception: " + e.getMessage());
-                recordCaseResult(new EvaluationCaseResult(
+                recordCaseResult(EvaluationCaseResult.forToolSelection(
                         evalCase,
                         errorResult,
                         sessionId,
