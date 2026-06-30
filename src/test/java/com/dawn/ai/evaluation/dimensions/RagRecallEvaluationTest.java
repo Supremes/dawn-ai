@@ -112,7 +112,7 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
 
                 // --- Rule-based scoring (deterministic, no LLM Judge) ---
                 JudgeResult judgeResult = evaluateByRules(evalCase, expectedDocIds,
-                        retrievedDocIds, allCaseDocIds, recallAtK, isNegativeCase);
+                        retrievedDocIds, allCaseDocIds, recallAtK, precisionAtK, isNegativeCase);
 
                 // --- Record case result following ToolSelectionEvaluationTest pattern ---
                 recordCaseResult(EvaluationCaseResult.forRagRecall(
@@ -172,11 +172,12 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
                                         List<String> retrievedDocIds,
                                         List<String> allCaseDocIds,
                                         double recallAtK,
+                                        double precisionAtK,
                                         boolean isNegativeCase) {
         if (isNegativeCase) {
-            // Negative case: score 1.0 if NO docs from this case's ragDocuments are retrieved
+            // Negative case: score 5.0 if NO docs from this case's ragDocuments are retrieved.
             boolean noLeakage = retrievedDocIds.stream().noneMatch(allCaseDocIds::contains);
-            double score = noLeakage ? 1.0 : 0.0;
+            double score = noLeakage ? 5.0 : 1.0;
             String reasoning = noLeakage
                     ? "Negative case: no docs from case pool were retrieved (correct)."
                     : "Negative case: docs from case pool leaked into results. retrieved=%s, casePool=%s"
@@ -187,22 +188,29 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
         Set<String> retrieved = new LinkedHashSet<>(retrievedDocIds);
         List<String> matched = expectedDocIds.stream().filter(retrieved::contains).toList();
         List<String> missed = expectedDocIds.stream().filter(id -> !retrieved.contains(id)).toList();
+        List<String> noise = retrievedDocIds.stream().filter(id -> !expectedDocIds.contains(id)).toList();
 
         double score;
         String verdict;
-        if (recallAtK >= 1.0) {
-            score = 1.0;
-            verdict = "All expected docs retrieved.";
-        } else if (recallAtK >= 0.5) {
-            score = 0.5;
-            verdict = "Partial recall: %d/%d expected docs retrieved.".formatted(matched.size(), expectedDocIds.size());
+        if (recallAtK >= 1.0 && noise.isEmpty()) {
+            score = 5.0;
+            verdict = "All expected docs retrieved with no irrelevant docs.";
+        } else if (recallAtK >= 1.0) {
+            score = 4.0;
+            verdict = "All expected docs retrieved with %d irrelevant doc(s) mixed in.".formatted(noise.size());
+        } else if (recallAtK >= 0.7) {
+            score = 3.0;
+            verdict = "Most expected docs retrieved: %d/%d.".formatted(matched.size(), expectedDocIds.size());
+        } else if (recallAtK > 0.0) {
+            score = 2.0;
+            verdict = "Few expected docs retrieved: %d/%d.".formatted(matched.size(), expectedDocIds.size());
         } else {
-            score = 0.0;
-            verdict = "Low recall: only %d/%d expected docs retrieved.".formatted(matched.size(), expectedDocIds.size());
+            score = 1.0;
+            verdict = "No expected docs retrieved.";
         }
 
-        String reasoning = "%s recall@%d=%.4f expected=%s retrieved=%s matched=%s missed=%s".formatted(
-                verdict, K, recallAtK, expectedDocIds, retrievedDocIds, matched, missed);
+        String reasoning = "%s recall@%d=%.4f precision@%d=%.4f expected=%s retrieved=%s matched=%s missed=%s noise=%s".formatted(
+                verdict, K, recallAtK, K, precisionAtK, expectedDocIds, retrievedDocIds, matched, missed, noise);
         return new JudgeResult(dimension(), score, reasoning);
     }
 
