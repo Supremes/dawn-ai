@@ -5,6 +5,7 @@ import com.dawn.ai.memory.MemoryAccessUpdater;
 import com.dawn.ai.rag.ingestion.OverlapTextSplitter;
 import com.dawn.ai.rag.query.HydeQueryGenerator;
 import com.dawn.ai.rag.query.QueryCategoryClassifier;
+import com.dawn.ai.rag.query.QueryDomainClassifier;
 import com.dawn.ai.rag.query.QueryRewriter;
 import com.dawn.ai.rag.retrieval.rerank.CrossEncoderRetrievalReranker;
 import com.dawn.ai.rag.retrieval.rerank.HeuristicRetrievalReranker;
@@ -69,7 +70,8 @@ class RagServiceTest {
                 mock(MemoryAccessUpdater.class),
                 hydeNoop(),
                 rewriteNoop(),
-                classifierNoop());
+                classifierNoop(),
+                domainNoop());
         // 注入配置值（与 application.yml 一致）
         ragService.setSimilarityThreshold(0.7);
         ragService.setHybridEnabled(false);
@@ -98,6 +100,12 @@ class RagServiceTest {
     private static QueryCategoryClassifier classifierNoop() {
         QueryCategoryClassifier classifier = mock(QueryCategoryClassifier.class);
         org.mockito.Mockito.lenient().when(classifier.classify(any())).thenReturn(null);
+        return classifier;
+    }
+
+    private static QueryDomainClassifier domainNoop() {
+        QueryDomainClassifier classifier = mock(QueryDomainClassifier.class);
+        org.mockito.Mockito.lenient().when(classifier.shouldRetrieve(any())).thenReturn(true);
         return classifier;
     }
 
@@ -159,7 +167,8 @@ class RagServiceTest {
                 mock(MemoryAccessUpdater.class),
                 hydeNoop(),
                 rewriteNoop(),
-                classifierNoop());
+                classifierNoop(),
+                domainNoop());
         localRagService.setSimilarityThreshold(0.7);
         localRagService.setHybridEnabled(false);
         localRagService.initMetrics();
@@ -281,7 +290,7 @@ class RagServiceTest {
                 new HeuristicRetrievalReranker(), sparseRetriever,
                 new ReciprocalRankFusion(), new RetrievalRouter(),
                 overlapTextSplitter, ragRetrievalExecutor,
-                mock(MemoryAccessUpdater.class), hydeNoop(), rewriteNoop(), classifier);
+                mock(MemoryAccessUpdater.class), hydeNoop(), rewriteNoop(), classifier, domainNoop());
         svc.setSimilarityThreshold(0.7);
         svc.setHybridEnabled(false);
         svc.initMetrics();
@@ -404,7 +413,7 @@ class RagServiceTest {
                 new HeuristicRetrievalReranker(), sparseRetriever,
                 new ReciprocalRankFusion(), new RetrievalRouter(),
                 overlapTextSplitter, ragRetrievalExecutor,
-                mock(MemoryAccessUpdater.class), hyde, rewriteNoop(), classifierNoop());
+                mock(MemoryAccessUpdater.class), hyde, rewriteNoop(), classifierNoop(), domainNoop());
         svc.setSimilarityThreshold(0.7);
         svc.setHybridEnabled(false);
         svc.initMetrics();
@@ -425,7 +434,7 @@ class RagServiceTest {
                 new HeuristicRetrievalReranker(), sparseRetriever,
                 new ReciprocalRankFusion(), new RetrievalRouter(),
                 overlapTextSplitter, ragRetrievalExecutor,
-                mock(MemoryAccessUpdater.class), hyde, rewriteNoop(), classifierNoop());
+                mock(MemoryAccessUpdater.class), hyde, rewriteNoop(), classifierNoop(), domainNoop());
         svc.setSimilarityThreshold(0.7);
         svc.setHybridEnabled(false);
         svc.initMetrics();
@@ -448,7 +457,7 @@ class RagServiceTest {
                 new HeuristicRetrievalReranker(), sparseRetriever,
                 new ReciprocalRankFusion(), new RetrievalRouter(),
                 overlapTextSplitter, ragRetrievalExecutor,
-                mock(MemoryAccessUpdater.class), hyde, rewriteNoop(), classifierNoop());
+                mock(MemoryAccessUpdater.class), hyde, rewriteNoop(), classifierNoop(), domainNoop());
         svc.setSimilarityThreshold(0.7);
         svc.setHybridEnabled(false);
         svc.initMetrics();

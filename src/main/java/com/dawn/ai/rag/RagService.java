@@ -5,6 +5,7 @@ import com.dawn.ai.memory.MemoryAccessUpdater;
 import com.dawn.ai.rag.ingestion.OverlapTextSplitter;
 import com.dawn.ai.rag.query.HydeQueryGenerator;
 import com.dawn.ai.rag.query.QueryCategoryClassifier;
+import com.dawn.ai.rag.query.QueryDomainClassifier;
 import com.dawn.ai.rag.query.QueryRewriter;
 import com.dawn.ai.rag.retrieval.fusion.ReciprocalRankFusion;
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
@@ -66,6 +67,7 @@ public class RagService {
     private final HydeQueryGenerator hydeQueryGenerator;
     private final QueryRewriter queryRewriter;
     private final QueryCategoryClassifier queryCategoryClassifier;
+    private final QueryDomainClassifier queryDomainClassifier;
 
     public RagService(VectorStore vectorStore,
                       JdbcTemplate jdbcTemplate,
@@ -80,7 +82,8 @@ public class RagService {
                       MemoryAccessUpdater memoryAccessUpdater,
                       HydeQueryGenerator hydeQueryGenerator,
                       QueryRewriter queryRewriter,
-                      QueryCategoryClassifier queryCategoryClassifier) {
+                      QueryCategoryClassifier queryCategoryClassifier,
+                      QueryDomainClassifier queryDomainClassifier) {
         this.vectorStore = vectorStore;
         this.jdbcTemplate = jdbcTemplate;
         this.meterRegistry = meterRegistry;
@@ -95,6 +98,7 @@ public class RagService {
         this.hydeQueryGenerator = hydeQueryGenerator;
         this.queryRewriter = queryRewriter;
         this.queryCategoryClassifier = queryCategoryClassifier;
+        this.queryDomainClassifier = queryDomainClassifier;
     }
 
     @Setter
@@ -282,6 +286,12 @@ public class RagService {
         //    短句 / 精确查找 / 带 metadata 过滤的场景一律跳过 HyDE，
         //    避免 embedding 空间漂移。
         String originalQuery = retrievalRequest.getQuery();
+        if (!queryDomainClassifier.shouldRetrieve(originalQuery)) {
+            retrievalMissCounter.increment();
+            log.info("[RagService] Retrieval skipped by domain gate. originalQuery='{}'", originalQuery);
+            return List.of();
+        }
+
         // 可配置- LLM rewrite：关键词归一化，去掉口语助词。
         String rewrittenQuery = queryRewriter.rewrite(originalQuery);
         RetrievalRequest rewrittenRequest = rewrittenQuery.equals(originalQuery)
