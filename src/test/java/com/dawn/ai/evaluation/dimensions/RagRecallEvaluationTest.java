@@ -67,7 +67,7 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
                         .query(evalCase.query())
                         .metadataFilters(evaluationMetadataFilters(evalCase))
                         .topK(K)
-                        .rerankEnabled(false)
+                        .rerankEnabled(true)
                         .build();
 
                 List<Document> retrieved = ragService.retrieve(request);

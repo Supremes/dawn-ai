@@ -40,6 +40,7 @@ import java.util.UUID;
  * - mvn test -Dgroups=evaluation -Dexcluded.test.groups=
  * - mvn test -Dtest=ToolSelectionEvaluationTest -Dexcluded.test.groups=
  * - 默认每个维度只跑前 5 条；用 -Deval.limit=100 显式扩大数量
+ * - 用 -Deval.caseId=rr_011 指定单条数据集用例
  * - 用 -Deval.shuffle=true 随机抽样；可加 -Deval.seed=123 固定随机种子复现
  */
 @SpringBootTest
@@ -53,6 +54,7 @@ public abstract class AbstractEvaluationTest {
     private static final List<EvaluationCaseResult> ALL_CASE_RESULTS = Collections.synchronizedList(new ArrayList<>());
     private static final String RUN_ID = "eval-" + UUID.randomUUID().toString().substring(0, 8);
     private static final String EVAL_LIMIT_PROPERTY = "eval.limit";
+    private static final String EVAL_CASE_ID_PROPERTY = "eval.caseId";
     private static final String EVAL_SHUFFLE_PROPERTY = "eval.shuffle";
     private static final String EVAL_SEED_PROPERTY = "eval.seed";
     private static final int DEFAULT_EVAL_CASE_LIMIT = 5;
@@ -82,6 +84,11 @@ public abstract class AbstractEvaluationTest {
 
     protected List<EvaluationCase> loadCases() {
         List<EvaluationCase> cases = EvaluationDatasetLoader.loadByDimension(dimension().id());
+        List<EvaluationCase> caseIdFiltered = filterByCaseId(cases);
+        if (caseIdFiltered.size() != cases.size()) {
+            return caseIdFiltered;
+        }
+
         List<EvaluationCase> selectedCases = maybeShuffle(cases);
         int limit = resolveCaseLimit(cases.size());
         if (limit >= selectedCases.size()) {
@@ -92,6 +99,26 @@ public abstract class AbstractEvaluationTest {
         log.info("[Evaluation] dimension={} | selected {}/{} case(s), override with -D{}=<count>",
                 dimension().id(), limit, cases.size(), EVAL_LIMIT_PROPERTY);
         return selectedCases.stream().limit(limit).toList();
+    }
+
+    private List<EvaluationCase> filterByCaseId(List<EvaluationCase> cases) {
+        String caseId = System.getProperty(EVAL_CASE_ID_PROPERTY);
+        if (caseId == null || caseId.isBlank()) {
+            return cases;
+        }
+
+        String normalizedCaseId = caseId.trim();
+        List<EvaluationCase> matched = cases.stream()
+                .filter(evalCase -> normalizedCaseId.equals(evalCase.id()))
+                .toList();
+        if (matched.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "System property %s=%s did not match any %s evaluation case"
+                            .formatted(EVAL_CASE_ID_PROPERTY, normalizedCaseId, dimension().id()));
+        }
+
+        log.info("[Evaluation] dimension={} | selected caseId={}", dimension().id(), normalizedCaseId);
+        return matched;
     }
 
     private List<EvaluationCase> maybeShuffle(List<EvaluationCase> cases) {

@@ -59,7 +59,7 @@ public class CrossEncoderRetrievalReranker {
     }
 
     public List<Document> rerank(RetrievalRequest request, List<Document> candidates) {
-        if (candidates.size() < 2 || !StringUtils.hasText(request.getQuery()) || !isConfigured()) {
+        if (!StringUtils.hasText(request.getQuery()) || !isConfigured()) {
             return candidates;
         }
 

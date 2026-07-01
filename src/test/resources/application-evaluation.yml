@@ -42,3 +42,14 @@ app:
       plan-enabled: false
     rag:
       categories: 历史,法律,技术,医疗,金融,教育,general  # 逗号分隔字符串，@Value 自动切成 List；勿用 [..] 列表语法
+      reranker:
+        type: cross-encoder           # heuristic | cross-encoder
+        min-score: "${EVALUATION_RERANK_MIN_SCORE:0.5}"            # cross-encoder rerank 分数下限，低于此分的文档被丢弃（0 = 关闭）
+      cross-encoder:
+        base-url: "${EVALUATION_RERANK_BASE_URL:http://localhost:8000/v1}"              # 可选：cross-encoder rerank 服务地址，例如 http://localhost:8081
+        rerank-path: "${EVALUATION_RERANK_PATH:/rerank}"      # rerank 接口路径，默认请求体含 query/documents/top_n
+        model: "${EVALUATION_RERANK_MODEL:jina-reranker-v3-mlx}"                 # 可选：请求体中的模型名
+        api-key: "${EVALUATION_RERANK_API_KEY:${RERANK_API_KEY:${OPENAI_API_KEY}}}"             # 可选：访问 rerank 服务的 API key
+        api-key-header: "${EVALUATION_RERANK_API_KEY_HEADER:Authorization}"
+        api-key-prefix: "${EVALUATION_RERANK_API_KEY_PREFIX:Bearer }"
+        max-document-chars: 4000  # 发送到 reranker 的单文档最大字符数
