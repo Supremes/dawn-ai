@@ -5,7 +5,6 @@ import com.dawn.ai.memory.MemoryAccessUpdater;
 import com.dawn.ai.rag.ingestion.OverlapTextSplitter;
 import com.dawn.ai.rag.query.HydeQueryGenerator;
 import com.dawn.ai.rag.query.QueryCategoryClassifier;
-import com.dawn.ai.rag.query.QueryDomainClassifier;
 import com.dawn.ai.rag.query.QueryRewriter;
 import com.dawn.ai.rag.retrieval.fusion.ReciprocalRankFusion;
 import com.dawn.ai.rag.retrieval.RetrievalRequest;
@@ -67,7 +66,6 @@ public class RagService {
     private final HydeQueryGenerator hydeQueryGenerator;
     private final QueryRewriter queryRewriter;
     private final QueryCategoryClassifier queryCategoryClassifier;
-    private final QueryDomainClassifier queryDomainClassifier;
 
     public RagService(VectorStore vectorStore,
                       JdbcTemplate jdbcTemplate,
@@ -82,8 +80,7 @@ public class RagService {
                       MemoryAccessUpdater memoryAccessUpdater,
                       HydeQueryGenerator hydeQueryGenerator,
                       QueryRewriter queryRewriter,
-                      QueryCategoryClassifier queryCategoryClassifier,
-                      QueryDomainClassifier queryDomainClassifier) {
+                      QueryCategoryClassifier queryCategoryClassifier) {
         this.vectorStore = vectorStore;
         this.jdbcTemplate = jdbcTemplate;
         this.meterRegistry = meterRegistry;
@@ -98,7 +95,6 @@ public class RagService {
         this.hydeQueryGenerator = hydeQueryGenerator;
         this.queryRewriter = queryRewriter;
         this.queryCategoryClassifier = queryCategoryClassifier;
-        this.queryDomainClassifier = queryDomainClassifier;
     }
 
     @Setter
@@ -286,17 +282,19 @@ public class RagService {
         //    短句 / 精确查找 / 带 metadata 过滤的场景一律跳过 HyDE，
         //    避免 embedding 空间漂移。
         String originalQuery = retrievalRequest.getQuery();
-        if (!queryDomainClassifier.shouldRetrieve(originalQuery)) {
-            retrievalMissCounter.increment();
-            log.info("[RagService] Retrieval skipped by domain gate. originalQuery='{}'", originalQuery);
-            return List.of();
-        }
-
         // 可配置- LLM rewrite：关键词归一化，去掉口语助词。
         String rewrittenQuery = queryRewriter.rewrite(originalQuery);
         RetrievalRequest rewrittenRequest = rewrittenQuery.equals(originalQuery)
                 ? retrievalRequest
                 : retrievalRequest.toBuilder().query(rewrittenQuery).build();
+
+        // 可配置 - 领域判定 + 分类（合并为一次 LLM 调用）
+        QueryCategoryClassifier.ClassifyResult classified = queryCategoryClassifier.classify(rewrittenQuery);
+        if (classified != null && Boolean.FALSE.equals(classified.inDomain())) {
+            retrievalMissCounter.increment();
+            log.info("[RagService] Retrieval skipped by domain gate. query='{}'", rewrittenQuery);
+            return List.of();
+        }
 
         // 策略路由和 HyDE 判断基于 rewrittenRequest（用户显式 filter），
         // 不受后续 auto-classify 注入的 category filter 影响。
@@ -307,19 +305,16 @@ public class RagService {
                 ? hydeQueryGenerator.generate(rewrittenQuery)
                 : rewrittenQuery;
 
-        // 可配置 - LLM 语义分类 category
+        // 注入自动分类的 category filter
         RetrievalRequest effectiveRequest;
-        if (!rewrittenRequest.getMetadataFilters().containsKey("category")
+        String classifiedCategory = (classified != null) ? classified.category() : null;
+        if (classifiedCategory != null
+            && !rewrittenRequest.getMetadataFilters().containsKey("category")
             && !rewrittenRequest.getMetadataFilters().containsKey("topicId")) {
-            String classifiedCategory = queryCategoryClassifier.classify(rewrittenQuery);
-            if (classifiedCategory != null) {
-                Map<String, List<String>> enrichedFilters = new HashMap<>(rewrittenRequest.getMetadataFilters());
-                enrichedFilters.put("category", List.of(classifiedCategory));
-                effectiveRequest = rewrittenRequest.toBuilder().metadataFilters(enrichedFilters).build();
-                log.info("[RagService] Auto-classified category='{}' for query='{}'", classifiedCategory, rewrittenQuery);
-            } else {
-                effectiveRequest = rewrittenRequest;
-            }
+            Map<String, List<String>> enrichedFilters = new HashMap<>(rewrittenRequest.getMetadataFilters());
+            enrichedFilters.put("category", List.of(classifiedCategory));
+            effectiveRequest = rewrittenRequest.toBuilder().metadataFilters(enrichedFilters).build();
+            log.info("[RagService] Auto-classified category='{}' for query='{}'", classifiedCategory, rewrittenQuery);
         } else {
             effectiveRequest = rewrittenRequest;
         }

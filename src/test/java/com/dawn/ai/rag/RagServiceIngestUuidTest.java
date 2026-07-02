@@ -5,7 +5,6 @@ import com.dawn.ai.memory.MemoryAccessUpdater;
 import com.dawn.ai.rag.ingestion.OverlapTextSplitter;
 import com.dawn.ai.rag.query.HydeQueryGenerator;
 import com.dawn.ai.rag.query.QueryCategoryClassifier;
-import com.dawn.ai.rag.query.QueryDomainClassifier;
 import com.dawn.ai.rag.retrieval.RetrievalRouter;
 import com.dawn.ai.rag.retrieval.fusion.ReciprocalRankFusion;
 import com.dawn.ai.rag.retrieval.rerank.HeuristicRetrievalReranker;
@@ -67,8 +66,7 @@ class RagServiceIngestUuidTest {
                 mock(MemoryAccessUpdater.class),
                 mock(HydeQueryGenerator.class),
                 mock(com.dawn.ai.rag.query.QueryRewriter.class),
-                mock(QueryCategoryClassifier.class),
-                mock(QueryDomainClassifier.class));
+                mock(QueryCategoryClassifier.class));
         ragService.initMetrics();
     }
 

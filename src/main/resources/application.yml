@@ -122,10 +122,9 @@ app:
         max-document-chars: 4000  # 发送到 reranker 的单文档最大字符数
       category-classify-enabled: true  # 检索前是否用 LLM 自动分类 query 所属 category，false 时不加 category filter
       categories: 历史,法律,技术,医疗,金融,教育,general  # 逗号分隔字符串，@Value 自动切成 List；勿用 [..] 列表语法
-      domain-gate-enabled: false  # 检索前是否启用领域边界判定；用于 out-of-domain abstention，不依赖 reranker raw score
-      domain-gate-llm-enabled: false  # 是否在关键词 gate 未命中时继续调用 LLM 判定领域；默认关闭以避免检索链路新增外部依赖
+      domain-gate-enabled: false  # 启用后 classify() 同时判定领域+分类，out-of-domain 查询短路返回空结果
       domain-description: 当前知识库
-      out-of-domain-keywords: ""   # 逗号分隔；命中后直接返回空结果
+      out-of-domain-keywords: ""   # 逗号分隔；命中后直接返回空结果（LLM 调用前的快捷路径）
       query-rewrite-enabled: true  # 检索前是否用 LLM 改写查询，false 时原样传入
       hyde-enabled: true          # 检索前是否用 HyDE 生成假设文档作为查询，默认关闭（每次调用 +1 次 LLM）
       max-calls-per-session: 3    # 每次请求最多 RAG 工具调用次数，独立于 maxSteps
