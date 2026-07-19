@@ -289,7 +289,10 @@ public class RagService {
                 : retrievalRequest.toBuilder().query(rewrittenQuery).build();
 
         // 可配置 - 领域判定 + 分类（合并为一次 LLM 调用）
-        QueryCategoryClassifier.ClassifyResult classified = queryCategoryClassifier.classify(rewrittenQuery);
+        // topicId/docId 已经把检索限定到私有语料，不能再让全局领域描述误杀。
+        QueryCategoryClassifier.ClassifyResult classified = hasHardMetadataFilter(rewrittenRequest)
+            ? null
+            : queryCategoryClassifier.classify(rewrittenQuery);
         if (classified != null && Boolean.FALSE.equals(classified.inDomain())) {
             retrievalMissCounter.increment();
             log.info("[RagService] Retrieval skipped by domain gate. query='{}'", rewrittenQuery);
@@ -380,6 +383,14 @@ public class RagService {
         // RAG knowledge docs have no 'type' field and are silently skipped inside the updater.
         memoryAccessUpdater.updateAccessTime(limited);
         return limited;
+    }
+
+    private boolean hasHardMetadataFilter(RetrievalRequest request) {
+        if (request == null || request.getMetadataFilters() == null) {
+            return false;
+        }
+        return request.getMetadataFilters().containsKey("topicId")
+                || request.getMetadataFilters().containsKey("docId");
     }
 
     /**

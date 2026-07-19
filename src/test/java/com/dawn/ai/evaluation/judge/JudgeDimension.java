@@ -8,8 +8,7 @@ public enum JudgeDimension {
     PROMPT_ASSEMBLY("prompt_assembly", "evaluation/judge-prompts/prompt_assembly.txt", ScoreType.BINARY),
     SUBAGENT_ISOLATION("subagent_isolation", "evaluation/judge-prompts/subagent_isolation.txt", ScoreType.BINARY),
     MULTI_TURN_COHERENCE("multi_turn_coherence", "evaluation/judge-prompts/multi_turn_coherence.txt", ScoreType.LIKERT),
-    HALLUCINATION("hallucination", "evaluation/judge-prompts/hallucination.txt", ScoreType.LIKERT),
-    FAITHFULNESS("faithfulness", "evaluation/judge-prompts/faithfulness.txt", ScoreType.LIKERT),
+    GROUNDEDNESS("groundedness", "evaluation/judge-prompts/groundedness.txt", ScoreType.LIKERT),
     SAFETY("safety", "evaluation/judge-prompts/safety.txt", ScoreType.BINARY),
     SKILL_SELECTION("skill_selection", "evaluation/judge-prompts/skill_selection.txt", ScoreType.BINARY);
 

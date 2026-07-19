@@ -43,7 +43,7 @@ app:
     rag:
       categories: 历史,法律,技术,医疗,金融,教育,general  # 逗号分隔字符串，@Value 自动切成 List；勿用 [..] 列表语法
       domain-gate-enabled: "${EVALUATION_RAG_DOMAIN_GATE_ENABLED:true}"
-      domain-description: "内部软件系统技术知识库，覆盖架构、运维、安全、认证授权审计、数据库、缓存、CI/CD、监控、日志、API 网关、微服务、消息队列、部署和性能优化；不覆盖天气、体育、音乐、烹饪、消费电子价格、小说内容、区块链通用知识或 Python 语言内部机制。"
+      domain-description: "当前已导入的私有评测语料/内部知识库，可能覆盖公司财务、产品、合同、HR、组织架构、报告、审计、技术文档、API、运维、安全、数据库、监控等内容。只要问题可能由当前 topicId/docId 限定的已导入资料回答，就应视为 inDomain=true；仅对明显与资料无关的天气、体育、音乐、烹饪、娱乐闲聊、公开实时价格/新闻等外部问题判为 inDomain=false。"
       out-of-domain-keywords: "${EVALUATION_RAG_OUT_OF_DOMAIN_KEYWORDS:}"
       reranker:
         type: cross-encoder           # heuristic | cross-encoder

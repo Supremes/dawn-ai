@@ -5,6 +5,7 @@ import com.dawn.ai.agent.registry.ToolRegistry;
 import com.dawn.ai.agent.skill.SkillRegistry;
 import com.dawn.ai.agent.subagent.SubAgentRegistry;
 import com.dawn.ai.agent.token.TokenWindowManager;
+import com.dawn.ai.agent.tools.KnowledgeSearchTool;
 import com.dawn.ai.exception.PlanGenerationException;
 import com.dawn.ai.service.MemoryService;
 import com.dawn.ai.memory.UserProfileService;
@@ -28,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -52,6 +54,7 @@ class AgentOrchestratorTest {
     @Mock private SkillRegistry skillRegistry;
     @Mock private SubAgentRegistry subAgentRegistry;
     @Mock private TokenWindowManager tokenWindowManager;
+        @Mock private KnowledgeSearchTool knowledgeSearchTool;
 
     @BeforeEach
     void setUp() {
@@ -75,7 +78,8 @@ class AgentOrchestratorTest {
                 userProfileService,
                 skillRegistry,
                 subAgentRegistry,
-                tokenWindowManager
+                tokenWindowManager,
+                Optional.empty()
         );
         agentOrchestrator.initMetrics();
         // @Value 字段在单元测试（不经 Spring）下不会注入，显式设置固定 userId
@@ -112,6 +116,57 @@ class AgentOrchestratorTest {
         assertThat(doneData(events).get("answer")).isEqualTo("final answer");
         assertThat(historyCaptor.getValue()).hasSize(1);
         assertThat(historyCaptor.getValue().get(0)).isNotInstanceOf(UserMessage.class);
+    }
+
+    @Test
+    void shouldPreSearchTopicKnowledgeBeforeStreamingModel() {
+        agentOrchestrator = new AgentOrchestrator(
+                chatClient,
+                memoryService,
+                memoryManager,
+                taskPlanner,
+                toolRegistry,
+                new SimpleMeterRegistry(),
+                userProfileService,
+                skillRegistry,
+                subAgentRegistry,
+                tokenWindowManager,
+                Optional.of(knowledgeSearchTool)
+        );
+        agentOrchestrator.initMetrics();
+        ReflectionTestUtils.setField(agentOrchestrator, "defaultUserId", "local-user");
+        ReflectionTestUtils.setField(agentOrchestrator, "model", "test-model");
+
+        ChatResponse chatResponse = new ChatResponse(
+                List.of(new Generation(new AssistantMessage("final answer")))
+        );
+
+        when(knowledgeSearchTool.apply(any(KnowledgeSearchTool.Request.class)))
+                .thenReturn(new KnowledgeSearchTool.Response("[1] Patent US10,234,567 covers image compression.", 1));
+        when(memoryService.getHistory("session-topic")).thenReturn(Collections.emptyList());
+        when(chatClient.prompt()).thenReturn(requestSpec);
+        when(requestSpec.system(anyString())).thenReturn(requestSpec);
+        when(requestSpec.messages(anyList())).thenReturn(requestSpec);
+        when(requestSpec.user(anyString())).thenReturn(requestSpec);
+        when(requestSpec.toolNames(any(String[].class))).thenReturn(requestSpec);
+        when(requestSpec.stream()).thenReturn(streamResponseSpec);
+        when(streamResponseSpec.chatResponse()).thenReturn(Flux.just(chatResponse));
+
+        List<ChatStreamEvent> events = new ArrayList<>();
+        agentOrchestrator.streamChat("session-topic", "What does the patent cover?", "eval-topic", events::add, () -> false);
+
+        ArgumentCaptor<KnowledgeSearchTool.Request> requestCaptor = ArgumentCaptor.forClass(KnowledgeSearchTool.Request.class);
+        verify(knowledgeSearchTool).apply(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().topicId()).isEqualTo("eval-topic");
+        assertThat(requestCaptor.getValue().query()).isEqualTo("What does the patent cover?");
+
+        ArgumentCaptor<String> systemCaptor = ArgumentCaptor.forClass(String.class);
+        verify(requestSpec).system(systemCaptor.capture());
+        assertThat(systemCaptor.getValue())
+                .contains("【预检索结果】")
+                .contains("docsFound=1")
+                .contains("Patent US10,234,567 covers image compression.");
+        assertThat(doneData(events).get("answer")).isEqualTo("final answer");
     }
 
     @Test

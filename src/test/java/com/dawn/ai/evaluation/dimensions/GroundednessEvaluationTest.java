@@ -16,43 +16,35 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class FaithfulnessEvaluationTest extends AbstractEvaluationTest {
+class GroundednessEvaluationTest extends AbstractEvaluationTest {
 
     @Autowired
     private VectorStore vectorStore;
 
     @Override
     protected JudgeDimension dimension() {
-        return JudgeDimension.FAITHFULNESS;
+        return JudgeDimension.GROUNDEDNESS;
     }
 
     @Test
-    @DisplayName("evaluation: Agent 回答忠实度")
-    void evaluate_faithfulness() {
+    @DisplayName("evaluation: Agent 回答 Groundedness")
+    void evaluate_groundedness() {
         List<EvaluationCase> cases = loadCases();
         assertThat(cases).isNotEmpty();
 
         List<String> failures = new ArrayList<>();
         for (EvaluationCase evalCase : cases) {
             sleepBetweenCases();
-            String sessionId = evaluationSessionId("eval-faithfulness", evalCase);
+            String sessionId = evaluationSessionId("eval-groundedness", evalCase);
             List<String> indexedDocumentIds = indexEvaluationDocuments(vectorStore, evalCase);
 
             try {
                 StreamedAgentResult result = streamAgent(sessionId, evalCase.query(), evaluationTopicId(evalCase));
 
-                @SuppressWarnings("unchecked")
-                List<Map<String, Object>> ragDocs = (List<Map<String, Object>>) evalCase.context().get("ragDocuments");
-                String retrievedDocuments = ragDocs != null
-                        ? ragDocs.stream()
-                            .map(doc -> doc.get("content").toString())
-                            .collect(Collectors.joining("\n---\n"))
-                        : "none";
-
                 Map<String, String> variables = Map.of(
                         "query", evalCase.query(),
                         "answer", result.finalAnswer() != null ? result.finalAnswer() : "",
-                        "retrieved_documents", retrievedDocuments
+                        "grounding_documents", groundingDocuments(evalCase)
                 );
 
                 JudgeResult judgeResult = evaluate(evalCase, variables);
@@ -68,7 +60,18 @@ class FaithfulnessEvaluationTest extends AbstractEvaluationTest {
         }
 
         assertThat(failures)
-                .as("Faithfulness failures:%n%s", String.join(System.lineSeparator(), failures))
+                .as("Groundedness failures:%n%s", String.join(System.lineSeparator(), failures))
                 .isEmpty();
+    }
+
+    @SuppressWarnings("unchecked")
+    private String groundingDocuments(EvaluationCase evalCase) {
+        List<Map<String, Object>> ragDocs = (List<Map<String, Object>>) evalCase.context().get("ragDocuments");
+        if (ragDocs == null) {
+            return "none";
+        }
+        return ragDocs.stream()
+                .map(doc -> doc.get("content").toString())
+                .collect(Collectors.joining("\n---\n"));
     }
 }

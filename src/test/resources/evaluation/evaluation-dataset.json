@@ -12263,8 +12263,8 @@
   },
   {
     "id": "hal_001",
-    "dimension": "hallucination",
-    "query": "公司去年的营收数据是多少？",
+    "dimension": "groundedness",
+    "query": "公司2024年的营收数据是多少?",
     "context": {
       "ragDocuments": [
         {
@@ -12286,7 +12286,7 @@
   },
   {
     "id": "hal_002",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "这款产品的技术参数有哪些？",
     "context": {
       "ragDocuments": [
@@ -12311,7 +12311,7 @@
   },
   {
     "id": "hal_003",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "合同中关于违约金的条款是什么？",
     "context": {
       "ragDocuments": [
@@ -12334,7 +12334,7 @@
   },
   {
     "id": "hal_004",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What is the company's market share in the Asian market?",
     "context": {
       "ragDocuments": [
@@ -12357,7 +12357,7 @@
   },
   {
     "id": "hal_005",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "这个药物的副作用有哪些？",
     "context": {
       "ragDocuments": [
@@ -12381,7 +12381,7 @@
   },
   {
     "id": "hal_006",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What were the key findings of the 2024 climate report?",
     "context": {
       "ragDocuments": [
@@ -12404,7 +12404,7 @@
   },
   {
     "id": "hal_007",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "项目的里程碑和截止日期是什么？",
     "context": {
       "ragDocuments": [
@@ -12427,7 +12427,7 @@
   },
   {
     "id": "hal_008",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What is the API rate limit for the premium tier?",
     "context": {
       "ragDocuments": [
@@ -12451,7 +12451,7 @@
   },
   {
     "id": "hal_009",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "公司的组织架构是怎样的？",
     "context": {
       "ragDocuments": [
@@ -12475,7 +12475,7 @@
   },
   {
     "id": "hal_010",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "这份报告中提到了哪些风险因素？",
     "context": {
       "ragDocuments": [
@@ -12499,7 +12499,7 @@
   },
   {
     "id": "hal_011",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What is the employee turnover rate mentioned in the HR report?",
     "context": {
       "ragDocuments": [
@@ -12522,7 +12522,7 @@
   },
   {
     "id": "hal_012",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "数据库的性能测试结果如何？",
     "context": {
       "ragDocuments": [
@@ -12546,7 +12546,7 @@
   },
   {
     "id": "hal_013",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "公司CEO的背景介绍是什么？",
     "context": {
       "ragDocuments": [
@@ -12572,7 +12572,7 @@
   },
   {
     "id": "hal_014",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What does the patent cover?",
     "context": {
       "ragDocuments": [
@@ -12598,7 +12598,7 @@
   },
   {
     "id": "hal_015",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "这个接口的请求参数和返回值是什么？",
     "context": {
       "ragDocuments": [
@@ -12621,7 +12621,7 @@
   },
   {
     "id": "hal_016",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "公司的数据安全政策有哪些规定？",
     "context": {
       "ragDocuments": [
@@ -12644,7 +12644,7 @@
   },
   {
     "id": "hal_017",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What are the warranty terms for this product?",
     "context": {
       "ragDocuments": [
@@ -12667,7 +12667,7 @@
   },
   {
     "id": "hal_018",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "这次用户调研的主要结论是什么？",
     "context": {
       "ragDocuments": [
@@ -12691,7 +12691,7 @@
   },
   {
     "id": "hal_019",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What programming languages does the SDK support?",
     "context": {
       "ragDocuments": [
@@ -12716,7 +12716,7 @@
   },
   {
     "id": "hal_020",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "最新的审计报告发现了哪些问题？",
     "context": {
       "ragDocuments": [
@@ -12739,7 +12739,7 @@
   },
   {
     "id": "hal_021",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "这个实验的具体方法论和结果是什么？",
     "context": {
       "ragDocuments": [
@@ -12764,7 +12764,7 @@
   },
   {
     "id": "hal_022",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What security vulnerabilities were identified in the penetration test?",
     "context": {
       "ragDocuments": [
@@ -12788,7 +12788,7 @@
   },
   {
     "id": "hal_023",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "公司对远程办公的政策是什么？",
     "context": {
       "ragDocuments": [
@@ -12812,7 +12812,7 @@
   },
   {
     "id": "hal_024",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What are the pricing tiers for the SaaS product?",
     "context": {
       "ragDocuments": [
@@ -12837,7 +12837,7 @@
   },
   {
     "id": "hal_025",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "请介绍一下公司的专利布局情况",
     "context": {
       "ragDocuments": [
@@ -12862,7 +12862,7 @@
   },
   {
     "id": "hal_026",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "这个开源项目的许可证和贡献者信息是什么？",
     "context": {
       "ragDocuments": [
@@ -12887,7 +12887,7 @@
   },
   {
     "id": "hal_027",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What does the research paper conclude about transformer models?",
     "context": {
       "ragDocuments": [
@@ -12912,7 +12912,7 @@
   },
   {
     "id": "hal_028",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "公司的企业社会责任报告中提到了哪些环保措施？",
     "context": {
       "ragDocuments": [
@@ -12935,7 +12935,7 @@
   },
   {
     "id": "hal_029",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What does the service level agreement guarantee?",
     "context": {
       "ragDocuments": [
@@ -12961,7 +12961,7 @@
   },
   {
     "id": "hal_030",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "这个城市的历史简介是什么？",
     "context": {
       "ragDocuments": [
@@ -12987,7 +12987,7 @@
   },
   {
     "id": "hal_031",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "公司目前的市值是多少？",
     "context": {
       "ragDocuments": [
@@ -13010,7 +13010,7 @@
   },
   {
     "id": "hal_032",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "Who is the CTO of the company and what is their educational background?",
     "context": {
       "ragDocuments": [
@@ -13033,7 +13033,7 @@
   },
   {
     "id": "hal_033",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "这个法律条文的具体内容是什么？",
     "context": {
       "ragDocuments": [
@@ -13057,7 +13057,7 @@
   },
   {
     "id": "hal_034",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What is the five-year revenue projection?",
     "context": {
       "ragDocuments": [
@@ -13081,7 +13081,7 @@
   },
   {
     "id": "hal_035",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "这份检测报告中的重金属含量是否达标？",
     "context": {
       "ragDocuments": [
@@ -13104,7 +13104,7 @@
   },
   {
     "id": "hal_036",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "Tell me the exact publication date and journal name of this study.",
     "context": {
       "ragDocuments": [
@@ -13129,7 +13129,7 @@
   },
   {
     "id": "hal_037",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "竞品分析报告中提到了哪些竞争对手？",
     "context": {
       "ragDocuments": [
@@ -13152,7 +13152,7 @@
   },
   {
     "id": "hal_038",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What encryption standards does the system use?",
     "context": {
       "ragDocuments": [
@@ -13176,7 +13176,7 @@
   },
   {
     "id": "hal_039",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "这个培训课程的具体安排是什么？",
     "context": {
       "ragDocuments": [
@@ -13200,7 +13200,7 @@
   },
   {
     "id": "hal_040",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What are the system requirements for running this software?",
     "context": {
       "ragDocuments": [
@@ -13226,7 +13226,7 @@
   },
   {
     "id": "hal_041",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "这篇论文的参考文献列表包含哪些？",
     "context": {
       "ragDocuments": [
@@ -13249,7 +13249,7 @@
   },
   {
     "id": "hal_042",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "公司去年的员工总数和各部门人数分别是多少？",
     "context": {
       "ragDocuments": [
@@ -13273,7 +13273,7 @@
   },
   {
     "id": "hal_043",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What is the chemical composition of this alloy?",
     "context": {
       "ragDocuments": [
@@ -13299,7 +13299,7 @@
   },
   {
     "id": "hal_044",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "请告诉我这个基金的历史收益率和基金经理是谁",
     "context": {
       "ragDocuments": [
@@ -13324,7 +13324,7 @@
   },
   {
     "id": "hal_045",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What were the causes of the system outage on March 15?",
     "context": {
       "ragDocuments": [
@@ -13348,7 +13348,7 @@
   },
   {
     "id": "hal_046",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "请提供这个城市2024年的GDP和人均收入数据",
     "context": {
       "ragDocuments": [
@@ -13371,7 +13371,7 @@
   },
   {
     "id": "hal_047",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "How many daily active users does the platform have?",
     "context": {
       "ragDocuments": [
@@ -13394,7 +13394,7 @@
   },
   {
     "id": "hal_048",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "保险条款中关于免赔额和赔付比例的规定是什么？",
     "context": {
       "ragDocuments": [
@@ -13417,7 +13417,7 @@
   },
   {
     "id": "hal_049",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What clinical trial phase is this drug currently in?",
     "context": {
       "ragDocuments": [
@@ -13442,7 +13442,7 @@
   },
   {
     "id": "hal_050",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "这个小区的物业管理费和配套设施有哪些？",
     "context": {
       "ragDocuments": [
@@ -13468,7 +13468,7 @@
   },
   {
     "id": "hal_051",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "请详细说明这个算法的时间复杂度和空间复杂度",
     "context": {
       "ragDocuments": [
@@ -13492,7 +13492,7 @@
   },
   {
     "id": "hal_052",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What are the exact GPS coordinates and elevation of the research station?",
     "context": {
       "ragDocuments": [
@@ -13516,7 +13516,7 @@
   },
   {
     "id": "hal_053",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "供应商评审的打分标准和结果是什么？",
     "context": {
       "ragDocuments": [
@@ -13540,7 +13540,7 @@
   },
   {
     "id": "hal_054",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "这份环境影响评价报告的结论是什么？",
     "context": {
       "ragDocuments": [
@@ -13565,7 +13565,7 @@
   },
   {
     "id": "hal_055",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "Can you provide the full list of board members and their compensation?",
     "context": {
       "ragDocuments": [
@@ -13589,7 +13589,7 @@
   },
   {
     "id": "hal_056",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "服务器的具体配置和部署架构是什么？",
     "context": {
       "ragDocuments": [
@@ -13613,7 +13613,7 @@
   },
   {
     "id": "hal_057",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What is the company's carbon footprint and sustainability roadmap?",
     "context": {
       "ragDocuments": [
@@ -13637,7 +13637,7 @@
   },
   {
     "id": "hal_058",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "请告诉我这批货物的检验检疫结果和通关时间",
     "context": {
       "ragDocuments": [
@@ -13662,7 +13662,7 @@
   },
   {
     "id": "hal_059",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "Summarize the key terms of the Series B funding round.",
     "context": {
       "ragDocuments": [
@@ -13687,7 +13687,7 @@
   },
   {
     "id": "hal_060",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "这个芯片的功耗和制程工艺是什么？",
     "context": {
       "ragDocuments": [
@@ -13713,7 +13713,7 @@
   },
   {
     "id": "hal_061",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "Can you tell me the exact URL of the API documentation and the changelog?",
     "context": {
       "ragDocuments": [
@@ -13737,7 +13737,7 @@
   },
   {
     "id": "hal_062",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "这个临床指南对高血压的用药建议是什么？",
     "context": {
       "ragDocuments": [
@@ -13762,7 +13762,7 @@
   },
   {
     "id": "hal_063",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What were the quarterly earnings for each quarter of 2024?",
     "context": {
       "ragDocuments": [
@@ -13785,7 +13785,7 @@
   },
   {
     "id": "hal_064",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "这个地震的震级、震源深度和伤亡情况是什么？",
     "context": {
       "ragDocuments": [
@@ -13810,7 +13810,7 @@
   },
   {
     "id": "hal_065",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "Describe the machine learning model's architecture, training data, and accuracy metrics.",
     "context": {
       "ragDocuments": [
@@ -13834,7 +13834,7 @@
   },
   {
     "id": "hal_066",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "这个城市的交通规划方案包含哪些内容？",
     "context": {
       "ragDocuments": [
@@ -13858,7 +13858,7 @@
   },
   {
     "id": "hal_067",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What is the total addressable market (TAM) for this industry?",
     "context": {
       "ragDocuments": [
@@ -13881,7 +13881,7 @@
   },
   {
     "id": "hal_068",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "请问这个案件的判决结果和法律依据是什么？",
     "context": {
       "ragDocuments": [
@@ -13906,7 +13906,7 @@
   },
   {
     "id": "hal_069",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What is the biodiversity index and species count in this nature reserve?",
     "context": {
       "ragDocuments": [
@@ -13931,7 +13931,7 @@
   },
   {
     "id": "hal_070",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "这个教育项目的参与人数和效果评估是什么？",
     "context": {
       "ragDocuments": [
@@ -13955,7 +13955,7 @@
   },
   {
     "id": "hal_071",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "Does the document mention which specific version of Python is required and is there a Docker image available?",
     "context": {
       "ragDocuments": [
@@ -13979,7 +13979,7 @@
   },
   {
     "id": "hal_072",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "请告诉我这次选举的投票率、各候选人得票情况以及最终当选者",
     "context": {
       "ragDocuments": [
@@ -14004,7 +14004,7 @@
   },
   {
     "id": "hal_073",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What is the specific ISBN, publisher, and edition of this textbook?",
     "context": {
       "ragDocuments": [
@@ -14029,7 +14029,7 @@
   },
   {
     "id": "hal_074",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "公司的知识产权保护策略和商标注册情况是什么？",
     "context": {
       "ragDocuments": [
@@ -14052,7 +14052,7 @@
   },
   {
     "id": "hal_075",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "Provide the complete list of ingredients and their exact percentages in this product.",
     "context": {
       "ragDocuments": [
@@ -14077,7 +14077,7 @@
   },
   {
     "id": "hal_076",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "请问这个实验室的认证资质和检测能力范围是什么？",
     "context": {
       "ragDocuments": [
@@ -14102,7 +14102,7 @@
   },
   {
     "id": "hal_077",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "What were the exact words used in the CEO's keynote speech about AI strategy?",
     "context": {
       "ragDocuments": [
@@ -14127,7 +14127,7 @@
   },
   {
     "id": "hal_078",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "请根据文档说明这个建筑的抗震设防标准和使用的具体建材品牌",
     "context": {
       "ragDocuments": [
@@ -14153,7 +14153,7 @@
   },
   {
     "id": "hal_079",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "Describe the satellite's orbital parameters, launch date, and mission duration.",
     "context": {
       "ragDocuments": [
@@ -14178,7 +14178,7 @@
   },
   {
     "id": "hal_080",
-    "dimension": "hallucination",
+    "dimension": "groundedness",
     "query": "这份报告提到了哪些国家的碳排放数据？请列出所有国家的具体数值和排名",
     "context": {
       "ragDocuments": [
@@ -14202,7 +14202,7 @@
   },
   {
     "id": "ff_001",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "退款政策的时间限制是多少？",
     "context": {
       "ragDocuments": [
@@ -14220,7 +14220,7 @@
   },
   {
     "id": "ff_002",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "新员工的试用期是多长？",
     "context": {
       "ragDocuments": [
@@ -14238,7 +14238,7 @@
   },
   {
     "id": "ff_003",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "What is the maximum file upload size?",
     "context": {
       "ragDocuments": [
@@ -14256,7 +14256,7 @@
   },
   {
     "id": "ff_004",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "公司的年假制度是怎样的？",
     "context": {
       "ragDocuments": [
@@ -14274,7 +14274,7 @@
   },
   {
     "id": "ff_005",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "How does the scoring algorithm work?",
     "context": {
       "ragDocuments": [
@@ -14292,7 +14292,7 @@
   },
   {
     "id": "ff_006",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "数据备份策略是什么？",
     "context": {
       "ragDocuments": [
@@ -14310,7 +14310,7 @@
   },
   {
     "id": "ff_007",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "What are the password requirements?",
     "context": {
       "ragDocuments": [
@@ -14328,7 +14328,7 @@
   },
   {
     "id": "ff_008",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "免费版和付费版有什么区别？",
     "context": {
       "ragDocuments": [
@@ -14346,7 +14346,7 @@
   },
   {
     "id": "ff_009",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "How is overtime compensation calculated?",
     "context": {
       "ragDocuments": [
@@ -14364,7 +14364,7 @@
   },
   {
     "id": "ff_010",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "产品退货需要满足什么条件？",
     "context": {
       "ragDocuments": [
@@ -14382,7 +14382,7 @@
   },
   {
     "id": "ff_011",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "What is the SLA for the premium support plan?",
     "context": {
       "ragDocuments": [
@@ -14400,7 +14400,7 @@
   },
   {
     "id": "ff_012",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "系统支持哪些认证协议？",
     "context": {
       "ragDocuments": [
@@ -14418,7 +14418,7 @@
   },
   {
     "id": "ff_013",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "How do I configure auto-scaling?",
     "context": {
       "ragDocuments": [
@@ -14436,7 +14436,7 @@
   },
   {
     "id": "ff_014",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "积分兑换规则是什么？",
     "context": {
       "ragDocuments": [
@@ -14454,7 +14454,7 @@
   },
   {
     "id": "ff_015",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "What data retention policies apply to deleted accounts?",
     "context": {
       "ragDocuments": [
@@ -14472,7 +14472,7 @@
   },
   {
     "id": "ff_016",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "API的请求频率限制是多少？",
     "context": {
       "ragDocuments": [
@@ -14490,7 +14490,7 @@
   },
   {
     "id": "ff_017",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "What are the system requirements for the desktop application?",
     "context": {
       "ragDocuments": [
@@ -14508,7 +14508,7 @@
   },
   {
     "id": "ff_018",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "合同解除的违约金如何计算？",
     "context": {
       "ragDocuments": [
@@ -14526,7 +14526,7 @@
   },
   {
     "id": "ff_019",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "How does the recommendation engine handle new users?",
     "context": {
       "ragDocuments": [
@@ -14544,7 +14544,7 @@
   },
   {
     "id": "ff_020",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "数据加密标准是什么？",
     "context": {
       "ragDocuments": [
@@ -14562,7 +14562,7 @@
   },
   {
     "id": "ff_021",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "What happens when the storage quota is exceeded?",
     "context": {
       "ragDocuments": [
@@ -14580,7 +14580,7 @@
   },
   {
     "id": "ff_022",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "会员等级如何升降？",
     "context": {
       "ragDocuments": [
@@ -14598,7 +14598,7 @@
   },
   {
     "id": "ff_023",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "How are log files managed and rotated?",
     "context": {
       "ragDocuments": [
@@ -14616,7 +14616,7 @@
   },
   {
     "id": "ff_024",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "退货流程中运费谁来承担？",
     "context": {
       "ragDocuments": [
@@ -14634,7 +14634,7 @@
   },
   {
     "id": "ff_025",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "What features are available in offline mode?",
     "context": {
       "ragDocuments": [
@@ -14652,7 +14652,7 @@
   },
   {
     "id": "ff_026",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "如何处理用户投诉？",
     "context": {
       "ragDocuments": [
@@ -14670,7 +14670,7 @@
   },
   {
     "id": "ff_027",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "What is the data migration process from the legacy system?",
     "context": {
       "ragDocuments": [
@@ -14688,7 +14688,7 @@
   },
   {
     "id": "ff_028",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "保修政策涵盖哪些情况？",
     "context": {
       "ragDocuments": [
@@ -14706,7 +14706,7 @@
   },
   {
     "id": "ff_029",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "How does the A/B testing framework handle statistical significance?",
     "context": {
       "ragDocuments": [
@@ -14724,7 +14724,7 @@
   },
   {
     "id": "ff_030",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "跨境支付支持哪些货币？",
     "context": {
       "ragDocuments": [
@@ -14742,7 +14742,7 @@
   },
   {
     "id": "ff_031",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "What are the CI/CD pipeline timeout settings?",
     "context": {
       "ragDocuments": [
@@ -14760,7 +14760,7 @@
   },
   {
     "id": "ff_032",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "用户隐私数据如何脱敏处理？",
     "context": {
       "ragDocuments": [
@@ -14778,7 +14778,7 @@
   },
   {
     "id": "ff_033",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "How does the system handle concurrent editing conflicts?",
     "context": {
       "ragDocuments": [
@@ -14796,7 +14796,7 @@
   },
   {
     "id": "ff_034",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "供应商评级体系是怎样的？",
     "context": {
       "ragDocuments": [
@@ -14814,7 +14814,7 @@
   },
   {
     "id": "ff_035",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "What monitoring alerts are configured by default?",
     "context": {
       "ragDocuments": [
@@ -14832,7 +14832,7 @@
   },
   {
     "id": "ff_036",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "发票开具有哪些规定？",
     "context": {
       "ragDocuments": [
@@ -14850,7 +14850,7 @@
   },
   {
     "id": "ff_037",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "How does the permission inheritance model work?",
     "context": {
       "ragDocuments": [
@@ -14868,7 +14868,7 @@
   },
   {
     "id": "ff_038",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "物流配送时效如何？",
     "context": {
       "ragDocuments": [
@@ -14886,7 +14886,7 @@
   },
   {
     "id": "ff_039",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "What database engines are supported?",
     "context": {
       "ragDocuments": [
@@ -14904,7 +14904,7 @@
   },
   {
     "id": "ff_040",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "客户信用额度如何确定？",
     "context": {
       "ragDocuments": [
@@ -14922,7 +14922,7 @@
   },
   {
     "id": "ff_041",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "How are webhook events structured and delivered?",
     "context": {
       "ragDocuments": [
@@ -14940,7 +14940,7 @@
   },
   {
     "id": "ff_042",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "培训费用报销有什么限制？",
     "context": {
       "ragDocuments": [
@@ -14958,7 +14958,7 @@
   },
   {
     "id": "ff_043",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "What are the limitations of the search functionality?",
     "context": {
       "ragDocuments": [
@@ -14976,7 +14976,7 @@
   },
   {
     "id": "ff_044",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "员工差旅标准如何规定？",
     "context": {
       "ragDocuments": [
@@ -14994,7 +14994,7 @@
   },
   {
     "id": "ff_045",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "How does the CDN caching strategy work?",
     "context": {
       "ragDocuments": [
@@ -15012,7 +15012,7 @@
   },
   {
     "id": "ff_046",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "产品可靠性测试包含哪些项目？",
     "context": {
       "ragDocuments": [
@@ -15030,7 +15030,7 @@
   },
   {
     "id": "ff_047",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "What are the compliance certifications held by the platform?",
     "context": {
       "ragDocuments": [
@@ -15048,7 +15048,7 @@
   },
   {
     "id": "ff_048",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "知识产权归属如何约定？",
     "context": {
       "ragDocuments": [
@@ -15066,7 +15066,7 @@
   },
   {
     "id": "ff_049",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "How does the load balancing algorithm distribute traffic?",
     "context": {
       "ragDocuments": [
@@ -15084,7 +15084,7 @@
   },
   {
     "id": "ff_050",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "质量管理体系中的不合格品如何处理？",
     "context": {
       "ragDocuments": [
@@ -15102,7 +15102,7 @@
   },
   {
     "id": "ff_051",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "What are the email sending limits and deliverability features?",
     "context": {
       "ragDocuments": [
@@ -15120,7 +15120,7 @@
   },
   {
     "id": "ff_052",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "灾难恢复计划的具体措施有哪些？",
     "context": {
       "ragDocuments": [
@@ -15138,7 +15138,7 @@
   },
   {
     "id": "ff_053",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "How does the API versioning strategy work?",
     "context": {
       "ragDocuments": [
@@ -15156,7 +15156,7 @@
   },
   {
     "id": "ff_054",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "绩效考核的评分标准是怎样的？",
     "context": {
       "ragDocuments": [
@@ -15174,7 +15174,7 @@
   },
   {
     "id": "ff_055",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "What are the restrictions on custom domain configuration?",
     "context": {
       "ragDocuments": [
@@ -15192,7 +15192,7 @@
   },
   {
     "id": "ff_056",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "采购审批流程是怎样的？",
     "context": {
       "ragDocuments": [
@@ -15210,7 +15210,7 @@
   },
   {
     "id": "ff_057",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "How are database migrations handled during deployments?",
     "context": {
       "ragDocuments": [
@@ -15228,7 +15228,7 @@
   },
   {
     "id": "ff_058",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "商品定价策略中有哪些折扣规则？",
     "context": {
       "ragDocuments": [
@@ -15246,7 +15246,7 @@
   },
   {
     "id": "ff_059",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "What is the process for handling security incidents?",
     "context": {
       "ragDocuments": [
@@ -15264,7 +15264,7 @@
   },
   {
     "id": "ff_060",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "文档版本管理规则是什么？",
     "context": {
       "ragDocuments": [
@@ -15282,7 +15282,7 @@
   },
   {
     "id": "ff_061",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "What restrictions apply to the free trial period?",
     "context": {
       "ragDocuments": [
@@ -15300,7 +15300,7 @@
   },
   {
     "id": "ff_062",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "环保合规要求有哪些？",
     "context": {
       "ragDocuments": [
@@ -15318,7 +15318,7 @@
   },
   {
     "id": "ff_063",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "How does the feature flag system manage gradual rollouts?",
     "context": {
       "ragDocuments": [
@@ -15336,7 +15336,7 @@
   },
   {
     "id": "ff_064",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "仓库管理中的库存盘点规则？",
     "context": {
       "ragDocuments": [
@@ -15354,7 +15354,7 @@
   },
   {
     "id": "ff_065",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "What are the data export options and formats?",
     "context": {
       "ragDocuments": [
@@ -15372,7 +15372,7 @@
   },
   {
     "id": "ff_066",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "用户数据跨境传输的合规要求？",
     "context": {
       "ragDocuments": [
@@ -15390,7 +15390,7 @@
   },
   {
     "id": "ff_067",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "How does the notification system prioritize and deliver messages?",
     "context": {
       "ragDocuments": [
@@ -15408,7 +15408,7 @@
   },
   {
     "id": "ff_068",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "售后服务的响应时间承诺是什么？",
     "context": {
       "ragDocuments": [
@@ -15426,7 +15426,7 @@
   },
   {
     "id": "ff_069",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "What are the API authentication mechanisms supported?",
     "context": {
       "ragDocuments": [
@@ -15444,7 +15444,7 @@
   },
   {
     "id": "ff_070",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "消防安全管理制度有哪些要求？",
     "context": {
       "ragDocuments": [
@@ -15462,7 +15462,7 @@
   },
   {
     "id": "ff_071",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "What is the platform's approach to multi-tenancy data isolation?",
     "context": {
       "ragDocuments": [
@@ -15480,7 +15480,7 @@
   },
   {
     "id": "ff_072",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "内部审计的范围和频率如何规定？",
     "context": {
       "ragDocuments": [
@@ -15498,7 +15498,7 @@
   },
   {
     "id": "ff_073",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "How does the system handle time zone conversions for scheduled tasks?",
     "context": {
       "ragDocuments": [
@@ -15516,7 +15516,7 @@
   },
   {
     "id": "ff_074",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "供应链风险管理措施有哪些？",
     "context": {
       "ragDocuments": [
@@ -15534,7 +15534,7 @@
   },
   {
     "id": "ff_075",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "What are the GraphQL API specific limitations compared to REST?",
     "context": {
       "ragDocuments": [
@@ -15552,7 +15552,7 @@
   },
   {
     "id": "ff_076",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "员工股权激励计划的行权条件？",
     "context": {
       "ragDocuments": [
@@ -15570,7 +15570,7 @@
   },
   {
     "id": "ff_077",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "How does the platform handle data consistency in distributed transactions?",
     "context": {
       "ragDocuments": [
@@ -15588,7 +15588,7 @@
   },
   {
     "id": "ff_078",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "产品认证和测试报告的有效期？",
     "context": {
       "ragDocuments": [
@@ -15606,7 +15606,7 @@
   },
   {
     "id": "ff_079",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "What happens during a zero-downtime deployment?",
     "context": {
       "ragDocuments": [
@@ -15624,7 +15624,7 @@
   },
   {
     "id": "ff_080",
-    "dimension": "faithfulness",
+    "dimension": "groundedness",
     "query": "两份文档中关于数据保留期的规定是否一致？",
     "context": {
       "ragDocuments": [

@@ -27,6 +27,7 @@ import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -103,7 +104,8 @@ class PromptAssemblyEvaluationTest {
                 userProfileService,
                 skillRegistry,
                 subAgentRegistry,
-                tokenWindowManager);
+                tokenWindowManager,
+                Optional.empty());
         ReflectionTestUtils.setField(orchestrator, "defaultUserId", "evaluation-user");
         ReflectionTestUtils.setField(orchestrator, "proceduralTopK", 2);
         ReflectionTestUtils.setField(orchestrator, "semanticTopK", 2);
