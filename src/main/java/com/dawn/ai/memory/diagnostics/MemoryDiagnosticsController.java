@@ -2,6 +2,7 @@ package com.dawn.ai.memory.diagnostics;
 
 import com.dawn.ai.memory.EvictionPolicyManager;
 import com.dawn.ai.memory.UserProfileService;
+import com.dawn.ai.rag.VectorStoreTableName;
 import com.dawn.ai.service.MemoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/debug/memory")
 @RequiredArgsConstructor
+@Profile("e2e-test")
 public class MemoryDiagnosticsController {
 
     private static final String SESSION_PREFIX = "ai:session:";
@@ -52,7 +54,7 @@ public class MemoryDiagnosticsController {
     private final EvictionPolicyManager evictionPolicyManager;
 
     @Value("${spring.ai.vectorstore.pgvector.table-name:vector_store}")
-    private String vectorTableName;  // non-final: injected via @Value after construction
+    private String vectorTableName = "vector_store";  // non-final: injected via @Value after construction
 
     // ─────────────────────────────────────────────────────────────────
     //  注入消息 → 触发 L1→L2→L3→L4 管道
@@ -152,7 +154,8 @@ public class MemoryDiagnosticsController {
 
         // L3: PGVector 文档数（直接 JDBC，避免 Embedding 依赖）
         Long l3Raw = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM " + vectorTableName + " WHERE metadata->>'sessionId' = ?",
+                "SELECT COUNT(*) FROM " + VectorStoreTableName.requireValid(vectorTableName)
+                        + " WHERE metadata->>'sessionId' = ?",
                 Long.class, sessionId);
         int l3Count = l3Raw != null ? l3Raw.intValue() : 0;
 

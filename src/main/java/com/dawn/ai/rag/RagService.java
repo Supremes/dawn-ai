@@ -119,6 +119,9 @@ public class RagService {
     @Value("${app.ai.rag.reranker.min-score:0.0}")
     private double rerankMinScore = 0.0;
 
+    @Value("${spring.ai.vectorstore.pgvector.table-name:vector_store}")
+    private String vectorStoreTable = "vector_store";
+
     private Counter ingestionCounter;
     private Counter retrievalHitCounter;
     private Counter retrievalMissCounter;
@@ -190,7 +193,7 @@ public class RagService {
      */
     public int deleteByDocId(String docId) {
         List<String> chunkIds = jdbcTemplate.queryForList(
-                "SELECT id::text FROM vector_store WHERE metadata->>'docId' = ?",
+                "SELECT id::text FROM " + vectorStoreTable() + " WHERE metadata->>'docId' = ?",
                 String.class, docId);
         if (chunkIds.isEmpty()) {
             return 0;
@@ -222,7 +225,7 @@ public class RagService {
                 " metadata->>'category' as category," +
                 " metadata->>'topicId' as topic_id," +
                 " COUNT(*) as chunk_count" +
-                " FROM vector_store" +
+                " FROM " + vectorStoreTable() +
                 " WHERE metadata->>'docId' IS NOT NULL");
         List<Object> params = new ArrayList<>();
 
@@ -285,6 +288,17 @@ public class RagService {
                 ? retrievalRequest
                 : retrievalRequest.toBuilder().query(rewrittenQuery).build();
 
+        // 可配置 - 领域判定 + 分类（合并为一次 LLM 调用）
+        // topicId/docId 已经把检索限定到私有语料，不能再让全局领域描述误杀。
+        QueryCategoryClassifier.ClassifyResult classified = hasHardMetadataFilter(rewrittenRequest)
+            ? null
+            : queryCategoryClassifier.classify(rewrittenQuery);
+        if (classified != null && Boolean.FALSE.equals(classified.inDomain())) {
+            retrievalMissCounter.increment();
+            log.info("[RagService] Retrieval skipped by domain gate. query='{}'", rewrittenQuery);
+            return List.of();
+        }
+
         // 策略路由和 HyDE 判断基于 rewrittenRequest（用户显式 filter），
         // 不受后续 auto-classify 注入的 category filter 影响。
         RetrievalStrategy strategy = resolveStrategy(rewrittenRequest);
@@ -294,18 +308,16 @@ public class RagService {
                 ? hydeQueryGenerator.generate(rewrittenQuery)
                 : rewrittenQuery;
 
-        // 可配置 - LLM 语义分类 category
+        // 注入自动分类的 category filter
         RetrievalRequest effectiveRequest;
-        if (!rewrittenRequest.getMetadataFilters().containsKey("category")) {
-            String classifiedCategory = queryCategoryClassifier.classify(rewrittenQuery);
-            if (classifiedCategory != null) {
-                Map<String, List<String>> enrichedFilters = new HashMap<>(rewrittenRequest.getMetadataFilters());
-                enrichedFilters.put("category", List.of(classifiedCategory));
-                effectiveRequest = rewrittenRequest.toBuilder().metadataFilters(enrichedFilters).build();
-                log.info("[RagService] Auto-classified category='{}' for query='{}'", classifiedCategory, rewrittenQuery);
-            } else {
-                effectiveRequest = rewrittenRequest;
-            }
+        String classifiedCategory = (classified != null) ? classified.category() : null;
+        if (classifiedCategory != null
+            && !rewrittenRequest.getMetadataFilters().containsKey("category")
+            && !rewrittenRequest.getMetadataFilters().containsKey("topicId")) {
+            Map<String, List<String>> enrichedFilters = new HashMap<>(rewrittenRequest.getMetadataFilters());
+            enrichedFilters.put("category", List.of(classifiedCategory));
+            effectiveRequest = rewrittenRequest.toBuilder().metadataFilters(enrichedFilters).build();
+            log.info("[RagService] Auto-classified category='{}' for query='{}'", classifiedCategory, rewrittenQuery);
         } else {
             effectiveRequest = rewrittenRequest;
         }
@@ -371,6 +383,14 @@ public class RagService {
         // RAG knowledge docs have no 'type' field and are silently skipped inside the updater.
         memoryAccessUpdater.updateAccessTime(limited);
         return limited;
+    }
+
+    private boolean hasHardMetadataFilter(RetrievalRequest request) {
+        if (request == null || request.getMetadataFilters() == null) {
+            return false;
+        }
+        return request.getMetadataFilters().containsKey("topicId")
+                || request.getMetadataFilters().containsKey("docId");
     }
 
     /**
@@ -441,5 +461,9 @@ public class RagService {
             combined = combined == null ? current : builder.and(combined, current);
         }
         return combined == null ? null : combined.build();
+    }
+
+    private String vectorStoreTable() {
+        return VectorStoreTableName.requireValid(vectorStoreTable);
     }
 }

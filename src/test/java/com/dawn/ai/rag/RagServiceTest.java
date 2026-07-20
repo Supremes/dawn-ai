@@ -97,7 +97,8 @@ class RagServiceTest {
 
     private static QueryCategoryClassifier classifierNoop() {
         QueryCategoryClassifier classifier = mock(QueryCategoryClassifier.class);
-        org.mockito.Mockito.lenient().when(classifier.classify(any())).thenReturn(null);
+        org.mockito.Mockito.lenient().when(classifier.classify(any()))
+                .thenReturn(null);
         return classifier;
     }
 
@@ -270,6 +271,37 @@ class RagServiceTest {
                 .contains("pricing-doc")
                 .contains("category")
                 .contains("billing");
+    }
+
+    @Test
+    @DisplayName("retrieve: topicId 存在时不应自动注入 category filter")
+    void retrieve_withTopicId_skipsAutoCategoryFilter() {
+        QueryCategoryClassifier classifier = mock(QueryCategoryClassifier.class);
+        RagService svc = new RagService(
+                vectorStore, jdbcTemplate, meterRegistry, aiAvailabilityChecker,
+                new HeuristicRetrievalReranker(), sparseRetriever,
+                new ReciprocalRankFusion(), new RetrievalRouter(),
+                overlapTextSplitter, ragRetrievalExecutor,
+                mock(MemoryAccessUpdater.class), hydeNoop(), rewriteNoop(), classifier);
+        svc.setSimilarityThreshold(0.7);
+        svc.setHybridEnabled(false);
+        svc.initMetrics();
+        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
+
+        svc.retrieve(RetrievalRequest.builder()
+                .query("退款政策 时间限制")
+                .topK(5)
+                .metadataFilters(Map.of("topicId", List.of("eval-run-ff-001")))
+                .build());
+
+        verifyNoInteractions(classifier);
+        ArgumentCaptor<SearchRequest> captor = ArgumentCaptor.forClass(SearchRequest.class);
+        verify(vectorStore).similaritySearch(captor.capture());
+        assertThat(captor.getValue().getFilterExpression().toString())
+                .contains("topicId")
+                .contains("eval-run-ff-001")
+                .doesNotContain("category")
+                .doesNotContain("法律");
     }
 
     @Test

@@ -9,11 +9,11 @@ Given a user query, the retrieved documents, and the expected relevant documents
 - **Expected Relevant Documents**: {{expected_doc_ids}}
 
 ## Scoring Rules (Likert 1-5)
-- **5**: All expected documents retrieved, no irrelevant documents in top results
+- **5**: All expected documents retrieved, no irrelevant documents in top results. If expected documents are empty, no documents were retrieved.
 - **4**: All expected documents retrieved, some irrelevant documents mixed in
 - **3**: Most expected documents retrieved (≥70%), some relevant docs missed
-- **2**: Few expected documents retrieved (<50%), significant gaps
-- **1**: No expected documents retrieved, or retrieved documents are completely irrelevant
+- **2**: Few expected documents retrieved (>0% and <70%), significant gaps
+- **1**: No expected documents retrieved, or documents were retrieved when expected documents are empty
 
 ## Response Format
 Return ONLY valid JSON, no markdown fences:

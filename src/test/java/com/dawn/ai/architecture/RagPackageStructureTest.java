@@ -15,7 +15,7 @@ class RagPackageStructureTest {
         assertThatCode(() -> Class.forName("com.dawn.ai.rag.query.QueryRewriter")).doesNotThrowAnyException();
         assertThatCode(() -> Class.forName("com.dawn.ai.rag.ingestion.OverlapTextSplitter")).doesNotThrowAnyException();
         assertThatCode(() -> Class.forName("com.dawn.ai.rag.retrieval.RetrievalRouter")).doesNotThrowAnyException();
-        assertThatCode(() -> Class.forName("com.dawn.ai.rag.evaluation.RetrievalEvaluator")).doesNotThrowAnyException();
+        assertThatCode(() -> Class.forName("com.dawn.ai.evaluation.retrieval.RetrievalEvaluator")).doesNotThrowAnyException();
     }
 
     @Test

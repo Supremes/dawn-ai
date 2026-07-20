@@ -1,0 +1,58 @@
+spring:
+  config:
+    import: optional:file:.env.evaluation[.properties]
+
+  datasource:
+    url: ${EVALUATION_DATASOURCE_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/dawn_ai}}
+    username: ${EVALUATION_DATASOURCE_USERNAME:${SPRING_DATASOURCE_USERNAME:dawn}}
+    password: ${EVALUATION_DATASOURCE_PASSWORD:${SPRING_DATASOURCE_PASSWORD:dawn123}}
+    driver-class-name: org.postgresql.Driver
+
+  data:
+    redis:
+      host: ${EVALUATION_REDIS_HOST:${SPRING_DATA_REDIS_HOST:localhost}}
+      port: ${EVALUATION_REDIS_PORT:${SPRING_DATA_REDIS_PORT:6379}}
+      timeout: ${EVALUATION_REDIS_TIMEOUT:${SPRING_DATA_REDIS_TIMEOUT:3000ms}}
+
+  ai:
+    openai:
+      api-key: ${EVALUATION_OPENAI_API_KEY:${OPENAI_API_KEY}}
+      base-url: ${EVALUATION_BASE_URL:${BASE_URL}}
+      chat:
+        base-url: ${EVALUATION_CHAT_BASE_URL:${CHAT_BASE_URL:${EVALUATION_BASE_URL:${BASE_URL}}}}
+        api-key: ${EVALUATION_CHAT_API_KEY:${CHAT_API_KEY:${EVALUATION_OPENAI_API_KEY:${OPENAI_API_KEY}}}}
+        options:
+          model: ${EVALUATION_CHAT_MODEL:${CHAT_MODEL}}
+      embedding:
+        base-url: ${EVALUATION_EMBEDDING_BASE_URL:${EMBEDDING_BASE_URL:${EVALUATION_BASE_URL:${BASE_URL}}}}
+        api-key: ${EVALUATION_EMBEDDING_API_KEY:${EMBEDDING_API_KEY:${EVALUATION_OPENAI_API_KEY:${OPENAI_API_KEY}}}}
+        options:
+          model: ${EVALUATION_EMBEDDING_MODEL:${EMBEDDING_MODEL}}
+          dimensions: ${EVALUATION_EMBEDDING_DIMENSIONS:${EMBEDDING_DIMENSIONS:1024}}
+    vectorstore:
+      pgvector:
+        table-name: vector_store_evaluation
+        dimensions: ${EVALUATION_EMBEDDING_DIMENSIONS:${EMBEDDING_DIMENSIONS:1024}}
+        initialize-schema: true
+app:
+  skills:
+    path: src/test/resources/evaluation/skills
+  ai:
+    react:
+      plan-enabled: false
+    rag:
+      categories: 历史,法律,技术,医疗,金融,教育,general  # 逗号分隔字符串，@Value 自动切成 List；勿用 [..] 列表语法
+      domain-gate-enabled: "${EVALUATION_RAG_DOMAIN_GATE_ENABLED:true}"
+      domain-description: "当前已导入的私有评测语料/内部知识库，可能覆盖公司财务、产品、合同、HR、组织架构、报告、审计、技术文档、API、运维、安全、数据库、监控等内容。只要问题可能由当前 topicId/docId 限定的已导入资料回答，就应视为 inDomain=true；仅对明显与资料无关的天气、体育、音乐、烹饪、娱乐闲聊、公开实时价格/新闻等外部问题判为 inDomain=false。"
+      out-of-domain-keywords: "${EVALUATION_RAG_OUT_OF_DOMAIN_KEYWORDS:}"
+      reranker:
+        type: cross-encoder           # heuristic | cross-encoder
+        min-score: "${EVALUATION_RERANK_MIN_SCORE:0.0}"            # 0 = 只重排不按 raw score 过滤；jina-reranker-v3-mlx 分数不适合全局硬阈值
+      cross-encoder:
+        base-url: "${EVALUATION_RERANK_BASE_URL:http://localhost:8000/v1}"              # 可选：cross-encoder rerank 服务地址，例如 http://localhost:8081
+        rerank-path: "${EVALUATION_RERANK_PATH:/rerank}"      # rerank 接口路径，默认请求体含 query/documents/top_n
+        model: "${EVALUATION_RERANK_MODEL:jina-reranker-v3-mlx}"                 # 可选：请求体中的模型名
+        api-key: "${EVALUATION_RERANK_API_KEY:${RERANK_API_KEY:}}"             # 可选：访问 rerank 服务的 API key
+        api-key-header: "${EVALUATION_RERANK_API_KEY_HEADER:Authorization}"
+        api-key-prefix: "${EVALUATION_RERANK_API_KEY_PREFIX:Bearer }"
+        max-document-chars: 4000  # 发送到 reranker 的单文档最大字符数

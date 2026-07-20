@@ -1,0 +1,227 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="1900" viewBox="0 0 1100 1900" font-family="'Comic Sans MS','Segoe Print','Bradley Hand',cursive">
+  <defs>
+    <filter id="rough">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="3" seed="7" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.2"/>
+    </filter>
+    <filter id="roughStrong">
+      <feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="3" seed="11" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="4.5"/>
+    </filter>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="3" dy="4" stdDeviation="2.5" flood-color="#000" flood-opacity="0.16"/>
+    </filter>
+    <marker id="arrow" markerWidth="13" markerHeight="13" refX="9" refY="6" orient="auto">
+      <path d="M1,1 L11,6 L1,11 L4,6 Z" fill="#3a3a3a"/>
+    </marker>
+    <marker id="arrowOrange" markerWidth="14" markerHeight="14" refX="9" refY="6" orient="auto">
+      <path d="M1,1 L11,6 L1,11 L4,6 Z" fill="#c45a18"/>
+    </marker>
+  </defs>
+
+  <rect width="1100" height="1900" fill="#fbf7ee"/>
+
+  <text x="550" y="58" font-size="40" font-weight="bold" text-anchor="middle" fill="#2b2b2b" filter="url(#rough)">🌱 Spring Boot 启动流程时序图</text>
+  <line x1="300" y1="74" x2="800" y2="74" stroke="#e07a3f" stroke-width="4" stroke-linecap="round" filter="url(#roughStrong)"/>
+
+  <!-- ====== 阶段一：实例化 ====== -->
+  <g filter="url(#shadow)">
+    <rect x="60" y="110" width="980" height="200" rx="18" fill="#fff7e6" stroke="#e0a23f" stroke-width="3" filter="url(#rough)"/>
+  </g>
+  <text x="90" y="150" font-size="26" font-weight="bold" fill="#c4761e">① 实例化阶段  new SpringApplication()</text>
+  <text x="90" y="178" font-size="17" fill="#7a6a55">「自我画像」—— 只准备配置，不启动任何东西</text>
+
+  <g font-size="16" fill="#3a3a3a">
+    <g filter="url(#shadow)"><rect x="90" y="198" width="210" height="44" rx="10" fill="#fffdf7" stroke="#bda" stroke-width="2.4" filter="url(#rough)"/></g>
+    <text x="195" y="225" text-anchor="middle">推断应用类型 (Servlet/Reactive)</text>
+
+    <g filter="url(#shadow)"><rect x="320" y="198" width="200" height="44" rx="10" fill="#fffdf7" stroke="#bda" stroke-width="2.4" filter="url(#rough)"/></g>
+    <text x="420" y="225" text-anchor="middle">加载 ContextInitializer</text>
+
+    <g filter="url(#shadow)"><rect x="540" y="198" width="190" height="44" rx="10" fill="#fffdf7" stroke="#bda" stroke-width="2.4" filter="url(#rough)"/></g>
+    <text x="635" y="225" text-anchor="middle">加载 ApplicationListener</text>
+
+    <g filter="url(#shadow)"><rect x="750" y="198" width="270" height="44" rx="10" fill="#fffdf7" stroke="#bda" stroke-width="2.4" filter="url(#rough)"/></g>
+    <text x="885" y="225" text-anchor="middle">推断主启动类 mainApplicationClass</text>
+
+    <text x="90" y="284" font-size="15" fill="#998">📖 来源：META-INF/spring.factories  |  classpath 判断</text>
+  </g>
+
+  <line x1="550" y1="312" x2="550" y2="350" stroke="#3a3a3a" stroke-width="3" marker-end="url(#arrow)" filter="url(#rough)"/>
+  <text x="565" y="338" font-size="15" fill="#888">run()</text>
+
+  <!-- ====== 阶段二：run() 启动 ====== -->
+  <text x="90" y="378" font-size="26" font-weight="bold" fill="#1f7a5a">② 启动阶段  run()  —— 按时间线推进 ⏱️</text>
+
+  <line x1="130" y1="410" x2="130" y2="1810" stroke="#1f7a5a" stroke-width="4" stroke-dasharray="2 7" stroke-linecap="round" filter="url(#rough)"/>
+
+  <!-- 1 -->
+  <circle cx="130" cy="440" r="11" fill="#1f7a5a" filter="url(#rough)"/>
+  <text x="100" y="446" font-size="18" font-weight="bold" text-anchor="end" fill="#1f7a5a">1</text>
+  <g filter="url(#shadow)"><rect x="160" y="416" width="430" height="52" rx="12" fill="#eef7f1" stroke="#4fae86" stroke-width="2.6" filter="url(#rough)"/></g>
+  <text x="180" y="440" font-size="18" font-weight="bold" fill="#2b2b2b">启动 StopWatch 计时 + 引导上下文</text>
+  <text x="180" y="460" font-size="14" fill="#6a7a72">DefaultBootstrapContext</text>
+
+  <g filter="url(#shadow)"><rect x="630" y="418" width="360" height="46" rx="20" fill="#fde8e8" stroke="#e0726f" stroke-width="2.6" filter="url(#rough)"/></g>
+  <text x="650" y="447" font-size="16" font-weight="bold" fill="#b23a36">📣 ApplicationStartingEvent</text>
+
+  <!-- 2 -->
+  <circle cx="130" cy="528" r="11" fill="#1f7a5a" filter="url(#rough)"/>
+  <text x="100" y="534" font-size="18" font-weight="bold" text-anchor="end" fill="#1f7a5a">2</text>
+  <g filter="url(#shadow)"><rect x="160" y="500" width="430" height="58" rx="12" fill="#eef7f1" stroke="#4fae86" stroke-width="2.6" filter="url(#rough)"/></g>
+  <text x="180" y="524" font-size="18" font-weight="bold" fill="#2b2b2b">准备 Environment 环境</text>
+  <text x="180" y="546" font-size="14" fill="#6a7a72">命令行/系统属性 + application.yml + Profiles</text>
+
+  <g filter="url(#shadow)"><rect x="630" y="506" width="360" height="46" rx="20" fill="#fde8e8" stroke="#e0726f" stroke-width="2.6" filter="url(#rough)"/></g>
+  <text x="650" y="535" font-size="15" font-weight="bold" fill="#b23a36">📣 EnvironmentPreparedEvent</text>
+
+  <!-- 3 -->
+  <circle cx="130" cy="606" r="11" fill="#1f7a5a" filter="url(#rough)"/>
+  <text x="100" y="612" font-size="18" font-weight="bold" text-anchor="end" fill="#1f7a5a">3</text>
+  <g filter="url(#shadow)"><rect x="160" y="588" width="430" height="44" rx="12" fill="#eef7f1" stroke="#4fae86" stroke-width="2.6" filter="url(#rough)"/></g>
+  <text x="180" y="616" font-size="18" font-weight="bold" fill="#2b2b2b">打印 Banner  🎨</text>
+
+  <!-- 4 -->
+  <circle cx="130" cy="678" r="11" fill="#1f7a5a" filter="url(#rough)"/>
+  <text x="100" y="684" font-size="18" font-weight="bold" text-anchor="end" fill="#1f7a5a">4</text>
+  <g filter="url(#shadow)"><rect x="160" y="652" width="430" height="56" rx="12" fill="#eef7f1" stroke="#4fae86" stroke-width="2.6" filter="url(#rough)"/></g>
+  <text x="180" y="676" font-size="18" font-weight="bold" fill="#2b2b2b">创建 ApplicationContext</text>
+  <text x="180" y="697" font-size="14" fill="#6a7a72">按应用类型选择容器实现</text>
+
+  <!-- 5 -->
+  <circle cx="130" cy="766" r="11" fill="#1f7a5a" filter="url(#rough)"/>
+  <text x="100" y="772" font-size="18" font-weight="bold" text-anchor="end" fill="#1f7a5a">5</text>
+  <g filter="url(#shadow)"><rect x="160" y="730" width="430" height="76" rx="12" fill="#eef7f1" stroke="#4fae86" stroke-width="2.6" filter="url(#rough)"/></g>
+  <text x="180" y="754" font-size="18" font-weight="bold" fill="#2b2b2b">prepareContext 准备上下文</text>
+  <text x="180" y="775" font-size="14" fill="#6a7a72">执行 Initializer + 注册主启动类</text>
+  <text x="180" y="794" font-size="14" fill="#6a7a72">为自动装配埋下入口 🔑</text>
+
+  <g filter="url(#shadow)"><rect x="630" y="734" width="360" height="42" rx="20" fill="#fde8e8" stroke="#e0726f" stroke-width="2.6" filter="url(#rough)"/></g>
+  <text x="650" y="761" font-size="15" font-weight="bold" fill="#b23a36">📣 ContextInitialized</text>
+  <g filter="url(#shadow)"><rect x="630" y="784" width="360" height="42" rx="20" fill="#fde8e8" stroke="#e0726f" stroke-width="2.6" filter="url(#rough)"/></g>
+  <text x="650" y="811" font-size="15" font-weight="bold" fill="#b23a36">📣 ApplicationPreparedEvent</text>
+
+  <!-- 6 refreshContext 大块 -->
+  <circle cx="130" cy="900" r="13" fill="#e07a3f" filter="url(#rough)"/>
+  <text x="100" y="906" font-size="18" font-weight="bold" text-anchor="end" fill="#e07a3f">6</text>
+  <g filter="url(#shadow)"><rect x="160" y="850" width="830" height="360" rx="16" fill="#fff3e0" stroke="#e07a3f" stroke-width="3.4" filter="url(#roughStrong)"/></g>
+  <text x="185" y="884" font-size="22" font-weight="bold" fill="#c45a18">🔥 refreshContext()  —— 核心！构建 IoC 容器</text>
+  <text x="185" y="908" font-size="14" fill="#9a7a55">即 Spring 经典的 refresh() 12 步</text>
+
+  <g font-size="15.5" fill="#3a3a3a">
+    <g filter="url(#shadow)"><rect x="185" y="924" width="380" height="40" rx="9" fill="#fffaf2" stroke="#d9a05a" stroke-width="2.2" filter="url(#rough)"/></g>
+    <text x="200" y="949">prepareBeanFactory 准备 BeanFactory</text>
+
+    <g filter="url(#shadow)"><rect x="585" y="924" width="380" height="58" rx="9" fill="#ffe2bf" stroke="#d9742a" stroke-width="3" filter="url(#rough)"/></g>
+    <text x="600" y="948" font-weight="bold" fill="#a85a14">invokeBeanFactoryPostProcessors ⭐</text>
+    <text x="600" y="971" font-size="13" fill="#8a4a14">↓ 在此触发「自动装配」(见下方大图)</text>
+
+    <g filter="url(#shadow)"><rect x="185" y="984" width="380" height="40" rx="9" fill="#fffaf2" stroke="#d9a05a" stroke-width="2.2" filter="url(#rough)"/></g>
+    <text x="200" y="1009">registerBeanPostProcessors (AOP)</text>
+
+    <g filter="url(#shadow)"><rect x="185" y="1034" width="380" height="40" rx="9" fill="#fffaf2" stroke="#d9a05a" stroke-width="2.2" filter="url(#rough)"/></g>
+    <text x="200" y="1059">initMessageSource / EventMulticaster</text>
+
+    <g filter="url(#shadow)"><rect x="585" y="1024" width="380" height="44" rx="9" fill="#fff0d6" stroke="#d98a3a" stroke-width="2.6" filter="url(#rough)"/></g>
+    <text x="600" y="1051" font-weight="bold" fill="#a85a14">onRefresh ⭐ 启动内嵌 Tomcat 🐱</text>
+
+    <g filter="url(#shadow)"><rect x="185" y="1084" width="380" height="40" rx="9" fill="#fffaf2" stroke="#d9a05a" stroke-width="2.2" filter="url(#rough)"/></g>
+    <text x="200" y="1109">registerListeners 注册监听器</text>
+
+    <g filter="url(#shadow)"><rect x="585" y="1084" width="380" height="54" rx="9" fill="#fff0d6" stroke="#d98a3a" stroke-width="2.6" filter="url(#rough)"/></g>
+    <text x="600" y="1107" font-weight="bold" fill="#a85a14">finishBeanFactoryInit ⭐</text>
+    <text x="600" y="1128" font-size="13" fill="#7a5a2a">实例化所有单例 Bean / 依赖注入 / 三级缓存</text>
+
+    <g filter="url(#shadow)"><rect x="185" y="1148" width="780" height="44" rx="9" fill="#fffaf2" stroke="#d9a05a" stroke-width="2.2" filter="url(#rough)"/></g>
+    <text x="200" y="1175">finishRefresh 完成刷新 → 发布 ContextRefreshedEvent → 启动 Lifecycle Bean</text>
+  </g>
+
+  <!-- 引出箭头：从 invokeBFPP 到自动装配大图 -->
+  <path d="M775,982 C775,1230 320,1230 320,1262" fill="none" stroke="#c45a18" stroke-width="3.5" stroke-dasharray="9 5" marker-end="url(#arrowOrange)" filter="url(#rough)"/>
+  <text x="560" y="1245" font-size="15" font-weight="bold" fill="#c45a18">放大 🔍</text>
+
+  <!-- ====== 自动装配揭秘大图 ====== -->
+  <g filter="url(#shadow)"><rect x="160" y="1268" width="830" height="320" rx="16" fill="#eef3fb" stroke="#3f6fd0" stroke-width="3.4" filter="url(#roughStrong)"/></g>
+  <text x="185" y="1303" font-size="22" font-weight="bold" fill="#2a52a8">🪄 自动装配揭秘 (Auto-Configuration)</text>
+  <text x="185" y="1326" font-size="14" fill="#5a6a8a">「约定优于配置」的核心 —— Starter 加进来就自动生效</text>
+
+  <g font-size="15" fill="#26324a">
+    <g filter="url(#shadow)"><rect x="185" y="1344" width="220" height="56" rx="10" fill="#fbfdff" stroke="#7a9ad8" stroke-width="2.4" filter="url(#rough)"/></g>
+    <text x="295" y="1368" text-anchor="middle" font-weight="bold">@SpringBootApplication</text>
+    <text x="295" y="1388" text-anchor="middle" font-size="12.5" fill="#6a7a9a">主启动类上的注解</text>
+
+    <line x1="405" y1="1372" x2="448" y2="1372" stroke="#3f6fd0" stroke-width="3" marker-end="url(#arrow)" filter="url(#rough)"/>
+
+    <g filter="url(#shadow)"><rect x="450" y="1344" width="230" height="56" rx="10" fill="#fbfdff" stroke="#7a9ad8" stroke-width="2.4" filter="url(#rough)"/></g>
+    <text x="565" y="1368" text-anchor="middle" font-weight="bold">@EnableAutoConfiguration</text>
+    <text x="565" y="1388" text-anchor="middle" font-size="12.5" fill="#6a7a9a">@Import 选择器</text>
+
+    <line x1="680" y1="1372" x2="723" y2="1372" stroke="#3f6fd0" stroke-width="3" marker-end="url(#arrow)" filter="url(#rough)"/>
+
+    <g filter="url(#shadow)"><rect x="725" y="1344" width="240" height="56" rx="10" fill="#e7eefc" stroke="#3f6fd0" stroke-width="2.8" filter="url(#rough)"/></g>
+    <text x="845" y="1366" text-anchor="middle" font-weight="bold" fill="#2a52a8">AutoConfiguration</text>
+    <text x="845" y="1386" text-anchor="middle" font-weight="bold" fill="#2a52a8">ImportSelector</text>
+
+    <!-- 第二行：向下 -->
+    <line x1="845" y1="1400" x2="845" y2="1430" stroke="#3f6fd0" stroke-width="3" marker-end="url(#arrow)" filter="url(#rough)"/>
+
+    <g filter="url(#shadow)"><rect x="560" y="1432" width="405" height="62" rx="10" fill="#fbfdff" stroke="#7a9ad8" stroke-width="2.4" filter="url(#rough)"/></g>
+    <text x="762" y="1455" text-anchor="middle" font-weight="bold">读取候选配置清单 📄</text>
+    <text x="762" y="1476" text-anchor="middle" font-size="12" fill="#6a7a9a">SpringBoot 2.7+: AutoConfiguration.imports</text>
+    <text x="762" y="1490" text-anchor="middle" font-size="11.5" fill="#9aa6bc">(旧版: META-INF/spring.factories)</text>
+
+    <line x1="560" y1="1463" x2="500" y2="1463" stroke="#3f6fd0" stroke-width="3" marker-end="url(#arrow)" filter="url(#rough)"/>
+
+    <g filter="url(#shadow)"><rect x="185" y="1432" width="370" height="62" rx="10" fill="#fff3e0" stroke="#e0832f" stroke-width="2.8" filter="url(#rough)"/></g>
+    <text x="370" y="1455" text-anchor="middle" font-weight="bold" fill="#a85a14">条件过滤 @ConditionalOnXxx 🔎</text>
+    <text x="370" y="1476" text-anchor="middle" font-size="12" fill="#8a5a2a">OnClass / OnMissingBean / OnProperty</text>
+    <text x="370" y="1490" text-anchor="middle" font-size="11.5" fill="#b07a3a">不满足条件的配置被「剔除」</text>
+
+    <line x1="370" y1="1494" x2="370" y2="1524" stroke="#3f6fd0" stroke-width="3" marker-end="url(#arrow)" filter="url(#rough)"/>
+
+    <g filter="url(#shadow)"><rect x="185" y="1526" width="780" height="48" rx="10" fill="#e3f5ea" stroke="#1f9a6a" stroke-width="3" filter="url(#rough)"/></g>
+    <text x="575" y="1556" text-anchor="middle" font-size="17" font-weight="bold" fill="#137a4f">✅ 把满足条件的 @Configuration 注册为 BeanDefinition → 交给容器实例化</text>
+  </g>
+
+  <!-- 7 -->
+  <circle cx="130" cy="1648" r="11" fill="#1f7a5a" filter="url(#rough)"/>
+  <text x="100" y="1654" font-size="18" font-weight="bold" text-anchor="end" fill="#1f7a5a">7</text>
+  <g filter="url(#shadow)"><rect x="160" y="1624" width="430" height="48" rx="12" fill="#eef7f1" stroke="#4fae86" stroke-width="2.6" filter="url(#rough)"/></g>
+  <text x="180" y="1653" font-size="18" font-weight="bold" fill="#2b2b2b">afterRefresh + 打印启动耗时</text>
+
+  <g filter="url(#shadow)"><rect x="630" y="1626" width="360" height="44" rx="20" fill="#fde8e8" stroke="#e0726f" stroke-width="2.6" filter="url(#rough)"/></g>
+  <text x="650" y="1654" font-size="16" font-weight="bold" fill="#b23a36">📣 ApplicationStartedEvent</text>
+
+  <!-- 8 -->
+  <circle cx="130" cy="1726" r="11" fill="#1f7a5a" filter="url(#rough)"/>
+  <text x="100" y="1732" font-size="18" font-weight="bold" text-anchor="end" fill="#1f7a5a">8</text>
+  <g filter="url(#shadow)"><rect x="160" y="1702" width="430" height="50" rx="12" fill="#eef7f1" stroke="#4fae86" stroke-width="2.6" filter="url(#rough)"/></g>
+  <text x="180" y="1726" font-size="18" font-weight="bold" fill="#2b2b2b">执行 Runner 🏃</text>
+  <text x="180" y="1745" font-size="14" fill="#6a7a72">ApplicationRunner + CommandLineRunner</text>
+
+  <g filter="url(#shadow)"><rect x="630" y="1708" width="360" height="40" rx="12" fill="#f4eaea" stroke="#b08a8a" stroke-width="2" stroke-dasharray="6 4" filter="url(#rough)"/></g>
+  <text x="650" y="1734" font-size="14" fill="#8a5a5a">⚠️ 中途异常 → ApplicationFailedEvent</text>
+
+  <!-- 9 -->
+  <circle cx="130" cy="1810" r="13" fill="#1f7a5a" filter="url(#rough)"/>
+  <text x="100" y="1816" font-size="18" font-weight="bold" text-anchor="end" fill="#1f7a5a">9</text>
+  <g filter="url(#shadow)"><rect x="160" y="1786" width="430" height="50" rx="12" fill="#e3f5ea" stroke="#1f9a6a" stroke-width="3" filter="url(#rough)"/></g>
+  <text x="180" y="1817" font-size="19" font-weight="bold" fill="#137a4f">✅ 应用就绪，对外提供服务</text>
+
+  <g filter="url(#shadow)"><rect x="630" y="1788" width="360" height="46" rx="20" fill="#e3f5ea" stroke="#1f9a6a" stroke-width="3" filter="url(#rough)"/></g>
+  <text x="650" y="1817" font-size="16" font-weight="bold" fill="#137a4f">📣 ApplicationReadyEvent 🎉</text>
+
+  <!-- 图例 -->
+  <g filter="url(#shadow)"><rect x="60" y="1856" width="980" height="34" rx="10" fill="#fffdf7" stroke="#cbb" stroke-width="2" filter="url(#rough)"/></g>
+  <rect x="80" y="1865" width="20" height="16" rx="5" fill="#eef7f1" stroke="#4fae86" stroke-width="2"/>
+  <text x="106" y="1878" font-size="14" fill="#3a3a3a">流程步骤</text>
+  <rect x="200" y="1865" width="20" height="16" rx="8" fill="#fde8e8" stroke="#e0726f" stroke-width="2"/>
+  <text x="226" y="1878" font-size="14" fill="#3a3a3a">事件发布</text>
+  <rect x="320" y="1865" width="20" height="16" rx="5" fill="#fff0d6" stroke="#d98a3a" stroke-width="2"/>
+  <text x="346" y="1878" font-size="14" fill="#3a3a3a">⭐ refresh 关键</text>
+  <rect x="470" y="1865" width="20" height="16" rx="5" fill="#e7eefc" stroke="#3f6fd0" stroke-width="2"/>
+  <text x="496" y="1878" font-size="14" fill="#3a3a3a">🪄 自动装配</text>
+  <rect x="610" y="1865" width="20" height="16" rx="5" fill="#e3f5ea" stroke="#1f9a6a" stroke-width="2"/>
+  <text x="636" y="1878" font-size="14" fill="#3a3a3a">就绪/成功</text>
+  <text x="760" y="1878" font-size="13" fill="#998">绿虚线 = run() 时间主轴 ↓</text>
+</svg>

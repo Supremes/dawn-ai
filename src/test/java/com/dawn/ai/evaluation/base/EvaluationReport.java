@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 public class EvaluationReport {
 
     private final List<JudgeResult> results = new ArrayList<>();
+    private final List<EvaluationCaseResult> caseResults = new ArrayList<>();
 
     public void add(JudgeResult result) {
         results.add(result);
@@ -18,6 +19,14 @@ public class EvaluationReport {
 
     public List<JudgeResult> results() {
         return List.copyOf(results);
+    }
+
+    public void addCaseResult(EvaluationCaseResult result) {
+        caseResults.add(result);
+    }
+
+    public List<EvaluationCaseResult> caseResults() {
+        return List.copyOf(caseResults);
     }
 
     public Map<JudgeDimension, List<JudgeResult>> byDimension() {

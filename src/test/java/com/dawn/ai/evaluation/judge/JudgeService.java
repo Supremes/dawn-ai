@@ -63,7 +63,7 @@ public class JudgeService {
         String template = loadPromptTemplate(dimension.promptPath());
         String prompt = fillTemplate(template, variables);
 
-        log.info("[Judge] dimension={} | calling judge model", dimension.id());
+        log.info("[Judge] dimension={}, prompt={} | calling judge model", dimension.id(), prompt);
 
         List<Message> messages = List.of(
                 new SystemMessage("You are an evaluation judge. Follow the instructions exactly. Return only valid JSON."),
