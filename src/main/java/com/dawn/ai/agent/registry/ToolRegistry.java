@@ -65,9 +65,7 @@ public class ToolRegistry {
 
     /** Returns tool bean names for use with chatClient.toolNames(). */
     public String[] getNames() {
-        return tools.keySet().stream()
-                .filter(name -> !name.equals("webTool"))
-                .toArray(String[]::new);
+        return tools.keySet().toArray(String[]::new);
     }
 
     /** Returns tool name → description map for use in TaskPlanner prompts. */
