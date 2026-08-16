@@ -86,7 +86,12 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
             this(query, null, null, null, null);
         }
     }
-    public record Response(String context, int docsFound) {}
+    public record Response(String context, int docsFound) implements ToolOutcome {
+        @Override
+        public ToolOutcomeStatus outcomeStatus() {
+            return docsFound > 0 ? ToolOutcomeStatus.SUCCESS : ToolOutcomeStatus.EMPTY;
+        }
+    }
 
     @Override
     public Response apply(Request req) {

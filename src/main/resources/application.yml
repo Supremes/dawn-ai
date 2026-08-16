@@ -89,7 +89,9 @@ app:
       max-steps: 10        # 单次对话最多工具调用次数（超出时作为工具观察返回，要求 LLM 停止工具调用并总结）
       show-steps: true    # 响应体中是否包含 steps 详情
       plan-enabled: true   # 是否启用执行前规划（关闭后跳过 TaskPlanner)
-      replan-threshold: 2  # 连续工具空结果达到此阈值后触发动态重规划
+      replan-threshold: 2  # 连续 EMPTY/FAILURE/REFUSED 结果达到此阈值后触发动态重规划
+      max-tool-retries: 1  # 仅对工具显式声明为可安全重试的 RETRYABLE_FAILURE 自动重试
+      tool-retry-backoff-ms: 200
     token:
       max-tool-output-tokens: 3000    # 工具输出超过此 token 数时自动截断
       max-history-tokens: 8000        # 对话历史 token 预算（从最新往回截取）

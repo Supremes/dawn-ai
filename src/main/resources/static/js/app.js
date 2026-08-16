@@ -710,12 +710,21 @@ function handleStreamEvent(type, envelope, assistantDiv) {
                 tracePanel.className = 'stream-trace';
                 assistantDiv.appendChild(tracePanel);
             }
+            const statusMeta = {
+                success: { className: 'success', label: '成功' },
+                empty: { className: 'empty', label: '无结果' },
+                retryable_failure: { className: 'failure', label: '可重试失败' },
+                permanent_failure: { className: 'failure', label: '失败' },
+                refused: { className: 'refused', label: '已拒绝' },
+                partial: { className: 'partial', label: '部分完成' },
+            }[data.status] || { className: 'unknown', label: data.status || '未知' };
             const stepEl = document.createElement('div');
             stepEl.className = 'step-item';
             stepEl.innerHTML = `
                 <div class="step-header">
                     <span class="step-number">${data.stepNumber}</span>
                     <span class="step-tool">${escapeHtml(data.toolName || '')}</span>
+                    <span class="step-status step-status-${statusMeta.className}">${escapeHtml(statusMeta.label)}</span>
                     <span class="step-duration">${data.durationMs || 0}ms</span>
                 </div>
             `;

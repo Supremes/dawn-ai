@@ -7,7 +7,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /**
@@ -23,6 +25,8 @@ import java.util.function.Consumer;
  *   <li>{@code steps}     — {@link Collections#synchronizedList} for safe concurrent appends</li>
  *   <li>{@code counter}   — {@link AtomicInteger}, inherently thread-safe</li>
  *   <li>{@code bashFailureStreak} — {@link AtomicInteger}, tracks consecutive empty/failed Bash observations</li>
+ *   <li>{@code bashCircuitOpen} — once opened, prevents further Bash execution in this request</li>
+ *   <li>{@code consecutiveRecoverySignals} — drives structured re-planning after unproductive outcomes</li>
  *   <li>{@code retrievedQueries} — {@link ConcurrentHashMap}-backed set</li>
  *   <li>{@code maxSteps}  — final, immutable</li>
  *   <li>{@code stepListener} — volatile; written once during init, read-only afterwards</li>
@@ -33,7 +37,9 @@ public final class StepCollectorContext {
     final List<AgentStep> steps = Collections.synchronizedList(new ArrayList<>());
     final AtomicInteger counter = new AtomicInteger(0);
     final AtomicInteger bashFailureStreak = new AtomicInteger(0);
-    final AtomicInteger consecutiveEmptyResults = new AtomicInteger(0);
+    final AtomicBoolean bashCircuitOpen = new AtomicBoolean(false);
+    final AtomicInteger consecutiveRecoverySignals = new AtomicInteger(0);
+    final AtomicReference<String> pendingRecoveryGuidance = new AtomicReference<>();
     final int maxSteps;
     final Set<String> retrievedQueries = ConcurrentHashMap.newKeySet();
     volatile Consumer<AgentStep> stepListener;
@@ -61,8 +67,13 @@ public final class StepCollectorContext {
     public boolean isRePlanTriggered() { return rePlanTriggered; }
     public void markRePlanTriggered() { this.rePlanTriggered = true; }
 
-    public int incrementConsecutiveEmpty() { return consecutiveEmptyResults.incrementAndGet(); }
-    public void resetConsecutiveEmpty() { consecutiveEmptyResults.set(0); }
+    public int incrementConsecutiveRecoverySignals() {
+        return consecutiveRecoverySignals.incrementAndGet();
+    }
+
+    public void resetConsecutiveRecoverySignals() {
+        consecutiveRecoverySignals.set(0);
+    }
 
     /**
      * 公开的步骤快照。供 sub-agent 执行器在 worker 线程结束后跨线程读取自己持有的

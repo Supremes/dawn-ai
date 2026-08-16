@@ -2,6 +2,8 @@ package com.dawn.ai.agent.tools.skill;
 
 import com.dawn.ai.agent.skill.Skill;
 import com.dawn.ai.agent.skill.SkillRegistry;
+import com.dawn.ai.agent.tools.ToolOutcome;
+import com.dawn.ai.agent.tools.ToolOutcomeStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import lombok.RequiredArgsConstructor;
@@ -41,7 +43,7 @@ public class LoadSkillTool implements Function<LoadSkillTool.Request, LoadSkillT
             String content,
             List<String> availableResources,
             String error
-    ) {
+    ) implements ToolOutcome {
         public static Response success(Skill skill, List<String> resources) {
             return new Response(
                     skill.manifest().name(),
@@ -55,6 +57,11 @@ public class LoadSkillTool implements Function<LoadSkillTool.Request, LoadSkillT
         public static Response notFound(String name) {
             return new Response(name, null, null, List.of(),
                     "skill 不存在: " + name + "（请仅从【可用 Skills】清单中选择 name）");
+        }
+
+        @Override
+        public ToolOutcomeStatus outcomeStatus() {
+            return error == null ? ToolOutcomeStatus.SUCCESS : ToolOutcomeStatus.PERMANENT_FAILURE;
         }
     }
 

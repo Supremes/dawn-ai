@@ -735,6 +735,19 @@ code {
     font-size: 15px;
     color: var(--accent);
 }
+.step-status {
+    padding: 1px 6px;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    font-size: 10px;
+    line-height: 1.5;
+}
+.step-status-success { color: var(--success); }
+.step-status-empty,
+.step-status-partial,
+.step-status-refused { color: var(--warning); }
+.step-status-failure { color: var(--danger); }
+.step-status-unknown { color: var(--text-tertiary); }
 .step-duration {
     margin-left: auto;
     color: var(--text-tertiary);

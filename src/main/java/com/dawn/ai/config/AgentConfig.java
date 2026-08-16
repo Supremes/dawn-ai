@@ -1,5 +1,6 @@
 package com.dawn.ai.config;
 
+import com.dawn.ai.agent.trace.StepCollector;
 import com.dawn.ai.agent.trace.StepCollectorContextAccessor;
 import com.dawn.ai.exception.MaxStepsExceededException;
 import io.micrometer.context.ContextRegistry;
@@ -30,11 +31,24 @@ public class AgentConfig {
     public ToolExecutionExceptionProcessor toolExecutionExceptionProcessor() {
         ToolExecutionExceptionProcessor defaultProcessor = DefaultToolExecutionExceptionProcessor.builder().build();
         return exception -> {
-            Throwable cause = exception.getCause();
-            if (cause instanceof MaxStepsExceededException) {
-                return cause.getMessage();
+            Throwable cause = exception;
+            while (cause.getCause() != null && cause.getCause() != cause) {
+                cause = cause.getCause();
             }
-            return defaultProcessor.process(exception);
+            String processed;
+            if (cause instanceof MaxStepsExceededException) {
+                processed = cause.getMessage();
+            } else {
+                processed = defaultProcessor.process(exception);
+            }
+
+            String recoveryGuidance = StepCollector.consumePendingRecoveryGuidance();
+            if (recoveryGuidance == null || recoveryGuidance.isBlank()) {
+                return processed;
+            }
+            return processed == null || processed.isBlank()
+                    ? recoveryGuidance
+                    : processed + "\n\n" + recoveryGuidance;
         };
     }
 

@@ -2,6 +2,8 @@ package com.dawn.ai.agent.tools.skill;
 
 import com.dawn.ai.agent.skill.SkillRegistry;
 import com.dawn.ai.agent.skill.SkillResourceException;
+import com.dawn.ai.agent.tools.ToolOutcome;
+import com.dawn.ai.agent.tools.ToolOutcomeStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import lombok.RequiredArgsConstructor;
@@ -43,13 +45,18 @@ public class ReadSkillResourceTool implements Function<ReadSkillResourceTool.Req
             String path,
             String content,
             String error
-    ) {
+    ) implements ToolOutcome {
         public static Response success(String skill, String path, String content) {
             return new Response(skill, path, content, null);
         }
 
         public static Response error(String skill, String path, String message) {
             return new Response(skill, path, null, message);
+        }
+
+        @Override
+        public ToolOutcomeStatus outcomeStatus() {
+            return error == null ? ToolOutcomeStatus.SUCCESS : ToolOutcomeStatus.PERMANENT_FAILURE;
         }
     }
 

@@ -77,11 +77,25 @@ public class DispatchSubAgentTool implements Function<DispatchSubAgentTool.Reque
             long durationMs,
             String failureReason,
             List<AgentStep> subSteps
-    ) implements SubStepProvider {
+    ) implements SubStepProvider, ToolOutcome {
 
         @Override
         public List<AgentStep> getSubSteps() {
             return subSteps == null ? List.of() : subSteps;
+        }
+
+        @Override
+        public ToolOutcomeStatus outcomeStatus() {
+            if (status == null) {
+                return ToolOutcomeStatus.PERMANENT_FAILURE;
+            }
+            return switch (status) {
+                case "SUCCESS" -> ToolOutcomeStatus.SUCCESS;
+                case "PARTIAL_SUCCESS" -> ToolOutcomeStatus.PARTIAL;
+                case "FAILED" -> ToolOutcomeStatus.RETRYABLE_FAILURE;
+                case "REFUSED" -> ToolOutcomeStatus.REFUSED;
+                default -> ToolOutcomeStatus.PERMANENT_FAILURE;
+            };
         }
 
         static Response from(SubAgentResult result) {
@@ -115,11 +129,10 @@ public class DispatchSubAgentTool implements Function<DispatchSubAgentTool.Reque
 
         // P1 止损：检索型子 Agent（白名单含 knowledgeSearchTool）在本会话已多次空检索时拒绝派发。
         // 库中确无相关内容时，再派一轮以检索为主力的 ReAct 也是空转，应让主 Agent 回退到自身知识。
-        // 注：依赖 KnowledgeSearchTool.Response 的 toString 含 "docsFound=0"，二者耦合需同步维护。
         if (definition.get().allowedTools().contains("knowledgeSearchTool")) {
             long emptySearches = StepCollector.collect().stream()
                     .filter(s -> KnowledgeSearchTool.class.getSimpleName().equals(s.toolName()))
-                    .filter(s -> s.toolOutput() != null && s.toolOutput().contains("docsFound=0"))
+                    .filter(s -> ToolOutcomeStatus.EMPTY.stepStatus().equals(s.status()))
                     .count();
             if (emptySearches >= blockAfterEmptySearches) {
                 log.info("[DispatchSubAgentTool] 拒绝派发 type={}：本会话已有 {} 次知识库空检索，库中应无相关内容",

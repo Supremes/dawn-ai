@@ -106,7 +106,7 @@ public class StepCollector {
     // Public API
     // -------------------------------------------------------------------------
 
-    /** Called by {@link ToolExecutionAspect} after each successful tool invocation. */
+    /** Called by {@link ToolExecutionAspect} after every completed or failed tool invocation. */
     public static void record(AgentStep step) {
         StepCollectorContext ctx = CONTEXT.get();
         if (ctx == null) {
@@ -181,11 +181,23 @@ public class StepCollector {
         if (ctx == null || stopThreshold <= 0) {
             return false;
         }
+        if (ctx.bashCircuitOpen.get()) {
+            return true;
+        }
         if (!failedOrEmpty) {
             ctx.bashFailureStreak.set(0);
             return false;
         }
-        return ctx.bashFailureStreak.incrementAndGet() >= stopThreshold;
+        if (ctx.bashFailureStreak.incrementAndGet() < stopThreshold) {
+            return false;
+        }
+        ctx.bashCircuitOpen.set(true);
+        return true;
+    }
+
+    public static boolean isBashCircuitOpen() {
+        StepCollectorContext ctx = CONTEXT.get();
+        return ctx != null && ctx.bashCircuitOpen.get();
     }
 
     // -------------------------------------------------------------------------
@@ -217,15 +229,15 @@ public class StepCollector {
         return ctx != null ? ctx.getToolDescriptions() : null;
     }
 
-    public static int incrementConsecutiveEmpty() {
+    public static int incrementConsecutiveRecoverySignals() {
         StepCollectorContext ctx = CONTEXT.get();
-        return ctx != null ? ctx.incrementConsecutiveEmpty() : 0;
+        return ctx != null ? ctx.incrementConsecutiveRecoverySignals() : 0;
     }
 
-    public static void resetConsecutiveEmpty() {
+    public static void resetConsecutiveRecoverySignals() {
         StepCollectorContext ctx = CONTEXT.get();
         if (ctx != null) {
-            ctx.resetConsecutiveEmpty();
+            ctx.resetConsecutiveRecoverySignals();
         }
     }
 
@@ -239,6 +251,18 @@ public class StepCollector {
         if (ctx != null) {
             ctx.markRePlanTriggered();
         }
+    }
+
+    public static void setPendingRecoveryGuidance(String guidance) {
+        StepCollectorContext ctx = CONTEXT.get();
+        if (ctx != null && guidance != null && !guidance.isBlank()) {
+            ctx.pendingRecoveryGuidance.set(guidance);
+        }
+    }
+
+    public static String consumePendingRecoveryGuidance() {
+        StepCollectorContext ctx = CONTEXT.get();
+        return ctx != null ? ctx.pendingRecoveryGuidance.getAndSet(null) : null;
     }
 
     /** Must be called in a {@code finally} block to prevent ThreadLocal memory leaks. */
