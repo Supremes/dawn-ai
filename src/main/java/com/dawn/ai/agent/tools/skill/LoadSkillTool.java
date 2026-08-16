@@ -4,6 +4,8 @@ import com.dawn.ai.agent.skill.Skill;
 import com.dawn.ai.agent.skill.SkillRegistry;
 import com.dawn.ai.agent.tools.ToolOutcome;
 import com.dawn.ai.agent.tools.ToolOutcomeStatus;
+import com.dawn.ai.config.AiInteractionContext;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import lombok.RequiredArgsConstructor;
@@ -42,8 +44,15 @@ public class LoadSkillTool implements Function<LoadSkillTool.Request, LoadSkillT
             String description,
             String content,
             List<String> availableResources,
-            String error
+            String error,
+            @JsonIgnore ToolOutcomeStatus outcomeStatus
     ) implements ToolOutcome {
+        public Response(String name, String description, String content,
+                        List<String> availableResources, String error) {
+            this(name, description, content, availableResources, error,
+                    error == null ? ToolOutcomeStatus.SUCCESS : ToolOutcomeStatus.PERMANENT_FAILURE);
+        }
+
         public static Response success(Skill skill, List<String> resources) {
             return new Response(
                     skill.manifest().name(),
@@ -59,9 +68,14 @@ public class LoadSkillTool implements Function<LoadSkillTool.Request, LoadSkillT
                     "skill 不存在: " + name + "（请仅从【可用 Skills】清单中选择 name）");
         }
 
-        @Override
-        public ToolOutcomeStatus outcomeStatus() {
-            return error == null ? ToolOutcomeStatus.SUCCESS : ToolOutcomeStatus.PERMANENT_FAILURE;
+        public static Response refused(String name) {
+            return new Response(
+                    name,
+                    null,
+                    null,
+                    List.of(),
+                    "当前 Session 未启用 skill: " + name,
+                    ToolOutcomeStatus.REFUSED);
         }
     }
 
@@ -70,6 +84,10 @@ public class LoadSkillTool implements Function<LoadSkillTool.Request, LoadSkillT
         if (request == null || request.name() == null || request.name().isBlank()) {
             log.warn("[LoadSkillTool] 缺少 name 参数");
             return new Response(null, null, null, List.of(), "缺少必填参数 name");
+        }
+        if (!AiInteractionContext.isSkillEnabled(request.name())) {
+            log.warn("[LoadSkillTool] Session 未启用 skill: {}", request.name());
+            return Response.refused(request.name());
         }
         Optional<Skill> opt = skillRegistry.get(request.name());
         if (opt.isEmpty()) {

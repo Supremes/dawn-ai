@@ -4,14 +4,12 @@ import io.micrometer.context.ThreadLocalAccessor;
 
 /**
  * Bridges Micrometer context propagation with {@link AiInteractionContext} so the
- * sessionId follows reactive pipelines across worker threads (e.g. Reactor's
- * {@code boundedElastic} scheduler used by Spring AI tool callbacks). Without this,
- * embedding/tool calls running on a different thread would log to the
- * {@code "no-session"} bucket and never surface in the per-session UI.
+ * immutable request snapshot follows reactive pipelines across worker threads
+ * (e.g. Reactor's {@code boundedElastic} scheduler used by Spring AI tool callbacks).
  *
  * <p>Registered in {@link AgentConfig#enableReactorContextPropagation()}.
  */
-public class AiInteractionContextAccessor implements ThreadLocalAccessor<String> {
+public class AiInteractionContextAccessor implements ThreadLocalAccessor<AiInteractionContext.State> {
 
     public static final String KEY = "dawn.ai.interactionSession";
 
@@ -21,13 +19,13 @@ public class AiInteractionContextAccessor implements ThreadLocalAccessor<String>
     }
 
     @Override
-    public String getValue() {
-        return AiInteractionContext.getSessionId();
+    public AiInteractionContext.State getValue() {
+        return AiInteractionContext.snapshot();
     }
 
     @Override
-    public void setValue(String value) {
-        AiInteractionContext.setSessionId(value);
+    public void setValue(AiInteractionContext.State value) {
+        AiInteractionContext.restore(value);
     }
 
     @Override

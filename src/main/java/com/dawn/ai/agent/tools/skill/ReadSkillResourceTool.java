@@ -4,6 +4,8 @@ import com.dawn.ai.agent.skill.SkillRegistry;
 import com.dawn.ai.agent.skill.SkillResourceException;
 import com.dawn.ai.agent.tools.ToolOutcome;
 import com.dawn.ai.agent.tools.ToolOutcomeStatus;
+import com.dawn.ai.config.AiInteractionContext;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import lombok.RequiredArgsConstructor;
@@ -44,8 +46,14 @@ public class ReadSkillResourceTool implements Function<ReadSkillResourceTool.Req
             String skill,
             String path,
             String content,
-            String error
+            String error,
+            @JsonIgnore ToolOutcomeStatus outcomeStatus
     ) implements ToolOutcome {
+        public Response(String skill, String path, String content, String error) {
+            this(skill, path, content, error,
+                    error == null ? ToolOutcomeStatus.SUCCESS : ToolOutcomeStatus.PERMANENT_FAILURE);
+        }
+
         public static Response success(String skill, String path, String content) {
             return new Response(skill, path, content, null);
         }
@@ -54,9 +62,13 @@ public class ReadSkillResourceTool implements Function<ReadSkillResourceTool.Req
             return new Response(skill, path, null, message);
         }
 
-        @Override
-        public ToolOutcomeStatus outcomeStatus() {
-            return error == null ? ToolOutcomeStatus.SUCCESS : ToolOutcomeStatus.PERMANENT_FAILURE;
+        public static Response refused(String skill, String path) {
+            return new Response(
+                    skill,
+                    path,
+                    null,
+                    "当前 Session 未启用 skill: " + skill,
+                    ToolOutcomeStatus.REFUSED);
         }
     }
 
@@ -70,6 +82,10 @@ public class ReadSkillResourceTool implements Function<ReadSkillResourceTool.Req
         }
         if (request.path() == null || request.path().isBlank()) {
             return Response.error(request.skill(), null, "缺少必填参数 path");
+        }
+        if (!AiInteractionContext.isSkillEnabled(request.skill())) {
+            log.warn("[ReadSkillResourceTool] Session 未启用 skill: {}", request.skill());
+            return Response.refused(request.skill(), request.path());
         }
         try {
             String content = skillRegistry.readResource(request.skill(), request.path());

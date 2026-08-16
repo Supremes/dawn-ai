@@ -68,9 +68,15 @@ curl -N -X POST http://localhost:8080/api/v1/chat/stream \
   -H "Content-Type: application/json" \
   -d '{
     "message": "What is the weather in Beijing?",
-    "sessionId": "my-session-001"
+    "sessionId": "my-session-001",
+    "enabledTools": ["webTool"],
+    "enabledSkills": []
   }'
 ```
+
+`enabledTools` and `enabledSkills` are optional per-request allowlists. Omit either
+field to use all corresponding server defaults; send an empty array to disable that
+capability type for the current request. The web UI stores both selections per Session.
 
 
 
