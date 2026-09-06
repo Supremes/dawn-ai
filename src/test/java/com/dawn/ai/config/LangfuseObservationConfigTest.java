@@ -26,8 +26,8 @@ class LangfuseObservationConfigTest {
         Observation.Context ctx = newContext();
         filter.map(ctx);
 
-        assertThat(ctx.getLowCardinalityKeyValues())
-                .contains(KeyValue.of("session.id", "sess-123"));
+        assertThat(ctx.getHighCardinalityKeyValues())
+                .contains(KeyValue.of("langfuse.session.id", "sess-123"));
     }
 
     @Test
@@ -37,8 +37,8 @@ class LangfuseObservationConfigTest {
         Observation.Context ctx = newContext();
         filter.map(ctx);
 
-        assertThat(ctx.getLowCardinalityKeyValues())
-                .noneMatch(kv -> kv.getKey().equals("session.id"));
+        assertThat(ctx.getHighCardinalityKeyValues())
+                .noneMatch(kv -> kv.getKey().equals("langfuse.session.id"));
     }
 
     @Test
@@ -49,8 +49,8 @@ class LangfuseObservationConfigTest {
         Observation.Context ctx = newContext();
         filter.map(ctx);
 
-        assertThat(ctx.getLowCardinalityKeyValues())
-                .noneMatch(kv -> kv.getKey().equals("session.id"));
+        assertThat(ctx.getHighCardinalityKeyValues())
+                .noneMatch(kv -> kv.getKey().equals("langfuse.session.id"));
     }
 
     private Observation.Context newContext() {

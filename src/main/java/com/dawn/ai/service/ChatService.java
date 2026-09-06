@@ -7,6 +7,9 @@ import com.dawn.ai.config.AiInteractionLogger;
 import com.dawn.ai.dto.ChatRequest;
 import com.dawn.ai.sse.ChatStreamEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.common.KeyValue;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -32,6 +35,7 @@ public class ChatService {
     private final ExecutorService chatStreamExecutor;
     private final ObjectMapper objectMapper;
     private final AiInteractionLogger aiInteractionLogger;
+    private final ObservationRegistry observationRegistry;
 
     @Value("${spring.ai.openai.chat.options.model:qwen-plus}")
     private String model;
@@ -43,12 +47,14 @@ public class ChatService {
                        AiAvailabilityChecker aiAvailabilityChecker,
                        @Qualifier("chatStreamExecutor") ExecutorService chatStreamExecutor,
                        ObjectMapper objectMapper,
-                       AiInteractionLogger aiInteractionLogger) {
+                       AiInteractionLogger aiInteractionLogger,
+                       ObservationRegistry observationRegistry) {
         this.agentOrchestrator = agentOrchestrator;
         this.aiAvailabilityChecker = aiAvailabilityChecker;
         this.chatStreamExecutor = chatStreamExecutor;
         this.objectMapper = objectMapper;
         this.aiInteractionLogger = aiInteractionLogger;
+        this.observationRegistry = observationRegistry;
     }
 
     private void writeLogicalChatRequest(String sessionId, ChatRequest request, boolean stream) {
@@ -132,6 +138,14 @@ public class ChatService {
         AtomicInteger seqCounter = new AtomicInteger(0);
         AtomicBoolean cancelled = new AtomicBoolean(false);
         String streamId = UUID.randomUUID().toString();
+        Observation agentObservation = Observation.createNotStarted("ai.agent.stream", observationRegistry)
+            .contextualName("agent chat")
+            .highCardinalityKeyValue(KeyValue.of("langfuse.observation.type", "agent"))
+            .highCardinalityKeyValue(KeyValue.of("langfuse.trace.name", "agent-chat"))
+            .highCardinalityKeyValue(KeyValue.of("langfuse.session.id", sessionId))
+            .highCardinalityKeyValue(KeyValue.of("langfuse.observation.input", request.getMessage()))
+            .highCardinalityKeyValue(KeyValue.of("langfuse.trace.input", request.getMessage()))
+            .start();
 
         emitter.onCompletion(() -> cancelled.set(true));
         emitter.onTimeout(() -> {
@@ -153,28 +167,34 @@ public class ChatService {
                         request.getEnabledSkills());
                 long startedAt = System.currentTimeMillis();
                 writeLogicalChatRequest(sessionId, request, true);
-                try {
+                try (Observation.Scope ignored = agentObservation.openScope()) {
                     sendEvent(emitter, ChatStreamEvent.connected(sessionId, streamId), seqCounter);
                     agentOrchestrator.streamChat(sessionId, request.getMessage(), request.getTopicId(),
                             event -> {
                                 sendEvent(emitter, event, seqCounter);
                                 if ("done".equals(event.getEvent())) {
+                                    recordAgentOutput(agentObservation, event.getData());
                                     writeLogicalChatResponse(sessionId, event.getData(),
                                             System.currentTimeMillis() - startedAt);
                                 } else if ("error".equals(event.getEvent())) {
+                                    recordAgentError(agentObservation, event.getData());
                                     writeLogicalChatError(sessionId, event.getData());
                                 }
                             },
                             cancelled::get);
                 } catch (Exception e) {
+                    agentObservation.error(e);
                     log.error("[ChatService] Unexpected error in stream thread, sessionId={}", sessionId, e);
                     sendEvent(emitter, ChatStreamEvent.error(sessionId, "INTERNAL_ERROR", e.getMessage()), seqCounter);
                 } finally {
+                    agentObservation.stop();
                     AiInteractionContext.clear();
                     try { emitter.complete(); } catch (IllegalStateException ignored) {}
                 }
             });
         } catch (RejectedExecutionException e) {
+            agentObservation.error(e);
+            agentObservation.stop();
             log.warn("[ChatService] chatStreamExecutor at capacity, rejecting request, sessionId={}", sessionId);
             sendEvent(emitter, ChatStreamEvent.error(sessionId, "CAPACITY_EXCEEDED",
                     "Server is busy, please retry later"), seqCounter);
@@ -182,6 +202,27 @@ public class ChatService {
         }
 
         return emitter;
+    }
+
+    private void recordAgentOutput(Observation observation, Object doneData) {
+        if (!(doneData instanceof Map<?, ?> data)) {
+            return;
+        }
+        Object answer = data.get("answer");
+        if (answer == null) {
+            return;
+        }
+        String output = String.valueOf(answer);
+        observation.highCardinalityKeyValue(KeyValue.of("langfuse.observation.output", output));
+        observation.highCardinalityKeyValue(KeyValue.of("langfuse.trace.output", output));
+    }
+
+    private void recordAgentError(Observation observation, Object errorData) {
+        String message = "Agent stream failed";
+        if (errorData instanceof Map<?, ?> data && data.get("message") != null) {
+            message = String.valueOf(data.get("message"));
+        }
+        observation.error(new IllegalStateException(message));
     }
 
     private void sendEvent(SseEmitter emitter, ChatStreamEvent event, AtomicInteger seqCounter) {

@@ -1,5 +1,7 @@
 package com.dawn.ai.config;
 
+import io.micrometer.context.ContextSnapshotFactory;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -11,14 +13,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
- * ExecutorService decorator that captures the current
- * {@link AiInteractionContext} sessionId on submission and restores it on the
- * worker thread before the task runs. Use to wrap pools that handle work
- * delegated from a chat thread (e.g. RAG retrieval, embedding lookups) so
- * downstream HTTP interceptors can attribute requests back to the origin
- * session.
+ * ExecutorService decorator that captures the current Micrometer and
+ * {@link AiInteractionContext} state on submission and restores it on the worker
+ * thread before the task runs. Use to wrap pools that handle work delegated from
+ * a chat thread (e.g. RAG retrieval, embedding lookups) so downstream observations
+ * remain children of the originating trace.
  */
 public class SessionAwareExecutor implements ExecutorService {
+
+    private static final ContextSnapshotFactory CONTEXT_SNAPSHOT_FACTORY =
+            ContextSnapshotFactory.builder().build();
 
     private final ExecutorService delegate;
 
@@ -28,22 +32,22 @@ public class SessionAwareExecutor implements ExecutorService {
 
     @Override
     public void execute(Runnable command) {
-        delegate.execute(AiInteractionContext.wrap(command));
+        delegate.execute(wrap(command));
     }
 
     @Override
     public Future<?> submit(Runnable task) {
-        return delegate.submit(AiInteractionContext.wrap(task));
+        return delegate.submit(wrap(task));
     }
 
     @Override
     public <T> Future<T> submit(Runnable task, T result) {
-        return delegate.submit(AiInteractionContext.wrap(task), result);
+        return delegate.submit(wrap(task), result);
     }
 
     @Override
     public <T> Future<T> submit(Callable<T> task) {
-        return delegate.submit(AiInteractionContext.wrap(task));
+        return delegate.submit(wrap(task));
     }
 
     @Override
@@ -70,7 +74,15 @@ public class SessionAwareExecutor implements ExecutorService {
     }
 
     private <T> Collection<? extends Callable<T>> wrapAll(Collection<? extends Callable<T>> tasks) {
-        return tasks.stream().map(AiInteractionContext::wrap).collect(Collectors.toList());
+        return tasks.stream().map(this::wrap).collect(Collectors.toList());
+    }
+
+    private Runnable wrap(Runnable task) {
+        return CONTEXT_SNAPSHOT_FACTORY.captureAll().wrap(AiInteractionContext.wrap(task));
+    }
+
+    private <T> Callable<T> wrap(Callable<T> task) {
+        return CONTEXT_SNAPSHOT_FACTORY.captureAll().wrap(AiInteractionContext.wrap(task));
     }
 
     @Override
