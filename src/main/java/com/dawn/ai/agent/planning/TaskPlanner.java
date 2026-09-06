@@ -37,9 +37,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class TaskPlanner {
 
-    public record PlannerResult(List<PlanStep> steps, String reasoningContent) {
+    public record PlannerResult(List<PlanStep> steps, String reasoningContent, boolean generated) {
         public static PlannerResult empty() {
-            return new PlannerResult(List.of(), null);
+            return new PlannerResult(List.of(), null, false);
         }
     }
 
@@ -95,7 +95,7 @@ public class TaskPlanner {
             log.debug("[TaskPlanner] Generated {} steps for task: {}", plan.size(),
                     task.substring(0, Math.min(50, task.length())));
             successCounter.increment();
-            return new PlannerResult(plan, reasoningContent);
+            return new PlannerResult(plan, reasoningContent, true);
         } catch (PlanGenerationException exception) {
             parseErrorCounter.increment();
             throw exception;
@@ -126,16 +126,16 @@ public class TaskPlanner {
             : "- knowledgeSearchTool 当前不可用，不要规划知识库检索步骤。";
 
         return """
-                你是一个任务规划助手。请分析用户的任务，并生成一个 1-5 步的执行计划。
+                你是一个任务规划助手。请分析用户的任务，并生成一个 0-4 步的工具调用计划。
 
                 可用工具：
                 %s
 
                 业务约束：
-                - action 只能从上方可用工具中选择，最后一步固定为 "finish"
+                - 每个 action 都必须是上方列出的真实工具，不要添加任何非工具步骤
                 - reason 使用中文，简短说明为什么要执行该步骤
                 - 任务凭常识或你自身知识就能准确回答时（如解释广为人知的库 / 注解 / 概念 / 术语），
-                  不要规划任何工具调用，直接输出单步 "finish"；工具仅用于自身知识不足、需查外部信息时。
+                  不要规划任何工具调用，直接输出空数组 []；工具仅用于自身知识不足、需查外部信息时。
                                 - 用户询问“最新 / 当前 / current / recent / 官方 / 网上查询 / 发布日期 / 版本号 / 新闻 / 价格 / 状态”等公共外部信息时，优先规划 webTool。
                                 - 用户询问本项目、内部文档、已上传资料、知识库内容、私有业务背景时，才规划 knowledgeSearchTool。
                                 - 不要因为问题属于技术领域就默认规划 knowledgeSearchTool；公共技术事实、开源项目最新版本、官方文档优先使用 webTool。
@@ -226,19 +226,14 @@ public class TaskPlanner {
     }
 
     private void validatePlan(List<PlanStep> plan, Set<String> toolNames) {
-        if (plan == null || plan.isEmpty()) {
-            throw new PlanGenerationException("Planner returned an empty plan.");
+        if (plan == null) {
+            throw new PlanGenerationException("Planner returned null.");
         }
 
         for (PlanStep step : plan) {
-            if (!"finish".equals(step.action()) && !toolNames.contains(step.action())) {
+            if (!toolNames.contains(step.action())) {
                 throw new PlanGenerationException("Planner returned an unknown tool action: " + step.action());
             }
-        }
-
-        PlanStep lastStep = plan.get(plan.size() - 1);
-        if (!"finish".equals(lastStep.action())) {
-            throw new PlanGenerationException("Planner plan must end with finish.");
         }
     }
 
@@ -269,11 +264,10 @@ public class TaskPlanner {
                 前几步工具调用未获得有效结果，需要调整后续策略。
                 可用工具：%s
 
-                请输出调整后的执行建议（1-3步），格式为：
-                步骤N: [工具名] 原因
-                最后一步必须是: [finish] 综合信息回答
-
-                如果已有足够信息回答，直接建议 finish。""",
+                请输出调整后的执行建议：
+                - 如果仍需调用工具，给出 1-3 个步骤，格式为：步骤N: [工具名] 原因
+                - 步骤中的工具名必须来自上方可用工具，不要添加任何非工具步骤
+                - 如果已有足够信息回答，直接建议停止调用工具并回答用户。""",
                 userMessage, stepsHistory, String.join(", ", toolDescriptions));
 
         try {

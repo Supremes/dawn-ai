@@ -46,22 +46,32 @@ class TaskPlannerTest {
     void shouldParsePlanWithBeanOutputConverter() {
       when(callResponseSpec.chatResponse()).thenReturn(chatResponse("""
         [
-          {"step": 1, "action": "weatherTool", "reason": "先查询天气"},
-          {"step": 2, "action": "finish", "reason": "完成任务"}
+          {"step": 1, "action": "weatherTool", "reason": "先查询天气"}
         ]
         """));
 
       var plan = taskPlanner.plan("帮我看天气", Map.of("weatherTool", "查询天气"), "");
 
-      assertThat(plan.steps()).hasSize(2);
+      assertThat(plan.steps()).hasSize(1);
       assertThat(plan.steps().get(0).step()).isEqualTo(1);
       assertThat(plan.steps().get(0).action()).isEqualTo("weatherTool");
-      assertThat(plan.steps().get(1).action()).isEqualTo("finish");
       assertThat(plan.reasoningContent()).isNull();
+      assertThat(plan.generated()).isTrue();
 
         ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
         verify(requestSpec).user(promptCaptor.capture());
         assertThat(promptCaptor.getValue()).doesNotContain("严格以 JSON 数组格式返回");
+        assertThat(promptCaptor.getValue()).contains("直接输出空数组 []");
+    }
+
+    @Test
+    void shouldAllowEmptyPlanForDirectAnswer() {
+      when(callResponseSpec.chatResponse()).thenReturn(chatResponse("[]"));
+
+      var plan = taskPlanner.plan("解释依赖注入", Map.of("weatherTool", "查询天气"), "");
+
+      assertThat(plan.steps()).isEmpty();
+      assertThat(plan.generated()).isTrue();
     }
 
     @Test
@@ -77,8 +87,7 @@ class TaskPlannerTest {
     void shouldThrowWhenRequiredPlanFieldIsMissing() {
       when(callResponseSpec.chatResponse()).thenReturn(chatResponse("""
         [
-          {"action": "weatherTool", "reason": "先查询天气"},
-          {"step": 2, "action": "finish", "reason": "完成任务"}
+          {"action": "weatherTool", "reason": "先查询天气"}
         ]
         """));
 
