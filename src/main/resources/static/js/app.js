@@ -2,6 +2,7 @@
 
 const API = {
     chatStream: '/api/v1/chat/stream',
+    chatCapabilities: '/api/v1/chat/capabilities',
     ragIngest: '/api/v1/rag/ingest',
     ragSearch: '/api/v1/rag/search',
     ragCategories: '/api/v1/rag/categories',
@@ -207,10 +208,17 @@ const chatStore = {
         try { localStorage.setItem(SESSIONS_KEY, JSON.stringify(idx)); }
         catch { /* quota */ }
     },
-    saveSession(sessionId, topicId) {
+    saveSession(sessionId, topicId, capabilities) {
         const idx = this._readIndex();
         if (!idx.find(s => s.id === sessionId)) {
-            idx.unshift({ id: sessionId, topicId: topicId || '', createdAt: Date.now(), preview: '' });
+            idx.unshift({
+                id: sessionId,
+                topicId: topicId || '',
+                enabledTools: capabilities?.enabledTools ?? null,
+                enabledSkills: capabilities?.enabledSkills ?? null,
+                createdAt: Date.now(),
+                preview: '',
+            });
             while (idx.length > MAX_SESSIONS) {
                 const old = idx.pop();
                 try { localStorage.removeItem('dawn-chat-' + old.id); } catch {}
@@ -230,6 +238,14 @@ const chatStore = {
         const idx = this._readIndex();
         const s = idx.find(s => s.id === sessionId);
         if (s) { s.topicId = topicId || ''; this._writeIndex(idx); }
+    },
+    updateSessionCapabilities(sessionId, capabilities) {
+        const idx = this._readIndex();
+        const session = idx.find(s => s.id === sessionId);
+        if (!session) return;
+        session.enabledTools = capabilities.enabledTools;
+        session.enabledSkills = capabilities.enabledSkills;
+        this._writeIndex(idx);
     },
     pushMessage(sessionId, msg) {
         const key = 'dawn-chat-' + sessionId;
@@ -259,6 +275,9 @@ const state = {
     isLoading: false,
     streamMode: true,  // default to SSE streaming
     knowledgeUploadFile: null,
+    capabilityCatalog: { tools: [], skills: [] },
+    enabledTools: null,
+    enabledSkills: null,
 };
 
 // ===== DOM References =====
@@ -275,6 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initDashboard();
     initInteractionLogLink();
     restoreOrNewSession();
+    refreshCapabilities();
     refreshTopics();
     refreshCategories();
 });
@@ -311,6 +331,112 @@ async function refreshCategories() {
     } catch (err) {
         // Non-blocking: category suggestions are optional
     }
+}
+
+// ===== Session capabilities =====
+async function refreshCapabilities() {
+    try {
+        const res = await fetch(API.chatCapabilities);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        state.capabilityCatalog = {
+            tools: Array.isArray(data.tools) ? data.tools : [],
+            skills: Array.isArray(data.skills) ? data.skills : [],
+        };
+        normalizeCapabilitySelections();
+        renderCapabilitySelector();
+    } catch (err) {
+        const summary = $('#capabilitySummary');
+        if (summary) summary.textContent = 'Server defaults';
+        const tools = $('#toolCapabilityList');
+        const skills = $('#skillCapabilityList');
+        if (tools) tools.innerHTML = '<span class="capability-empty">Capability catalog unavailable</span>';
+        if (skills) skills.innerHTML = '<span class="capability-empty">Capability catalog unavailable</span>';
+    }
+}
+
+function normalizeCapabilitySelections() {
+    const toolNames = new Set(state.capabilityCatalog.tools.map(item => item.name));
+    const skillNames = new Set(state.capabilityCatalog.skills.map(item => item.name));
+    if (Array.isArray(state.enabledTools)) {
+        state.enabledTools = state.enabledTools.filter(name => toolNames.has(name));
+    }
+    if (Array.isArray(state.enabledSkills)) {
+        state.enabledSkills = state.enabledSkills.filter(name => skillNames.has(name));
+    }
+}
+
+function defaultCapabilityNames(kind) {
+    return state.capabilityCatalog[kind]
+        .filter(item => item.defaultEnabled)
+        .map(item => item.name);
+}
+
+function enabledCapabilityNames(kind) {
+    const stateKey = kind === 'tools' ? 'enabledTools' : 'enabledSkills';
+    if (Array.isArray(state[stateKey])) return [...state[stateKey]];
+    if (state.capabilityCatalog[kind].length === 0) return null;
+    return defaultCapabilityNames(kind);
+}
+
+function currentCapabilitySelection() {
+    return {
+        enabledTools: enabledCapabilityNames('tools'),
+        enabledSkills: enabledCapabilityNames('skills'),
+    };
+}
+
+function renderCapabilitySelector() {
+    renderCapabilityGroup('tools', '#toolCapabilityList');
+    renderCapabilityGroup('skills', '#skillCapabilityList');
+    updateCapabilitySummary();
+}
+
+function renderCapabilityGroup(kind, selector) {
+    const container = $(selector);
+    if (!container) return;
+    const catalog = state.capabilityCatalog[kind];
+    if (catalog.length === 0) {
+        container.innerHTML = `<span class="capability-empty">No ${kind} available</span>`;
+        return;
+    }
+
+    const selected = new Set(enabledCapabilityNames(kind) || []);
+    container.innerHTML = catalog.map(item => `
+        <label class="capability-option" title="${escapeHtml(item.description || '')}">
+            <input type="checkbox"
+                   data-capability-kind="${kind}"
+                   data-capability-name="${escapeHtml(item.name)}"
+                   ${selected.has(item.name) ? 'checked' : ''}>
+            <span>
+                <strong>${escapeHtml(item.name)}</strong>
+                <small>${escapeHtml(item.description || '')}</small>
+            </span>
+        </label>
+    `).join('');
+
+    container.querySelectorAll('input[type="checkbox"]').forEach(input => {
+        input.addEventListener('change', () => {
+            const stateKey = kind === 'tools' ? 'enabledTools' : 'enabledSkills';
+            state[stateKey] = [...container.querySelectorAll('input[type="checkbox"]:checked')]
+                .map(item => item.dataset.capabilityName);
+            const selection = currentCapabilitySelection();
+            chatStore.updateSessionCapabilities(state.sessionId, selection);
+            updateCapabilitySummary();
+        });
+    });
+}
+
+function updateCapabilitySummary() {
+    const summary = $('#capabilitySummary');
+    if (!summary) return;
+    const tools = enabledCapabilityNames('tools');
+    const skills = enabledCapabilityNames('skills');
+    if (tools == null || skills == null) {
+        summary.textContent = 'Server defaults';
+        return;
+    }
+    summary.textContent = `${tools.length} tools · ${skills.length} skills`;
 }
 
 // ===== Navigation =====
@@ -421,10 +547,16 @@ function loadSession(sessionId) {
     state.sessionId = sessionId;
     $('#sessionId').textContent = sessionId;
 
-    if (sessionMeta && sessionMeta.topicId) {
-        const topicEl = $('#chatTopic');
-        if (topicEl) topicEl.value = sessionMeta.topicId;
-    }
+    const topicEl = $('#chatTopic');
+    if (topicEl) topicEl.value = sessionMeta?.topicId || '';
+    state.enabledTools = Array.isArray(sessionMeta?.enabledTools)
+        ? [...sessionMeta.enabledTools]
+        : null;
+    state.enabledSkills = Array.isArray(sessionMeta?.enabledSkills)
+        ? [...sessionMeta.enabledSkills]
+        : null;
+    normalizeCapabilitySelections();
+    renderCapabilitySelector();
 
     const container = $('#chatMessages');
     container.innerHTML = '';
@@ -527,6 +659,9 @@ function newSession() {
     $('#sessionId').textContent = state.sessionId;
     const topicEl = $('#chatTopic');
     if (topicEl) topicEl.value = '';
+    state.enabledTools = null;
+    state.enabledSkills = null;
+    renderCapabilitySelector();
 
     const messages = $('#chatMessages');
     messages.innerHTML = `
@@ -548,6 +683,8 @@ async function sendMessage() {
     $('#sendBtn').disabled = true;
 
     const requestSessionId = state.sessionId;
+    const requestTopicId = getChatTopicId();
+    const requestCapabilities = currentCapabilitySelection();
 
     // Remove welcome message
     const welcome = $('#chatMessages .welcome-message');
@@ -555,7 +692,8 @@ async function sendMessage() {
 
     // Add user message
     appendMessage('user', message);
-    chatStore.saveSession(requestSessionId, getChatTopicId());
+    chatStore.saveSession(requestSessionId, requestTopicId, requestCapabilities);
+    chatStore.updateSessionCapabilities(requestSessionId, requestCapabilities);
     chatStore.pushMessage(requestSessionId, { role: 'user', content: message });
     chatStore.updateSessionPreview(requestSessionId, message);
     renderSessionList();
@@ -563,9 +701,17 @@ async function sendMessage() {
     input.style.height = 'auto';
 
     if (state.streamMode) {
-        await sendMessageStream(message, requestSessionId);
+        await sendMessageStream(
+            message,
+            requestSessionId,
+            requestTopicId,
+            requestCapabilities);
     } else {
-        await sendMessageSync(message, requestSessionId);
+        await sendMessageSync(
+            message,
+            requestSessionId,
+            requestTopicId,
+            requestCapabilities);
     }
 
     if (state.sessionId === requestSessionId) {
@@ -575,7 +721,7 @@ async function sendMessage() {
     }
 }
 
-async function sendMessageStream(message, requestSessionId) {
+async function sendMessageStream(message, requestSessionId, requestTopicId, requestCapabilities) {
     const typingEl = showTyping();
     const assistantDiv = createAssistantPlaceholder();
     let accumulatedContent = '';
@@ -587,7 +733,9 @@ async function sendMessageStream(message, requestSessionId) {
             body: JSON.stringify({
                 message,
                 sessionId: requestSessionId,
-                topicId: getChatTopicId(),
+                topicId: requestTopicId,
+                enabledTools: requestCapabilities.enabledTools,
+                enabledSkills: requestCapabilities.enabledSkills,
             }),
         });
 
@@ -710,12 +858,21 @@ function handleStreamEvent(type, envelope, assistantDiv) {
                 tracePanel.className = 'stream-trace';
                 assistantDiv.appendChild(tracePanel);
             }
+            const statusMeta = {
+                success: { className: 'success', label: '成功' },
+                empty: { className: 'empty', label: '无结果' },
+                retryable_failure: { className: 'failure', label: '可重试失败' },
+                permanent_failure: { className: 'failure', label: '失败' },
+                refused: { className: 'refused', label: '已拒绝' },
+                partial: { className: 'partial', label: '部分完成' },
+            }[data.status] || { className: 'unknown', label: data.status || '未知' };
             const stepEl = document.createElement('div');
             stepEl.className = 'step-item';
             stepEl.innerHTML = `
                 <div class="step-header">
                     <span class="step-number">${data.stepNumber}</span>
                     <span class="step-tool">${escapeHtml(data.toolName || '')}</span>
+                    <span class="step-status step-status-${statusMeta.className}">${escapeHtml(statusMeta.label)}</span>
                     <span class="step-duration">${data.durationMs || 0}ms</span>
                 </div>
             `;
@@ -870,7 +1027,7 @@ function finaliseAssistantMessage(div, meta, requestSessionId) {
     $('#chatMessages').scrollTop = $('#chatMessages').scrollHeight;
 }
 
-async function sendMessageSync(message, requestSessionId) {
+async function sendMessageSync(message, requestSessionId, requestTopicId, requestCapabilities) {
     const typingEl = showTyping();
 
     try {
@@ -880,7 +1037,9 @@ async function sendMessageSync(message, requestSessionId) {
             body: JSON.stringify({
                 message: message,
                 sessionId: requestSessionId,
-                topicId: getChatTopicId(),
+                topicId: requestTopicId,
+                enabledTools: requestCapabilities.enabledTools,
+                enabledSkills: requestCapabilities.enabledSkills,
             }),
         });
 

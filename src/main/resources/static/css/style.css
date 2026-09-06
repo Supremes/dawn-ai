@@ -735,6 +735,19 @@ code {
     font-size: 15px;
     color: var(--accent);
 }
+.step-status {
+    padding: 1px 6px;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    font-size: 10px;
+    line-height: 1.5;
+}
+.step-status-success { color: var(--success); }
+.step-status-empty,
+.step-status-partial,
+.step-status-refused { color: var(--warning); }
+.step-status-failure { color: var(--danger); }
+.step-status-unknown { color: var(--text-tertiary); }
 .step-duration {
     margin-left: auto;
     color: var(--text-tertiary);
@@ -789,6 +802,98 @@ code {
     margin: 0 auto;
     padding: 16px 28px 28px;
     background: var(--bg-secondary);
+}
+.capability-selector {
+    margin-bottom: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background: var(--bg-primary);
+    box-shadow: var(--shadow-sm);
+}
+.capability-selector summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 14px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+}
+.capability-summary {
+    color: var(--text-tertiary);
+    font-size: 11px;
+}
+.capability-content {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    padding: 4px 14px 10px;
+    border-top: 1px solid var(--border-soft);
+}
+.capability-group h4 {
+    margin: 8px 0 6px;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.capability-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 180px;
+    overflow-y: auto;
+}
+.capability-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: var(--radius);
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+.capability-option:hover {
+    background: var(--bg-tertiary);
+}
+.capability-option input {
+    margin-top: 3px;
+    accent-color: var(--accent);
+}
+.capability-option span {
+    min-width: 0;
+}
+.capability-option strong,
+.capability-option small {
+    display: block;
+}
+.capability-option strong {
+    color: var(--text-primary);
+    font-family: var(--font-code);
+    font-size: 12px;
+    font-weight: 400;
+}
+.capability-option small {
+    margin-top: 1px;
+    overflow: hidden;
+    color: var(--text-tertiary);
+    font-size: 11px;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.capability-empty,
+.capability-hint {
+    color: var(--text-tertiary);
+    font-size: 11px;
+}
+.capability-hint {
+    margin: 0;
+    padding: 0 14px 10px;
 }
 .input-wrapper {
     display: flex;
@@ -1312,6 +1417,9 @@ code {
         max-width: 94%;
     }
     .form-row {
+        grid-template-columns: 1fr;
+    }
+    .capability-content {
         grid-template-columns: 1fr;
     }
     .tabs {

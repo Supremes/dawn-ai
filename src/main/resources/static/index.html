@@ -95,6 +95,27 @@
                         </div>
                     </div>
                     <div class="chat-input-area">
+                        <details class="capability-selector" id="capabilitySelector">
+                            <summary>
+                                <span>Session Tools &amp; Skills</span>
+                                <span class="capability-summary" id="capabilitySummary">Loading...</span>
+                            </summary>
+                            <div class="capability-content">
+                                <section class="capability-group">
+                                    <h4>Tools</h4>
+                                    <div class="capability-list" id="toolCapabilityList">
+                                        <span class="capability-empty">Loading...</span>
+                                    </div>
+                                </section>
+                                <section class="capability-group">
+                                    <h4>Skills</h4>
+                                    <div class="capability-list" id="skillCapabilityList">
+                                        <span class="capability-empty">Loading...</span>
+                                    </div>
+                                </section>
+                            </div>
+                            <p class="capability-hint">Selections are stored per Session and apply to the next message.</p>
+                        </details>
                         <div class="input-wrapper">
                             <textarea id="chatInput" placeholder="Type your message..." rows="1"></textarea>
                             <button class="send-btn" id="sendBtn" title="Send (Cmd/Ctrl+Enter)">

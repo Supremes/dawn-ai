@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -31,6 +32,8 @@ import java.util.function.Function;
 public class ToolRegistry {
 
     private static final String TOOLS_PACKAGE = "com.dawn.ai.agent.tools";
+    public static final Set<String> INTERNAL_TOOL_NAMES =
+            Set.of("loadSkillTool", "readSkillResourceTool");
 
     private final ApplicationContext applicationContext;
 

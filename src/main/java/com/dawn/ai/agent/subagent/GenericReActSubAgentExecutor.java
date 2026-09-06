@@ -1,5 +1,6 @@
 package com.dawn.ai.agent.subagent;
 
+import com.dawn.ai.agent.registry.ToolRegistry;
 import com.dawn.ai.agent.skill.Skill;
 import com.dawn.ai.agent.skill.SkillRegistry;
 import com.dawn.ai.agent.trace.AgentStep;
@@ -20,8 +21,10 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -208,10 +211,15 @@ public class GenericReActSubAgentExecutor implements SubAgentExecutor {
         StepCollectorContext previous = StepCollector.snapshotContext();
         StepCollector.adoptContext(subCtx);
         try {
+            List<Skill> enabledSkills = resolveEnabledSkills();
+            Set<String> effectiveTools = resolveEffectiveTools(def, enabledSkills);
             ChatClient.ChatClientRequestSpec spec = chatClient.prompt()
-                    .system(def.systemPrompt() + formatSkills())
-                    .user(task)
-                    .toolNames(def.allowedTools().toArray(String[]::new));
+                    .system(def.systemPrompt() + formatSkills(enabledSkills))
+                    .user(task);
+
+            if (!effectiveTools.isEmpty()) {
+                spec = spec.toolNames(effectiveTools.toArray(String[]::new));
+            }
 
             if (def.modelOverride() != null || def.temperatureOverride() != null) {
                 OpenAiChatOptions.Builder ob = OpenAiChatOptions.builder();
@@ -230,9 +238,33 @@ public class GenericReActSubAgentExecutor implements SubAgentExecutor {
         }
     }
 
-    private String formatSkills() {
-        Collection<Skill> all = skillRegistry.list();
-        if (all.isEmpty()) {
+    private List<Skill> resolveEnabledSkills() {
+        Collection<Skill> registered = skillRegistry.list();
+        if (registered == null || registered.isEmpty()) {
+            return List.of();
+        }
+        return registered.stream()
+                .filter(skill -> AiInteractionContext.isSkillEnabled(skill.manifest().name()))
+                .toList();
+    }
+
+    private Set<String> resolveEffectiveTools(SubAgentDefinition definition,
+                                              Collection<Skill> enabledSkills) {
+        Set<String> effective = new LinkedHashSet<>();
+        for (String toolName : definition.allowedTools()) {
+            if (ToolRegistry.INTERNAL_TOOL_NAMES.contains(toolName)) {
+                if (!enabledSkills.isEmpty()) {
+                    effective.add(toolName);
+                }
+            } else if (AiInteractionContext.isToolEnabled(toolName)) {
+                effective.add(toolName);
+            }
+        }
+        return effective;
+    }
+
+    private String formatSkills(Collection<Skill> enabledSkills) {
+        if (enabledSkills.isEmpty()) {
             return "\n\n## 可用 Skills\n当前没有可用 Skills；不要调用 loadSkillTool 或 readSkillResourceTool。";
         }
         StringBuilder sb = new StringBuilder("\n\n## 可用 Skills\n")
@@ -240,7 +272,7 @@ public class GenericReActSubAgentExecutor implements SubAgentExecutor {
                 .append("才调用 `loadSkillTool(name)` 加载完整指令；")
                 .append("需要 skill 的内嵌资源时调用 `readSkillResourceTool(skill, path)`。")
                 .append("只能使用下方列出的 skill name，不要发明或猜测不存在的 skill。\n\n");
-        for (Skill skill : all) {
+        for (Skill skill : enabledSkills) {
             sb.append("- **").append(skill.manifest().name()).append("**: ")
                     .append(skill.manifest().description()).append("\n");
         }

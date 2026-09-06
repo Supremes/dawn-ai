@@ -257,9 +257,7 @@ public class TaskPlanner {
                 .map(s -> String.format("步骤%d: [%s] → %s",
                         s.stepNumber(),
                         s.toolName(),
-                        "success".equals(s.status()) && s.toolOutput() != null && !s.toolOutput().isBlank()
-                                ? "成功（摘要：" + s.toolOutput().substring(0, Math.min(100, s.toolOutput().length())) + "...）"
-                                : "无有效结果"))
+                        formatStepOutcome(s)))
                 .collect(Collectors.joining("\n"));
 
         String prompt = String.format("""
@@ -290,5 +288,17 @@ public class TaskPlanner {
             log.warn("[TaskPlanner] Re-plan failed: {}", e.getMessage());
             return null;
         }
+    }
+
+    private String formatStepOutcome(AgentStep step) {
+        String output = step.toolOutput();
+        String summary = output == null || output.isBlank()
+                ? "无输出"
+                : output.substring(0, Math.min(100, output.length()))
+                    + (output.length() > 100 ? "..." : "");
+        if ("success".equals(step.status()) || "partial".equals(step.status())) {
+            return "有效结果（status=" + step.status() + "，摘要：" + summary + "）";
+        }
+        return "未获得有效结果（status=" + step.status() + "，摘要：" + summary + "）";
     }
 }

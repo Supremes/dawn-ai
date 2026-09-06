@@ -15,6 +15,8 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
@@ -51,13 +53,17 @@ public class ChatService {
 
     private void writeLogicalChatRequest(String sessionId, ChatRequest request, boolean stream) {
         try {
-            String body = objectMapper.writeValueAsString(java.util.Map.of(
-                    "model", model,
-                    "stream", stream,
-                    "userMessage", request.getMessage(),
-                    "topicId", request.getTopicId() == null ? "" : request.getTopicId(),
-                    "sessionId", sessionId
-            ));
+            Map<String, Object> logicalRequest = new LinkedHashMap<>();
+            logicalRequest.put("model", model);
+            logicalRequest.put("stream", stream);
+            logicalRequest.put("userMessage", request.getMessage());
+            logicalRequest.put("topicId", request.getTopicId() == null ? "" : request.getTopicId());
+            logicalRequest.put("sessionId", sessionId);
+            logicalRequest.put("enabledTools",
+                    request.getEnabledTools() == null ? "server-default" : request.getEnabledTools());
+            logicalRequest.put("enabledSkills",
+                    request.getEnabledSkills() == null ? "server-default" : request.getEnabledSkills());
+            String body = objectMapper.writeValueAsString(logicalRequest);
             String label = "Stream chat → " + truncate(request.getMessage(), 80);
             aiInteractionLogger.logLogical(sessionId, "request", label, body, null);
         } catch (Exception e) {
@@ -141,7 +147,10 @@ public class ChatService {
 
         try {
             chatStreamExecutor.execute(() -> {
-                AiInteractionContext.setSessionId(sessionId);
+                AiInteractionContext.set(
+                        sessionId,
+                        request.getEnabledTools(),
+                        request.getEnabledSkills());
                 long startedAt = System.currentTimeMillis();
                 writeLogicalChatRequest(sessionId, request, true);
                 try {

@@ -1,5 +1,6 @@
 package com.dawn.ai.agent.tools;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -12,6 +13,8 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
@@ -78,44 +81,73 @@ public class WebTool implements Function<WebTool.Request, WebTool.Response> {
     public record Response(
             List<SearchResult> results,
             String extractedContent,
-            String error
-    ) {
+            String error,
+            @JsonIgnore ToolOutcomeStatus outcomeStatus
+    ) implements ToolOutcome {
         static Response searchOk(List<SearchResult> results) {
-            return new Response(results, null, null);
+            ToolOutcomeStatus status = results == null || results.isEmpty()
+                    ? ToolOutcomeStatus.EMPTY
+                    : ToolOutcomeStatus.SUCCESS;
+            return new Response(results, null, null, status);
         }
 
         static Response extractOk(String content) {
-            return new Response(null, content, null);
+            ToolOutcomeStatus status = content == null || content.isBlank()
+                    ? ToolOutcomeStatus.EMPTY
+                    : ToolOutcomeStatus.SUCCESS;
+            return new Response(null, content, null, status);
         }
 
-        static Response fail(String error) {
-            return new Response(null, null, error);
+        static Response permanentFailure(String error) {
+            return new Response(null, null, error, ToolOutcomeStatus.PERMANENT_FAILURE);
+        }
+
+        static Response retryableFailure(String error) {
+            return new Response(null, null, error, ToolOutcomeStatus.RETRYABLE_FAILURE);
+        }
+
+        static Response empty(String message) {
+            return new Response(null, null, message, ToolOutcomeStatus.EMPTY);
+        }
+
+        @Override
+        public boolean safeToRetry() {
+            return outcomeStatus == ToolOutcomeStatus.RETRYABLE_FAILURE;
         }
     }
 
     @Override
     public Response apply(Request req) {
         if (apiKey == null || apiKey.isBlank()) {
-            return Response.fail("Tavily API Key 未配置。请设置环境变量 TAVILY_API_KEY 或配置 app.tools.tavily.api-key。");
+            return Response.permanentFailure("Tavily API Key 未配置。请设置环境变量 TAVILY_API_KEY 或配置 app.tools.tavily.api-key。");
         }
 
         if (req.mode() == null || req.mode().isBlank()) {
-            return Response.fail("缺少 mode 参数，请指定 'search' 或 'extract'。");
+            return Response.permanentFailure("缺少 mode 参数，请指定 'search' 或 'extract'。");
         }
 
         if (req.query() == null || req.query().isBlank()) {
-            return Response.fail("缺少 query 参数。");
+            return Response.permanentFailure("缺少 query 参数。");
         }
 
         try {
             return switch (req.mode().toLowerCase()) {
                 case "search" -> doSearch(req);
                 case "extract" -> doExtract(req);
-                default -> Response.fail("未知 mode: " + req.mode() + "。请使用 'search' 或 'extract'。");
+                default -> Response.permanentFailure("未知 mode: " + req.mode() + "。请使用 'search' 或 'extract'。");
             };
+        } catch (HttpStatusCodeException e) {
+            log.error("[WebTool] {} 失败: HTTP {} {}", req.mode(), e.getStatusCode().value(), e.getMessage());
+            int status = e.getStatusCode().value();
+            return status == 429 || status >= 500
+                    ? Response.retryableFailure(req.mode() + " 失败: " + e.getMessage())
+                    : Response.permanentFailure(req.mode() + " 失败: " + e.getMessage());
+        } catch (ResourceAccessException e) {
+            log.error("[WebTool] {} 失败: {}", req.mode(), e.getMessage());
+            return Response.retryableFailure(req.mode() + " 失败: " + e.getMessage());
         } catch (Exception e) {
             log.error("[WebTool] {} 失败: {}", req.mode(), e.getMessage());
-            return Response.fail(req.mode() + " 失败: " + e.getMessage());
+            return Response.permanentFailure(req.mode() + " 失败: " + e.getMessage());
         }
     }
 
@@ -173,7 +205,7 @@ public class WebTool implements Function<WebTool.Request, WebTool.Response> {
             log.debug("[WebTool] search 返回 {} 条结果", list.size());
             return Response.searchOk(list);
         } catch (Exception e) {
-            return Response.fail("解析搜索结果失败: " + e.getMessage());
+            return Response.permanentFailure("解析搜索结果失败: " + e.getMessage());
         }
     }
 
@@ -200,12 +232,12 @@ public class WebTool implements Function<WebTool.Request, WebTool.Response> {
             if (failed.isArray() && !failed.isEmpty()) {
                 String failUrl = failed.get(0).path("url").asText("");
                 String failError = failed.get(0).path("error").asText("未知错误");
-                return Response.fail("提取失败 [" + failUrl + "]: " + failError);
+                return Response.retryableFailure("提取失败 [" + failUrl + "]: " + failError);
             }
 
-            return Response.fail("未能提取到网页内容");
+            return Response.empty("未能提取到网页内容");
         } catch (Exception e) {
-            return Response.fail("解析提取结果失败: " + e.getMessage());
+            return Response.permanentFailure("解析提取结果失败: " + e.getMessage());
         }
     }
 }
