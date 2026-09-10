@@ -266,7 +266,8 @@ public class AgentOrchestrator {
                     topicId,
                     userMessage,
                     enabledToolNames,
-                    enabledSkills) + preSearchSection;
+                    enabledSkills,
+                    plannerResult.generated()) + preSearchSection;
 
             // 添加历史对话到上下文
             List<Message> history = buildHistory(sessionId);
@@ -490,7 +491,8 @@ public class AgentOrchestrator {
             """;
 
     private String buildSystemPrompt(List<PlanStep> plan, String topicId, String userQuery,
-                                     Set<String> enabledToolNames, Collection<Skill> enabledSkills) {
+                                     Set<String> enabledToolNames, Collection<Skill> enabledSkills,
+                                     boolean plannerGenerated) {
         String profileSection = userProfileService.formatForSystemPrompt(defaultUserId); // 用户画像
         String memorySection = tokenWindowManager.truncateToTokenBudget(
                 formatMemories(defaultUserId, userQuery),
@@ -518,7 +520,7 @@ public class AgentOrchestrator {
                 + memorySection
                 + skillsSection
                 + subAgentsSection
-                + formatPlanGuidance(plan, enabledToolNames)
+                + formatPlanGuidance(plan, enabledToolNames, plannerGenerated)
                 + topicSection
                 + String.format("%n请在回复中简短说明每次工具调用的原因。最多调用工具 %d 次。", maxSteps);
     }
@@ -534,7 +536,6 @@ public class AgentOrchestrator {
         if (plan != null) {
             plan.stream()
                     .map(PlanStep::action)
-                    .filter(action -> action != null && !"finish".equals(action))
                     .forEach(enabledToolNames::add);
         }
         if (!subAgentRegistry.isEmpty()) {
@@ -543,20 +544,18 @@ public class AgentOrchestrator {
         if (topicId != null && !topicId.isBlank()) {
             enabledToolNames.add(KNOWLEDGE_SEARCH_TOOL);
         }
-        return buildSystemPrompt(plan, topicId, userQuery, enabledToolNames, enabledSkills);
+        return buildSystemPrompt(plan, topicId, userQuery, enabledToolNames, enabledSkills, false);
     }
 
-    private String formatPlanGuidance(List<PlanStep> plan, Set<String> enabledToolNames) {
+    private String formatPlanGuidance(List<PlanStep> plan, Set<String> enabledToolNames,
+                                      boolean plannerGenerated) {
         if (plan == null || plan.isEmpty()) {
-            return "";
-        }
-        if (isDirectAnswerPlan(plan)) {
+            if (!plannerGenerated) {
+                return "";
+            }
             return "\n\n【执行策略】规划器初步判断本轮很可能无需调用工具，请优先基于上下文与自身知识直接回答。" +
                    "仅当你确认确实需要外部最新信息或私有资料、且能明确说出要查什么时，才调用对应工具；" +
                    "不要为验证猜测而反复试探工具。";
-        }
-        if (!hasActionablePlanStep(plan)) {
-            return "";
         }
 
         StringBuilder sb = new StringBuilder("\n\n【执行计划】\n");
@@ -570,7 +569,7 @@ public class AgentOrchestrator {
         }
         sb.append("当工具无结果或信息不足时，结合你自身的知识把答案补全，并简要说明依据来源。")
                     .append("\n当某个计划步骤的工具返回空结果或报错时，请勿机械执行下一步。根据已获得的信息灵活调整：")
-                    .append("\n- 如果信息已足够回答用户问题，直接跳到 finish，不要浪费工具调用次数")
+                    .append("\n- 如果信息已足够回答用户问题，停止调用工具并直接回答，不要浪费工具调用次数")
                     .append("\n- 如果需要换工具或换查询角度，只能从本轮已启用工具中自行决策")
                     .append("\n- 简要说明你偏离原计划的原因");
         return sb.toString();
@@ -578,23 +577,10 @@ public class AgentOrchestrator {
 
     private void appendActionablePlanSteps(StringBuilder sb, List<PlanStep> plan) {
         for (PlanStep step : plan) {
-            if ("finish".equals(step.action())) {
-                continue;
-            }
             sb.append(step.step())
                     .append(". [").append(step.action()).append("] ")
                     .append(step.reason()).append("\n");
         }
-    }
-
-    private boolean isDirectAnswerPlan(List<PlanStep> plan) {
-        return plan != null
-                && !plan.isEmpty()
-                && plan.stream().allMatch(step -> "finish".equals(step.action()));
-    }
-
-    private boolean hasActionablePlanStep(List<PlanStep> plan) {
-        return plan != null && plan.stream().anyMatch(step -> !"finish".equals(step.action()));
     }
 
     /**

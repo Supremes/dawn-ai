@@ -193,7 +193,35 @@ class AgentOrchestratorTest {
                 assertThat(doneData(events).get("planSummary")).isEqualTo("");
         verify(chatClient).prompt();
         verify(requestSpec, never()).system(org.mockito.ArgumentMatchers.contains("【执行计划】"));
+        verify(requestSpec, never()).system(org.mockito.ArgumentMatchers.contains("【执行策略】"));
         verify(memoryService).addMessage("session-2", "local-user", "assistant", "final answer");
+    }
+
+    @Test
+    void shouldPreferDirectAnswerWhenPlannerReturnsNoTools() {
+        ChatResponse chatResponse = new ChatResponse(
+                List.of(new Generation(new AssistantMessage("final answer")))
+        );
+
+        when(taskPlanner.plan(anyString(), any(), any()))
+                .thenReturn(new TaskPlanner.PlannerResult(List.of(), null, true));
+        ReflectionTestUtils.setField(agentOrchestrator, "planEnabled", true);
+        when(memoryService.getHistory("session-direct")).thenReturn(Collections.emptyList());
+        when(chatClient.prompt()).thenReturn(requestSpec);
+        when(requestSpec.system(anyString())).thenReturn(requestSpec);
+        when(requestSpec.messages(anyList())).thenReturn(requestSpec);
+        when(requestSpec.user(anyString())).thenReturn(requestSpec);
+        when(requestSpec.toolNames(any(String[].class))).thenReturn(requestSpec);
+        when(requestSpec.stream()).thenReturn(streamResponseSpec);
+        when(streamResponseSpec.chatResponse()).thenReturn(Flux.just(chatResponse));
+
+        agentOrchestrator.streamChat("session-direct", "什么是依赖注入？", null, event -> {}, () -> false);
+
+        ArgumentCaptor<String> systemCaptor = ArgumentCaptor.forClass(String.class);
+        verify(requestSpec).system(systemCaptor.capture());
+        assertThat(systemCaptor.getValue())
+                .contains("【执行策略】")
+                .doesNotContain("【执行计划】");
     }
 
         @SuppressWarnings("unchecked")

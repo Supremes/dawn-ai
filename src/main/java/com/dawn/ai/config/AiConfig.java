@@ -9,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
-import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Primary;
@@ -71,8 +70,8 @@ public class AiConfig {
     private String embeddingDimensions;
 
     @Bean
-    public ChatClient chatClient(ChatModel chatModel) {
-        return ChatClient.builder(chatModel)
+    public ChatClient chatClient(ChatClient.Builder builder) {
+        return builder
                 .defaultSystem(defaultSystemPrompt)
                 .defaultAdvisors(new SimpleLoggerAdvisor())
                 .build();

@@ -969,7 +969,7 @@
             独立 LLM 调用（<code>temperature=0.3</code>），接收用户消息 + 全部工具描述，<br>
             输出结构化 <code>List&lt;PlanStep&gt;</code>，每个步骤包含 <code>step</code> / <code>action</code> / <code>reason</code>。<br><br>
             <strong>解析方式：</strong><code>BeanOutputConverter</code> 结构化输出<br>
-            <strong>校验规则：</strong>所有 action 必须在 ToolRegistry 中注册，计划必须以 <code>finish</code> 结尾<br>
+            <strong>校验规则：</strong>所有 action 必须在 ToolRegistry 中注册；空计划表示无需调用工具<br>
             <strong>容错：</strong>规划失败时优雅降级为直接执行<br>
             <strong>注入方式：</strong>计划作为系统提示词中的强制执行指令
           </div>

@@ -46,17 +46,17 @@ public class LangfuseObservationConfig {
      * Spring AI 的 Observation 不感知业务层的会话概念，所有 LLM 调用在 Langfuse
      * 中默认是孤立 Trace，无法按用户会话聚合查看对话历史。
      *
-     * <p>此过滤器在每个 Span 写出前从当前线程（已由 {@link AiInteractionContext}
-     * 跨 Reactor/线程池边界传播）读取 sessionId，注入为低基数 KeyValue
-     * {@code session.id}。这是 Langfuse OTel 协议中驱动 Sessions 视图的
-     * 官方文档属性，注入后所有属于同一对话的 Trace 会自动归组。
+        * <p>此过滤器在每个 Span 写出前从当前线程（已由 {@link AiInteractionContext}
+        * 跨 Reactor/线程池边界传播）读取 sessionId，注入为高基数 KeyValue
+        * {@code langfuse.session.id}。这是 Langfuse OTel 协议中驱动 Sessions 视图的
+        * 官方属性；使用高基数可避免每个会话在 Prometheus 中生成独立时序。
      */
     @Bean
     public ObservationFilter langfuseSessionFilter() {
         return ctx -> {
             String sid = AiInteractionContext.getSessionId();
             if (sid != null && !sid.isBlank()) {
-                ctx.addLowCardinalityKeyValue(KeyValue.of("session.id", sid));
+                ctx.addHighCardinalityKeyValue(KeyValue.of("langfuse.session.id", sid));
             }
             return ctx;
         };
