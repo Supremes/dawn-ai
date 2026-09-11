@@ -184,8 +184,14 @@ public class ChatService {
                             cancelled::get);
                 } catch (Exception e) {
                     agentObservation.error(e);
-                    log.error("[ChatService] Unexpected error in stream thread, sessionId={}", sessionId, e);
-                    sendEvent(emitter, ChatStreamEvent.error(sessionId, "INTERNAL_ERROR", e.getMessage()), seqCounter);
+                    if ("LLM_UNAVAILABLE".equals(AgentOrchestrator.streamErrorCode(e))) {
+                        log.warn("[ChatService] LLM circuit open, sessionId={}", sessionId);
+                        sendEvent(emitter, ChatStreamEvent.error(sessionId, "LLM_UNAVAILABLE",
+                                AgentOrchestrator.LLM_UNAVAILABLE_MESSAGE), seqCounter);
+                    } else {
+                        log.error("[ChatService] Unexpected error in stream thread, sessionId={}", sessionId, e);
+                        sendEvent(emitter, ChatStreamEvent.error(sessionId, "INTERNAL_ERROR", e.getMessage()), seqCounter);
+                    }
                 } finally {
                     agentObservation.stop();
                     AiInteractionContext.clear();

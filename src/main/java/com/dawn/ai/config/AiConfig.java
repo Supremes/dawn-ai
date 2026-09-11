@@ -2,6 +2,7 @@ package com.dawn.ai.config;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.reactivestreams.Publisher;
@@ -77,9 +78,14 @@ public class AiConfig {
                 .build();
     }
 
+    // 所有 Spring AI 到模型提供方的流量（同步 chat、流式 chat、embeddings）都经过下面两个 builder，
+    // 这是 LLM 侧 resilience（熔断）的唯一切入点。注意 CrossEncoderRetrievalReranker 也会克隆
+    // @Primary 的 RestClient.Builder 去调 /rerank，所以 LlmCircuitBreakerSupport 仅对 /rerank 等显式列出的
+    // 非 LLM 路径放行；/embeddings 走 llmEmbedding，其余路径默认 llmChat。
     @Bean
     @Primary
-    public RestClient.Builder openAiRestClientBuilder(AiInteractionLogger aiInteractionLogger) {
+    public RestClient.Builder openAiRestClientBuilder(AiInteractionLogger aiInteractionLogger,
+                                                      CircuitBreakerRegistry circuitBreakerRegistry) {
         ClientHttpRequestInterceptor loggingInterceptor = (request, body, execution) -> {
             String reqBodyText = new String(body, StandardCharsets.UTF_8);
             String sessionId = AiInteractionContext.getSessionId();
@@ -116,20 +122,25 @@ public class AiConfig {
             return response;
         };
 
+        // 熔断拦截器必须在最外层（先注册），才能看到 logging 拦截器 / 传输层抛出的 IOException
         return RestClient.builder()
                 .requestFactory(new BufferingClientHttpRequestFactory(new JdkClientHttpRequestFactory()))
+                .requestInterceptor(LlmCircuitBreakerSupport.restClientInterceptor(circuitBreakerRegistry))
                 .requestInterceptor(loggingInterceptor);
     }
 
+    // 流式调用出口，同样由 LlmCircuitBreakerSupport 在最外层 filter 做熔断（只管准入与结果记录，绝不重试流）。
     @Bean
     @Primary
-    public WebClient.Builder openAiWebClientBuilder(AiInteractionLogger aiInteractionLogger) {
+    public WebClient.Builder openAiWebClientBuilder(AiInteractionLogger aiInteractionLogger,
+                                                    CircuitBreakerRegistry circuitBreakerRegistry) {
         ExchangeStrategies strategies = ExchangeStrategies.builder()
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
                 .build();
 
         return WebClient.builder()
                 .exchangeStrategies(strategies)
+                .filter(LlmCircuitBreakerSupport.webClientFilter(circuitBreakerRegistry))
                 .filter(logStreamingRequest(aiInteractionLogger))
                 .filter(logStreamingResponse(aiInteractionLogger));
     }

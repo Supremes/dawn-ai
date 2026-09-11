@@ -22,6 +22,7 @@ import com.dawn.ai.memory.UserProfileService;
 import com.dawn.ai.service.MemoryService;
 import com.dawn.ai.sse.ChatStreamEvent;
 import com.dawn.ai.sse.StreamSinkHolder;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
@@ -68,6 +69,7 @@ public class AgentOrchestrator {
     private static final String KNOWLEDGE_SEARCH_TOOL = "knowledgeSearchTool";
     private static final String WEB_TOOL = "webTool";
     private static final String DISPATCH_SUB_AGENT_TOOL = "dispatchSubAgentTool";
+    public static final String LLM_UNAVAILABLE_MESSAGE ="模型服务暂时不可用（上游连续失败，熔断保护中），请稍后重试。";
 
     private final ChatClient chatClient;
     private final MemoryService memoryService;
@@ -335,20 +337,38 @@ public class AgentOrchestrator {
 
         } catch (Exception e) {
             Throwable cause = e.getCause() != null ? e.getCause() : e;
-            String code;
-            if (cause instanceof MaxStepsExceededException) {
-                code = "MAX_STEPS_EXCEEDED";
-            } else if (cause instanceof AiConfigurationException) {
-                code = "AI_NOT_CONFIGURED";
-            } else {
-                code = "INTERNAL_ERROR";
+            String code = streamErrorCode(e);
+            String message = "LLM_UNAVAILABLE".equals(code) ? LLM_UNAVAILABLE_MESSAGE : cause.getMessage();
+            if ("INTERNAL_ERROR".equals(code)) {
                 log.error("[AgentOrchestrator] streamChat error, session={}", sessionId, e);
+            } else if ("LLM_UNAVAILABLE".equals(code)) {
+                log.warn("[AgentOrchestrator] LLM circuit open, session={}: {}", sessionId, cause.getMessage());
             }
-            sink.accept(ChatStreamEvent.error(sessionId, code, cause.getMessage()));
+            sink.accept(ChatStreamEvent.error(sessionId, code, message));
         } finally {
             StepCollector.clear();
             StreamSinkHolder.clear();
         }
+    }
+
+    /**
+     * 把流式请求中的异常映射为 SSE 错误码。
+     * CallNotPermittedException（LLM 熔断 OPEN）可能被 Reactor / Spring AI 层层包裹，所以沿 cause 链查找。
+     */
+    public static String streamErrorCode(Throwable e) {
+        for (Throwable t = e; t != null; t = (t.getCause() != t ? t.getCause() : null)) {
+            if (t instanceof CallNotPermittedException) {
+                return "LLM_UNAVAILABLE";
+            }
+        }
+        Throwable cause = e.getCause() != null ? e.getCause() : e;
+        if (cause instanceof MaxStepsExceededException) {
+            return "MAX_STEPS_EXCEEDED";
+        }
+        if (cause instanceof AiConfigurationException) {
+            return "AI_NOT_CONFIGURED";
+        }
+        return "INTERNAL_ERROR";
     }
 
     private String extractDelta(ChatResponse chunk) {

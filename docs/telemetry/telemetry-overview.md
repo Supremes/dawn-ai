@@ -92,17 +92,22 @@ public Object captureStep(ProceedingJoinPoint pjp) throws Throwable {
     }
 }
 
-private void recordMetrics(String toolName, String status, long durationMs) {
-    meterRegistry.timer("ai.tool.duration", "tool", toolName, "status", status)
+private void recordMetrics(String toolName, ToolOutcomeStatus outcome, long durationMs) {
+    String status = outcome.executionSucceeded() ? "success" : "error";
+    meterRegistry.timer("ai.tool.duration",
+                    "tool", toolName, "status", status, "outcome", outcome.stepStatus())
             .record(durationMs, TimeUnit.MILLISECONDS);
-    meterRegistry.counter("ai.tool.calls.total", "tool", toolName, "status", status)
+    meterRegistry.counter("ai.tool.calls.total",
+                    "tool", toolName, "status", status, "outcome", outcome.stepStatus())
             .increment();
 }
 ```
 
+> 以上为 M1 设计记录；当前实现见 `metrics-reference.md`（含 `outcome` tag 取值）。
+
 **新增指标**：
-- `ai.tool.duration{tool, status}` — Timer（Histogram）
-- `ai.tool.calls.total{tool, status}` — Counter
+- `ai.tool.duration{tool, status, outcome}` — Timer（Histogram）
+- `ai.tool.calls.total{tool, status, outcome}` — Counter
 
 ---
 
@@ -245,14 +250,19 @@ private void recordError(String type) {
 | 指标 | 类型 | Tags | 来源 |
 |------|------|------|------|
 | `ai.agent.chat.duration` | Timer | `session` | `AgentOrchestrator` |
-| `ai.tool.duration` | Timer/Histogram | `tool`, `status` | `ToolExecutionAspect` |
-| `ai.tool.calls.total` | Counter | `tool`, `status` | `ToolExecutionAspect` |
+| `ai.tool.duration` | Timer/Histogram | `tool`, `status`, `outcome` | `ToolExecutionAspect` |
+| `ai.tool.calls.total` | Counter | `tool`, `status`, `outcome` | `ToolExecutionAspect` |
+| `ai.tool.retries.total` | Counter | `tool` | `ToolExecutionAspect`（resilience4j Retry `onRetry` 事件） |
 | `ai.token.input` | Counter | — | `AgentOrchestrator` |
 | `ai.token.output` | Counter | — | `AgentOrchestrator` |
 | `ai.planner.result` | Counter | `status` | `TaskPlanner` |
 | `ai.rag.ingestion.total` | Counter | — | `RagService` |
 | `ai.rag.retrieval.total` | Counter | `result` | `RagService` |
 | `ai.error.total` | Counter | `type` | `ApiExceptionHandler` |
+
+> `outcome` 取值为 `ToolOutcomeStatus.stepStatus()`（`success` / `empty` / `retryable_failure` / `permanent_failure` / `refused` …）。
+> 不聚合的 `ai_tool_calls_total` 选择器会按 outcome 拆成多条序列；只想看 per-status 总量时请用 `sum by (tool, status)`。
+| `resilience4j_*`（自动） | Gauge/Counter/Timer | `name`, `kind`, `state` | resilience4j-micrometer（熔断 `llmChat`/`llmEmbedding`、工具 Retry/Bulkhead） |
 | JVM 指标（自动） | 各类 | — | Micrometer |
 | HTTP 指标（自动） | 各类 | — | Spring Boot |
 

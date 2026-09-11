@@ -130,6 +130,13 @@
             <artifactId>spring-boot-starter-aop</artifactId>
         </dependency>
 
+        <!-- Resilience4j — 工具级 Retry/Bulkhead + LLM CircuitBreaker（在 ToolExecutionAspect / AiConfig 中以 Registry 方式编程使用，不用注解） -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-spring-boot3</artifactId>
+            <version>2.2.0</version>
+        </dependency>
+
         <!-- Validation -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

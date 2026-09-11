@@ -7,6 +7,14 @@ import com.dawn.ai.agent.tools.ToolOutcomeStatus;
 import com.dawn.ai.exception.MaxStepsExceededException;
 import com.dawn.ai.sse.ChatStreamEvent;
 import com.dawn.ai.sse.StreamSinkHolder;
+import io.github.resilience4j.bulkhead.Bulkhead;
+import io.github.resilience4j.bulkhead.BulkheadFullException;
+import io.github.resilience4j.bulkhead.BulkheadRegistry;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.core.exception.AcquirePermissionCancelledException;
+import io.github.resilience4j.retry.Retry;
+import io.github.resilience4j.retry.RetryConfig;
+import io.github.resilience4j.retry.RetryRegistry;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,8 +32,11 @@ import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /**
@@ -34,10 +45,23 @@ import java.util.function.Consumer;
  * The pointcut covers all current and future tools under com.dawn.ai.agent.tools,
  * so new tools are automatically traced without any modification.
  *
+ * Resilience (resilience4j, configured via {@code resilience4j.*} in application.yml):
+ *   - Retry: one resilience4j {@link Retry} per tool obtained from {@link RetryRegistry}
+ *     ({@code resilience4j.retry.configs.default} / {@code configs.<ToolName>}). Retries only
+ *     {@link ToolOutcome} results with {@code RETRYABLE_FAILURE} + {@code safeToRetry()}, plus
+ *     {@link BulkheadFullException} (the tool body never ran). Exceptions thrown by the tool body
+ *     are never retried (non-idempotent tools such as BashTool must not re-run on exception);
+ *     {@link CallNotPermittedException} fails fast.
+ *   - Bulkhead: one semaphore {@link Bulkhead} per tool ({@code resilience4j.bulkhead.instances.<ToolName>},
+ *     falling back to {@code configs.default}). Retry wraps Bulkhead so the permit is released between attempts.
+ *     Sibling of BulkheadFullException: {@link AcquirePermissionCancelledException} is thrown (even with free
+ *     permits) when the calling thread is already interrupted — the tool body never ran either, but it is NOT
+ *     retried (the request is being torn down) and is classified as PERMANENT_FAILURE.
+ *
  * Also exports per-tool metrics to Prometheus:
  *   - ai.tool.duration{tool, status, outcome}  — execution time histogram
  *   - ai.tool.calls.total{tool, status, outcome} — call count
- *   - ai.tool.retries.total{tool} — safe automatic retry count
+ *   - ai.tool.retries.total{tool} — safe automatic retry count (emitted from Retry onRetry events)
  */
 @Slf4j
 @Aspect
@@ -48,15 +72,14 @@ public class ToolExecutionAspect {
     private final MeterRegistry meterRegistry;
     private final TokenWindowManager tokenWindowManager;
     private final TaskPlanner taskPlanner;
+    private final RetryRegistry retryRegistry;
+    private final BulkheadRegistry bulkheadRegistry;
+
+    /** 每个工具一个 Retry 实例（onRetry 监听器只注册一次），键为工具类 simpleName。 */
+    private final ConcurrentMap<String, Retry> toolRetries = new ConcurrentHashMap<>();
 
     @Value("${app.ai.react.replan-threshold:2}")
     private int rePlanThreshold;
-
-    @Value("${app.ai.react.max-tool-retries:1}")
-    private int maxToolRetries;
-
-    @Value("${app.ai.react.tool-retry-backoff-ms:200}")
-    private long retryBackoffMs;
 
     @Around("execution(* com.dawn.ai.agent.tools..*.apply(..))")
     public Object captureStep(ProceedingJoinPoint pjp) throws Throwable {
@@ -73,7 +96,7 @@ public class ToolExecutionAspect {
 
         Object result;
         try {
-            result = executeWithRetry(pjp, toolName);
+            result = executeWithResilience(pjp, toolName);
         } catch (Throwable t) {
             long durationMs = System.currentTimeMillis() - start;
             ToolOutcomeStatus outcome = classifyException(t);
@@ -129,37 +152,76 @@ public class ToolExecutionAspect {
         return result;
     }
 
-    private Object executeWithRetry(ProceedingJoinPoint pjp, String toolName) throws Throwable {
-        Object result = pjp.proceed();
-        int retry = 0;
-        while (retry < Math.max(0, maxToolRetries)
-                && result instanceof ToolOutcome outcome
-                && outcome.outcomeStatus() == ToolOutcomeStatus.RETRYABLE_FAILURE
-                && outcome.safeToRetry()) {
-            retry++;
-            meterRegistry.counter("ai.tool.retries.total", "tool", toolName).increment();
-            log.info("[ReAct] Retrying safe tool={} after retryable failure, attempt={}", toolName, retry + 1);
-            if (!waitBeforeRetry(retry)) {
-                break;
+    /**
+     * Retry 在外、Bulkhead 在内：BulkheadFullException（没拿到许可，工具体根本没执行）可以被重试，
+     * 且每次尝试之间许可都会被释放。decorateCheckedSupplier 原样抛出工具体的 Throwable，不做包装。
+     */
+    private Object executeWithResilience(ProceedingJoinPoint pjp, String toolName) throws Throwable {
+        Bulkhead bulkhead = toolBulkhead(toolName);
+        Retry retry = toolRetries.computeIfAbsent(toolName, this::createToolRetry);
+        AtomicReference<Object> lastResult = new AtomicReference<>();
+        try {
+            return Retry.decorateCheckedSupplier(retry, () -> {
+                Object r = bulkhead.executeCheckedSupplier(pjp::proceed);
+                lastResult.set(r);
+                return r;
+            }).get();
+        } catch (NullPointerException e) {
+            // resilience4j 2.2.0 RetryImpl$ContextImpl.waitIntervalAfterRuntimeException：
+            // 结果型重试的 backoff sleep 被中断时会 throw lastRuntimeException.get()（为 null）=> NPE，
+            // 且 interrupt 标志已被 Thread.sleep 清掉。这里手动恢复标志并返回最后一次结果（保持旧语义）。
+            if (lastResult.get() != null && isRetryBackoffNpe(e)) {
+                Thread.currentThread().interrupt();
+                log.warn("[ReAct] Tool retry interrupted during backoff, returning last result (tool={})", toolName);
+                return lastResult.get();
             }
-            result = pjp.proceed();
+            throw e;
         }
-        return result;
     }
 
-    private boolean waitBeforeRetry(int retry) {
-        if (retryBackoffMs <= 0) {
-            return true;
+    /** 工具体自己抛的 NPE 栈顶是工具类；resilience4j 退避中断产生的 NPE 栈顶在 RetryImpl 内部。 */
+    private static boolean isRetryBackoffNpe(NullPointerException e) {
+        StackTraceElement[] st = e.getStackTrace();
+        return st.length > 0
+                && st[0].getClassName().startsWith("io.github.resilience4j.retry.internal.RetryImpl");
+    }
+
+    /**
+     * 优先级：starter 按 {@code instances.<ToolName>} 预建的实例 > {@code configs.<ToolName>} > {@code configs.default}。
+     * 注意 {@code bulkhead(name)} 只会用 default 配置，所以 configs.<ToolName> 需要显式查找。
+     */
+    private Bulkhead toolBulkhead(String toolName) {
+        return bulkheadRegistry.find(toolName).orElseGet(() -> bulkheadRegistry.bulkhead(toolName,
+                bulkheadRegistry.getConfiguration(toolName).orElseGet(bulkheadRegistry::getDefaultConfig)));
+    }
+
+    private Retry createToolRetry(String toolName) {
+        // 优先级：运维在 instances.<ToolName> 里预建的实例（不推荐但容忍）> configs.<ToolName> > configs.default
+        RetryConfig base = retryRegistry.find(toolName).map(Retry::getRetryConfig)
+                .or(() -> retryRegistry.getConfiguration(toolName))
+                .orElseGet(retryRegistry::getDefaultConfig);
+        RetryConfig config = RetryConfig.<Object>from(base)
+                .retryOnResult(result -> result instanceof ToolOutcome outcome
+                        && outcome.outcomeStatus() == ToolOutcomeStatus.RETRYABLE_FAILURE
+                        && outcome.safeToRetry())
+                // 工具体抛出的异常一律不重试（BashTool 等非幂等工具绝不能因异常重跑）；
+                // 唯一例外：BulkheadFullException —— 工具体根本没执行，重试安全。
+                // CallNotPermittedException（LLM 熔断打开）显式不重试，快速失败。
+                .retryOnException(t -> t instanceof BulkheadFullException)
+                .failAfterMaxAttempts(false)
+                .build();
+        // 先 remove 再 retry(name, config)：用我们的谓词替换掉 starter 预建实例的「任何异常都重试」默认谓词，
+        // 同时保证实例仍注册在 registry 里，TaggedRetryMetricsPublisher 才会为它绑定 resilience4j_retry_calls。
+        if (retryRegistry.find(toolName).isPresent()) {
+            retryRegistry.remove(toolName);
         }
-        long delayMs = retryBackoffMs * (1L << Math.min(retry - 1, 10));
-        try {
-            Thread.sleep(delayMs);
-            return true;
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            log.warn("[ReAct] Tool retry interrupted during backoff");
-            return false;
-        }
+        Retry retry = retryRegistry.retry(toolName, config);
+        retry.getEventPublisher().onRetry(event -> {
+            meterRegistry.counter("ai.tool.retries.total", "tool", toolName).increment();
+            log.info("[ReAct] Retrying safe tool={} after retryable failure, attempt={} (wait={}ms)",
+                    toolName, event.getNumberOfRetryAttempts() + 1, event.getWaitInterval().toMillis());
+        });
+        return retry;
     }
 
     private ToolOutcomeStatus classifyResult(Object result) {
@@ -177,6 +239,18 @@ public class ToolExecutionAspect {
         while (current != null) {
             if (current instanceof MaxStepsExceededException) {
                 return ToolOutcomeStatus.REFUSED;
+            }
+            if (current instanceof CallNotPermittedException) {
+                // LLM 熔断打开：快速失败，交给 re-plan
+                return ToolOutcomeStatus.PERMANENT_FAILURE;
+            }
+            if (current instanceof BulkheadFullException) {
+                // 并发隔离满：工具体未执行
+                return ToolOutcomeStatus.RETRYABLE_FAILURE;
+            }
+            if (current instanceof AcquirePermissionCancelledException) {
+                // 线程在拿 Bulkhead 许可前已被中断（请求取消）：工具体未执行，不重试，直接失败
+                return ToolOutcomeStatus.PERMANENT_FAILURE;
             }
             if (current instanceof HttpStatusCodeException httpException) {
                 int status = httpException.getStatusCode().value();
@@ -207,6 +281,9 @@ public class ToolExecutionAspect {
 
     private String summarizeException(Throwable throwable) {
         Throwable root = rootCause(throwable);
+        if (root instanceof AcquirePermissionCancelledException) {
+            return "ToolCallCancelled: 线程在工具执行前已被中断（请求已取消），工具体未执行";
+        }
         String message = root.getMessage();
         if (message == null || message.isBlank()) {
             return root.getClass().getSimpleName();

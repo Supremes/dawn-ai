@@ -5,6 +5,8 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.sun.net.httpserver.HttpServer;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -84,7 +86,8 @@ class AiConfigErrorLoggingTest {
     void interceptor_shouldSurfaceUpstream4xxBody_insteadOfSwallowingIt() {
         AiInteractionLogger interactionLogger = mock(AiInteractionLogger.class);
         AiConfig config = new AiConfig();
-        RestClient client = config.openAiRestClientBuilder(interactionLogger)
+        CircuitBreakerRegistry registry = CircuitBreakerRegistry.ofDefaults();
+        RestClient client = config.openAiRestClientBuilder(interactionLogger, registry)
                 .baseUrl("http://127.0.0.1:" + port)
                 .build();
 
@@ -110,5 +113,10 @@ class AiConfigErrorLoggingTest {
         assertThat(errorLogged)
                 .as("expected an ERROR log line containing the upstream 4xx body")
                 .isTrue();
+
+        // A 400 (client/config error) must never count as a circuit breaker failure.
+        CircuitBreaker.Metrics m = registry.circuitBreaker("llmChat").getMetrics();
+        assertThat(m.getNumberOfFailedCalls()).isZero();
+        assertThat(m.getNumberOfSuccessfulCalls()).isEqualTo(1);
     }
 }

@@ -2,6 +2,7 @@ package com.dawn.ai.exception;
 
 import com.dawn.ai.controller.ChatController;
 import com.dawn.ai.controller.RagController;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
@@ -21,7 +22,21 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ApiExceptionHandler {
 
+    private static final String LLM_UNAVAILABLE_MESSAGE =
+            "AI provider is temporarily unavailable (circuit breaker open after repeated upstream failures). Please retry shortly.";
+
     private final MeterRegistry meterRegistry;
+
+    /**
+     * LLM 熔断器 OPEN：请求在发起网络调用前就被 resilience4j 拒绝，返回 503 让客户端稍后重试。
+     */
+    @ExceptionHandler(CallNotPermittedException.class)
+    public ResponseEntity<Map<String, Object>> handleCircuitOpen(
+            CallNotPermittedException exception,
+            HttpServletRequest request) {
+        recordError("llm_circuit_open");
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, LLM_UNAVAILABLE_MESSAGE, request.getRequestURI());
+    }
 
     @ExceptionHandler(AiConfigurationException.class)
     public ResponseEntity<Map<String, Object>> handleAiConfiguration(
@@ -35,6 +50,10 @@ public class ApiExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleRestClient(
             RestClientException exception,
             HttpServletRequest request) {
+        CallNotPermittedException open = findCause(exception, CallNotPermittedException.class);
+        if (open != null) {
+            return handleCircuitOpen(open, request);
+        }
         String message = "AI provider request failed. Verify DEEPSEEK_API_KEY/OPENAI_API_KEY, base URL, and outbound network access.";
         Throwable cause = exception.getCause();
         if (cause instanceof HttpRetryException) {
@@ -100,8 +119,31 @@ public class ApiExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleUnexpected(
             Exception exception,
             HttpServletRequest request) {
+        CallNotPermittedException open = findCause(exception, CallNotPermittedException.class);
+        if (open != null) {
+            return handleCircuitOpen(open, request);
+        }
         recordError("internal_error");
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred.", request.getRequestURI());
+    }
+
+    /**
+     * 沿 cause 链查找指定类型的异常（防自环 / 深度上限），找不到返回 null。
+     */
+    private static <T extends Throwable> T findCause(Throwable throwable, Class<T> type) {
+        Throwable current = throwable;
+        int depth = 0;
+        while (current != null && depth++ < 32) {
+            if (type.isInstance(current)) {
+                return type.cast(current);
+            }
+            Throwable next = current.getCause();
+            if (next == current) {
+                break;
+            }
+            current = next;
+        }
+        return null;
     }
 
     private void recordError(String type) {
