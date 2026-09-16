@@ -46,7 +46,7 @@ class StepCollectorTest {
     void clear_resetsRetrievedQueries() {
         StepCollector.markQueryRetrieved("some query");
         StepCollector.clear();
-        StepCollector.init(10); // re-init for afterEach
+        StepCollector.init(10); // 重新 init，给 afterEach 用
 
         assertThat(StepCollector.isQueryRetrieved("some query")).isFalse();
     }
@@ -56,7 +56,7 @@ class StepCollectorTest {
     void init_clearsRetrievedQueries() {
         StepCollector.markQueryRetrieved("old query");
 
-        StepCollector.init(10); // re-init
+        StepCollector.init(10); // 重新 init
 
         assertThat(StepCollector.isQueryRetrieved("old query")).isFalse();
     }

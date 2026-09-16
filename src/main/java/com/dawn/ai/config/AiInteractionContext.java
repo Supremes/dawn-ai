@@ -6,8 +6,7 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 
 /**
- * Carries immutable per-request AI interaction state across servlet, Reactor and
- * sub-agent worker threads.
+ * 在 servlet、Reactor 和子 Agent worker 线程之间传递每个请求的不可变 AI 交互状态。
  */
 public final class AiInteractionContext {
 
@@ -102,8 +101,8 @@ public final class AiInteractionContext {
     }
 
     /**
-     * Wraps a task so the captured interaction snapshot is restored on the worker
-     * thread and the previous worker state is restored afterwards.
+     * 包一层 task：先把捕获到的交互快照恢复到 worker 线程上，
+     * 跑完再把 worker 之前的状态还回去。
      */
     public static Runnable wrap(Runnable task) {
         State captured = STATE.get();

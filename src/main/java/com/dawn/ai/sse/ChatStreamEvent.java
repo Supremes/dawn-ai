@@ -13,16 +13,16 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Unified SSE event envelope.
+ * 统一的 SSE 事件信封。
  *
- * Event sequence per request: connected → plan_thinking* → plan? → thinking* → (step | sub_progress)* → token* → done | error
+ * 每个请求的事件顺序：connected → plan_thinking* → plan? → thinking* → (step | sub_progress)* → token* → done | error
  *
  * {@code sub_progress} 事件由 sub-agent 内部 ReAct 步骤完成时冒泡发出，
  * 用于让前端在 sub-agent 长任务期间感知"还在跑"。前端可以选择不渲染本事件
  * （退化到只看最终 {@code step}），协议向后兼容。
  *
- * Each event is serialised as the JSON body of a SSE data line,
- * while the SSE event name mirrors the {@code event} field.
+ * 每个事件都序列化成一条 SSE data 行的 JSON 体，
+ * SSE 的事件名和 {@code event} 字段保持一致。
  */
 @Data
 @Builder
@@ -30,16 +30,16 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 public class ChatStreamEvent {
 
-    /** Event type: connected, plan, step, token, done, error */
+    /** 事件类型：connected, plan, step, token, done, error */
     private String event;
     private String sessionId;
-    /** Per-stream monotonic sequence number (set by ChatService sink). */
+    /** 每条流内单调递增的序号（由 ChatService 的 sink 设置）。 */
     private int seq;
     private String timestamp;
-    /** Event-specific payload; serialised as-is by Jackson. */
+    /** 事件自身的 payload；Jackson 原样序列化。 */
     private Object data;
 
-    // ─── Factory helpers ───────────────────────────────────────────────────
+    // ─── 工厂方法 ───────────────────────────────────────────────────
 
     public static ChatStreamEvent connected(String sessionId, String streamId) {
         return ChatStreamEvent.builder()

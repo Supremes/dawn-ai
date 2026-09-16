@@ -23,14 +23,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Generates a structured execution plan before the main ReAct loop.
+ * 在主 ReAct 循环开始前，先生成一份结构化的执行计划。
  *
- * The planning call is independent from the conversation history:
- * it needs a low-temperature, global view of the task, not a contextual one.
+ * 规划这次调用和对话历史是独立的：
+ * 它需要的是低 temperature、对任务的全局视角，而不是上下文视角。
  *
- * Metrics:
- *   ai.planner.result{status=success}     — plan generated and validated successfully
- *   ai.planner.result{status=parse_error} — structured output could not be parsed or validated
+ * 指标：
+ *   ai.planner.result{status=success}     — 计划生成并校验成功
+ *   ai.planner.result{status=parse_error} — 结构化输出解析或校验失败
  */
 @Slf4j
 @Service
@@ -66,13 +66,13 @@ public class TaskPlanner {
     }
 
     /**
-     * Plans the steps required to complete {@code task} given the available tools.
+     * 根据可用的工具，规划完成 {@code task} 所需的步骤。
      *
-     * @param task                the user's request
-     * @param toolDescriptions    map of tool name → description
-     * @param conversationContext compact recent-conversation snippet for reference resolution; may be empty
-     * @return ordered plan steps
-     * @throws PlanGenerationException when the model output is not valid structured planner output
+     * @param task                用户的请求
+     * @param toolDescriptions    工具名 → 描述的 map
+     * @param conversationContext 最近对话的精简片段，用来做指代消解；可以为空
+     * @return 有序的计划步骤
+     * @throws PlanGenerationException 模型输出不是合法的结构化 planner 输出时抛出
      */
         public PlannerResult plan(String task, Map<String, String> toolDescriptions, String conversationContext) {
         try {
@@ -103,9 +103,9 @@ public class TaskPlanner {
             parseErrorCounter.increment();
             throw new PlanGenerationException("Planner returned invalid structured output.", exception);
         } finally {
-            // Always clean up the ThreadLocal regardless of which reasoning extraction path was taken.
-            // Without this, the captured response body from source-1/2 early-exit paths would linger
-            // and could be misread by the next request that falls through to the fallback path.
+            // 不管 reasoning 提取走的是哪条路径，都要清理 ThreadLocal。
+            // 不清的话，来源 1/2 早退时捕获的响应体会残留下来，
+            // 下一个走到 fallback 路径的请求可能会误读它。
             AiSyncResponseCapture.clear();
         }
     }
@@ -148,9 +148,9 @@ public class TaskPlanner {
     }
 
     /**
-     * Extracts reasoning/thinking content from the planner's ChatResponse.
+     * 从 planner 的 ChatResponse 里提取 reasoning/thinking 内容。
      *
-     * Tries three sources in priority order:
+     * 按优先级依次尝试三个来源：
      *
      * --- 来源 1: Generation 元数据 ---
      * Spring AI 官方 adapter（如 DeepSeek-R1 专用 adapter）将 reasoning_content 解析后
@@ -238,14 +238,14 @@ public class TaskPlanner {
     }
 
     /**
-     * Generates an adjusted execution plan based on completed steps and their results.
-     * Called when consecutive tool calls return empty/failed results, indicating the
-     * original plan is not working as expected.
+     * 根据已完成的步骤及其结果，生成一份调整后的执行计划。
+     * 连续几次工具调用都返回空/失败结果时会调用它，
+     * 这说明原计划没有按预期走通。
      *
-     * @param userMessage      the user's original question
-     * @param completedSteps   steps executed so far with their results
-     * @param toolDescriptions names of available tools
-     * @return re-plan guidance text, or null if re-planning itself fails
+     * @param userMessage      用户的原始问题
+     * @param completedSteps   到目前为止已执行的步骤及其结果
+     * @param toolDescriptions 可用工具的名称
+     * @return re-plan 指导文本；re-plan 本身失败时返回 null
      */
     public String rePlan(String userMessage, List<AgentStep> completedSteps, Set<String> toolDescriptions) {
         String stepsHistory = completedSteps.stream()

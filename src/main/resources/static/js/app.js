@@ -1,4 +1,4 @@
-/* ===== Dawn AI Frontend ===== */
+/* ===== Dawn AI 前端 ===== */
 
 const API = {
     chatStream: '/api/v1/chat/stream',
@@ -12,7 +12,7 @@ const API = {
     aiInteractionLog: '/api/v1/ai-interactions/log',
 };
 
-// ===== Markdown setup (marked + DOMPurify, both served locally) =====
+// ===== Markdown 初始化（marked + DOMPurify，都走本地静态资源）=====
 marked.use({
     gfm: true,
     breaks: true,
@@ -36,7 +36,7 @@ marked.use({
                     if (auto.relevance > 4 && auto.value) {
                         return `<pre><code class="hljs language-${escapeHtml(auto.language || '')}">${auto.value}</code></pre>`;
                     }
-                } catch { /* fall through */ }
+                } catch { /* 忽略，走下面的 fallback */ }
             }
             const escaped = escapeHtml(code);
             const cls = lang ? ` class="language-${escapeHtml(lang)}"` : '';
@@ -89,8 +89,8 @@ function enhanceCodeBlocks(root) {
     });
 }
 
-// ===== Streaming render scheduler =====
-// Throttles markdown re-rendering during token streaming to avoid DOM thrashing.
+// ===== 流式渲染调度器 =====
+// token 流式输出时对 markdown 重渲染做节流，避免频繁抖动 DOM。
 const streamRender = (() => {
     let scheduled = false;
     let pendingBubble = null;
@@ -125,7 +125,7 @@ const streamRender = (() => {
     };
 })();
 
-// ===== Mock data for testing markdown rendering =====
+// ===== 测试 markdown 渲染用的 mock 数据 =====
 const MOCK_MARKDOWN = `## Markdown 渲染测试
 
 这是第一行
@@ -195,7 +195,7 @@ print(fibonacci(10))
 
 渲染测试完毕。如果你能看到上面的**标题、列表、代码块、表格、引用**均有正确排版，则说明 Markdown 渲染正常。`;
 
-// ===== Chat Storage (localStorage) =====
+// ===== 聊天存储（localStorage）=====
 const SESSIONS_KEY = 'dawn-chat-sessions';
 const MAX_SESSIONS = 50;
 
@@ -206,7 +206,7 @@ const chatStore = {
     },
     _writeIndex(idx) {
         try { localStorage.setItem(SESSIONS_KEY, JSON.stringify(idx)); }
-        catch { /* quota */ }
+        catch { /* 超出 quota，忽略 */ }
     },
     saveSession(sessionId, topicId, capabilities) {
         const idx = this._readIndex();
@@ -253,7 +253,7 @@ const chatStore = {
             const arr = JSON.parse(localStorage.getItem(key)) || [];
             arr.push({ ...msg, timestamp: Date.now() });
             localStorage.setItem(key, JSON.stringify(arr));
-        } catch { /* quota */ }
+        } catch { /* 超出 quota，忽略 */ }
     },
     getMessages(sessionId) {
         try { return JSON.parse(localStorage.getItem('dawn-chat-' + sessionId)) || []; }
@@ -269,22 +269,22 @@ const chatStore = {
     },
 };
 
-// ===== State =====
+// ===== 状态 =====
 const state = {
     sessionId: null,
     isLoading: false,
-    streamMode: true,  // default to SSE streaming
+    streamMode: true,  // 默认走 SSE 流式
     knowledgeUploadFile: null,
     capabilityCatalog: { tools: [], skills: [] },
     enabledTools: null,
     enabledSkills: null,
 };
 
-// ===== DOM References =====
+// ===== DOM 引用 =====
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
-// ===== Init =====
+// ===== 初始化 =====
 document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
     initTheme();
@@ -299,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshCategories();
 });
 
-// ===== Topics =====
+// ===== 话题 =====
 async function refreshTopics() {
     try {
         const res = await fetch(API.topics);
@@ -312,11 +312,11 @@ async function refreshTopics() {
             .map(t => `<option value="${escapeHtml(t)}"></option>`)
             .join('');
     } catch (err) {
-        // Non-blocking: topic suggestions are optional
+        // 不阻塞：话题推荐是可选项
     }
 }
 
-// ===== Categories =====
+// ===== 分类 =====
 async function refreshCategories() {
     try {
         const res = await fetch(API.ragCategories);
@@ -329,11 +329,11 @@ async function refreshCategories() {
             .map(c => `<option value="${escapeHtml(c)}"></option>`)
             .join('');
     } catch (err) {
-        // Non-blocking: category suggestions are optional
+        // 不阻塞：分类推荐是可选项
     }
 }
 
-// ===== Session capabilities =====
+// ===== 会话能力 =====
 async function refreshCapabilities() {
     try {
         const res = await fetch(API.chatCapabilities);
@@ -439,7 +439,7 @@ function updateCapabilitySummary() {
     summary.textContent = `${tools.length} tools · ${skills.length} skills`;
 }
 
-// ===== Navigation =====
+// ===== 导航 =====
 function initNavigation() {
     $$('.nav-item').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -454,7 +454,7 @@ function initNavigation() {
     });
 }
 
-// ===== Theme =====
+// ===== 主题 =====
 function initTheme() {
     const saved = localStorage.getItem('dawn-theme');
     if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
@@ -481,7 +481,7 @@ function syncHljsTheme() {
     if (darkSheet) darkSheet.disabled = !dark;
 }
 
-// ===== Session History =====
+// ===== 会话历史 =====
 function initSessionHistory() {
     const clearBtn = $('#clearHistoryBtn');
     if (clearBtn) {
@@ -596,18 +596,18 @@ function formatRelativeTime(ts) {
     return new Date(ts).toLocaleDateString();
 }
 
-// ===== Chat =====
+// ===== 聊天 =====
 function initChat() {
     const input = $('#chatInput');
     const sendBtn = $('#sendBtn');
 
-    // Auto-resize textarea
+    // textarea 自动调整高度
     input.addEventListener('input', () => {
         input.style.height = 'auto';
         input.style.height = Math.min(input.scrollHeight, 120) + 'px';
     });
 
-    // Send with Cmd/Ctrl+Enter; plain Enter keeps editing in the textarea.
+    // Cmd/Ctrl+Enter 发送；单独按 Enter 继续在 textarea 里编辑。
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.isComposing) {
             e.preventDefault();
@@ -686,11 +686,11 @@ async function sendMessage() {
     const requestTopicId = getChatTopicId();
     const requestCapabilities = currentCapabilitySelection();
 
-    // Remove welcome message
+    // 移除欢迎语
     const welcome = $('#chatMessages .welcome-message');
     if (welcome) welcome.remove();
 
-    // Add user message
+    // 添加用户消息
     appendMessage('user', message);
     chatStore.saveSession(requestSessionId, requestTopicId, requestCapabilities);
     chatStore.updateSessionCapabilities(requestSessionId, requestCapabilities);
@@ -779,7 +779,7 @@ async function sendMessageStream(message, requestSessionId, requestTopicId, requ
                             handleStreamEvent(eventName || envelope.event, envelope, assistantDiv);
                         }
                         if (envelope.event === 'done') streamMeta = envelope.data;
-                    } catch (e) { /* skip */ }
+                    } catch (e) { /* 跳过 */ }
                     eventName = '';
                 } else if (line === '') {
                     eventName = '';
@@ -957,9 +957,8 @@ function createAssistantPlaceholder() {
     return div;
 }
 
-// Monotonic counter for unique steps-panel ids. Date.now() collides when
-// loadSession() re-renders multiple messages synchronously in the same ms,
-// which made getElementById() target the wrong (first) panel.
+// 给 steps 面板生成唯一 id 的单调递增计数器。loadSession() 在同一毫秒内同步
+// 重渲染多条消息时 Date.now() 会撞车，导致 getElementById() 拿到错误的（第一个）面板。
 let stepsPanelSeq = 0;
 function nextStepsId() {
     return 'steps-' + (++stepsPanelSeq);
@@ -991,7 +990,7 @@ function finaliseAssistantMessage(div, meta, requestSessionId) {
         div.appendChild(metaEl);
     }
 
-    // Replace stream-trace items with full collapsible steps panel if steps exist
+    // 如果有 steps，就把 stream-trace 条目换成完整的可折叠 steps 面板
     const steps = meta.steps || [];
     if (steps.length > 0) {
         const oldTrace = div.querySelector('.stream-trace');
@@ -1152,9 +1151,9 @@ window.toggleThinking = function (btn) {
     if (panel) panel.classList.toggle('open');
 };
 
-// ===== Knowledge Base =====
+// ===== 知识库 =====
 function initKnowledge() {
-    // Tabs
+    // 标签页
     $$('.tabs .tab').forEach(tab => {
         tab.addEventListener('click', () => {
             const parent = tab.closest('.card');
@@ -1165,18 +1164,18 @@ function initKnowledge() {
         });
     });
 
-    // TopK slider
+    // TopK 滑块
     $('#searchTopK').addEventListener('input', (e) => {
         $('#topKValue').textContent = e.target.value;
     });
 
-    // Ingest text
+    // 导入文本
     $('#ingestBtn').addEventListener('click', ingestDocument);
 
-    // File upload
+    // 文件上传
     initFileUpload();
 
-    // Search
+    // 搜索
     $('#searchBtn').addEventListener('click', searchDocuments);
     $('#searchQuery').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') searchDocuments();
@@ -1225,8 +1224,8 @@ function initFileUpload() {
     uploadBtn.addEventListener('click', ingestFile);
 }
 
-// Show the JSONL text-field input only when the upload will be treated as JSONL:
-// either explicitly chosen, or auto-detected from a .jsonl/.ndjson filename.
+// 只有上传会按 JSONL 处理时才显示 JSONL 文本字段输入框：
+// 要么用户显式选了，要么根据 .jsonl/.ndjson 文件名自动识别。
 function updateJsonlFieldVisibility() {
     const group = $('#jsonlFieldGroup');
     if (!group) return;
@@ -1289,7 +1288,7 @@ async function ingestFile() {
     const topicId = $('#fileTopic').value.trim();
     if (topicId) formData.append('topicId', topicId);
 
-    // Only meaningful for JSONL uploads; backend ignores it for other types.
+    // 只对 JSONL 上传有意义；其他类型后端会忽略。
     const textField = $('#fileTextField').value.trim();
     if (textField) formData.append('textField', textField);
 
@@ -1302,7 +1301,7 @@ async function ingestFile() {
         const res = await fetch(API.ragIngest, {
             method: 'POST',
             body: formData,
-            // Do NOT set Content-Type – browser sets it with boundary automatically
+            // 不要手动设 Content-Type，浏览器会自动带上 boundary
         });
 
         if (res.ok) {
@@ -1311,7 +1310,7 @@ async function ingestFile() {
             result.textContent = `Success: ${JSON.stringify(data)}`;
             toast('File ingested successfully', 'success');
             refreshTopics();
-            // Reset
+            // 重置
             setSelectedKnowledgeFile(null);
         } else {
             const err = await res.json().catch(() => ({ message: res.statusText }));
@@ -1453,13 +1452,13 @@ function appendCsvParams(params, key, rawValue) {
     values.forEach(value => params.append(key, value));
 }
 
-// ===== Dashboard =====
+// ===== 仪表盘 =====
 function initDashboard() {
     $('#refreshDashboard').addEventListener('click', refreshDashboard);
 }
 
 async function refreshDashboard() {
-    // Health
+    // 健康检查
     try {
         const res = await fetch(API.health);
         const data = await res.json();
@@ -1467,7 +1466,7 @@ async function refreshDashboard() {
         const overall = data.status === 'UP';
         updateStatusCard('healthCard', overall, data.status);
 
-        // Component statuses
+        // 各组件状态
         const components = data.components || {};
         if (components.db) {
             updateStatusCard('dbCard', components.db.status === 'UP', components.db.status);
@@ -1484,7 +1483,7 @@ async function refreshDashboard() {
         $('#healthDetails').textContent = `Failed to fetch health: ${err.message}`;
     }
 
-    // Metrics
+    // 指标
     try {
         const res = await fetch(API.metrics);
         const data = await res.json();
@@ -1569,7 +1568,7 @@ function formatMetricName(name) {
     return String(name || '').replace(/\./g, ' · ');
 }
 
-// ===== Utilities =====
+// ===== 工具函数 =====
 function escapeHtml(str) {
     if (str == null) return '';
     return String(str)
@@ -1606,7 +1605,7 @@ function toast(message, type = 'info') {
     setTimeout(() => div.remove(), 3000);
 }
 
-// ===== AI Interaction Log link =====
+// ===== AI 交互 log 链接 =====
 function initInteractionLogLink() {
     updateInteractionLogLink();
 }

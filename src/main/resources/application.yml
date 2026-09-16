@@ -7,7 +7,7 @@ spring:
       max-file-size: 50MB
       max-request-size: 100MB
 
-  # DataSource (PostgreSQL with pgvector extension)
+  # 数据源（PostgreSQL，带 pgvector 扩展）
   datasource:
     url: jdbc:postgresql://localhost:5432/dawn_ai
     username: dawn
@@ -20,14 +20,14 @@ spring:
     show-sql: false
     database-platform: org.hibernate.dialect.PostgreSQLDialect
 
-  # Redis (Conversation Memory)
+  # Redis（对话记忆）
   data:
     redis:
       host: localhost
       port: 6379
       timeout: 3000ms
 
-  # Spring AI - OpenAI
+  # Spring AI - OpenAI 配置
   ai:
     openai:
       api-key: ${OPENAI_API_KEY}
@@ -58,7 +58,7 @@ spring:
         multiplier: 2            # 该属性在 Spring AI 1.1.4 中是 Integer
         max-interval: 5s
 
-    # Vector Store - PGVector
+    # 向量库 - PGVector
     vectorstore:
       pgvector:
         table-name: vector_store
@@ -70,7 +70,7 @@ spring:
 server:
   port: 8080
 
-# Actuator & Prometheus Metrics + OTLP tracing → Langfuse
+# Actuator 与 Prometheus 指标 + OTLP tracing → Langfuse
 management:
   endpoints:
     web:
@@ -93,7 +93,7 @@ management:
       headers:
         Authorization: Basic ${LANGFUSE_AUTH_BASE64:}
 
-# Application config
+# 应用配置
 app:
   ai:
     react:
@@ -115,7 +115,7 @@ app:
         max-batch-size: 10        #
       chunk-size: 500                 # 单个 chunk 的 token 数
       chunk-overlap: 50              # 相邻 chunk 的重叠 token 数
-      similarity-threshold: 0.6  # 向量相似度过滤阈值，低于此值的文档被丢弃 (bge-m3 cosine scores are typically 0.4-0.65)
+      similarity-threshold: 0.6  # 向量相似度过滤阈值，低于此值的文档被丢弃（bge-m3 的 cosine 分数一般在 0.4-0.65）
       default-top-k: 5            # 最终返回的文档数
       rerank-enabled: true        # 是否启用召回后的二阶段重排
       reranker:
@@ -283,6 +283,6 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36}:%line - %msg%n"
 
-# Langfuse environment label, attached as OTel resource attribute
+# Langfuse 环境标签，作为 OTel resource attribute 附加上去
 langfuse:
   environment: ${LANGFUSE_ENVIRONMENT:dev}

@@ -131,7 +131,7 @@ class RagServiceTest {
     @Test
     @DisplayName("ingest: 每个 chunk 应继承父文档的 source 和 category metadata")
     void ingest_chunksInheritMetadata() {
-        // Use long text to ensure multiple chunks are produced
+        // 用长文本确保能切出多个 chunk
         String content = "word ".repeat(600);
         ragService.ingest(content, "pricing-doc", "billing", null);
 
@@ -147,8 +147,8 @@ class RagServiceTest {
     @Test
     @DisplayName("ingest: 自定义 overlap 生效，后续 chunk 应包含前一个 chunk 的尾部 token")
     void ingest_configuredOverlapProducesOverlappingChunks() {
-        // chunkSize=4, overlap=2 → step=2; "one two three four five six seven" (7 tokens)
-        // expected chunks: [0..3], [2..5], [4..6]
+        // chunkSize=4, overlap=2 → step=2; "one two three four five six seven"（7 个 token）
+        // 预期的 chunk: [0..3], [2..5], [4..6]
         RagService localRagService = new RagService(
                 vectorStore, jdbcTemplate, meterRegistry, aiAvailabilityChecker,
                 new HeuristicRetrievalReranker(),

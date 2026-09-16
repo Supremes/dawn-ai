@@ -52,7 +52,7 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
 
         List<String> failures = new ArrayList<>();
 
-        // Accumulators for aggregate IR metrics
+        // 汇总 IR 指标用的累加器
         double sumRecall = 0, sumPrecision = 0, sumHit = 0, sumMrr = 0, sumNdcg = 0, sumNoise = 0;
         int caseCount = 0;
 
@@ -62,7 +62,7 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
 
             List<String> indexedDocumentIds = indexEvaluationDocuments(vectorStore, evalCase);
             try {
-                // --- Retrieve ---
+                // --- 检索 ---
                 RetrievalRequest request = RetrievalRequest.builder()
                         .query(evalCase.query())
                         .metadataFilters(evaluationMetadataFilters(evalCase))
@@ -81,7 +81,7 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
                 List<String> allCaseDocIds = evalCaseDocIds(evalCase);
                 boolean isNegativeCase = expectedDocIds.isEmpty();
 
-                // --- Compute 6 IR metrics inline ---
+                // --- 就地算 6 个 IR 指标 ---
                 double recallAtK;
                 double precisionAtK;
                 double hitAtK;
@@ -90,7 +90,7 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
                 double noiseAtK;
 
                 if (isNegativeCase) {
-                    // Negative case: no expected docs; metrics measure correct absence
+                    // 负例：没有期望文档，指标衡量的是「正确地什么都没召回」
                     boolean noLeakage = retrievedDocIds.stream().noneMatch(allCaseDocIds::contains);
                     recallAtK = noLeakage ? 1.0 : 0.0;
                     precisionAtK = noLeakage ? 1.0 : 0.0;
@@ -107,21 +107,21 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
                     noiseAtK = 1.0 - precisionAtK;
                 }
 
-                // --- Retrieval strategy (optional) ---
+                // --- 检索策略（可选） ---
                 String strategy = resolveStrategy(request);
 
-                // --- Rule-based scoring (deterministic, no LLM Judge) ---
+                // --- 基于规则打分（确定性，不用 LLM Judge） ---
                 JudgeResult judgeResult = evaluateByRules(evalCase, expectedDocIds,
                         retrievedDocIds, allCaseDocIds, recallAtK, precisionAtK, isNegativeCase);
 
-                // --- Record case result following ToolSelectionEvaluationTest pattern ---
+                // --- 按 ToolSelectionEvaluationTest 的套路记录 case 结果 ---
                 recordCaseResult(EvaluationCaseResult.forRagRecall(
                         evalCase, judgeResult, sessionId, "",
                         expectedDocIds, retrievedDocIds,
                         recallAtK, precisionAtK, hitAtK, mrrAtK, ndcgAtK,
                         strategy));
 
-                // --- Per-case IR log ---
+                // --- 每个 case 的 IR log ---
                 log.info("[RagRecallEval] case={} | recall@{}={} | precision@{}={} | hit@{}={} | " +
                                 "mrr@{}={} | ndcg@{}={} | noise@{}={} | strategy={} | score={}",
                         evalCase.id(),
@@ -129,7 +129,7 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
                         K, fmt(mrrAtK), K, fmt(ndcgAtK), K, fmt(noiseAtK),
                         strategy, fmt(judgeResult.score()));
 
-                // Accumulate for aggregate report
+                // 累加到汇总报告
                 sumRecall += recallAtK;
                 sumPrecision += precisionAtK;
                 sumHit += hitAtK;
@@ -155,7 +155,7 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
             }
         }
 
-        // --- Aggregate IR report ---
+        // --- IR 汇总报告 ---
         printAggregateReport(caseCount, sumRecall, sumPrecision, sumHit, sumMrr, sumNdcg, sumNoise);
 
         assertThat(failures)
@@ -164,7 +164,7 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
     }
 
     // -------------------------------------------------------------------------
-    // Rule-based evaluation (deterministic, no LLM Judge)
+    // 基于规则的评估（确定性，不用 LLM Judge）
     // -------------------------------------------------------------------------
 
     private JudgeResult evaluateByRules(EvaluationCase evalCase,
@@ -175,7 +175,7 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
                                         double precisionAtK,
                                         boolean isNegativeCase) {
         if (isNegativeCase) {
-            // Negative case: score 5.0 if NO docs from this case's ragDocuments are retrieved.
+            // 负例：只要本 case 的 ragDocuments 里一篇都没被召回，就给 5.0 分。
             boolean noLeakage = retrievedDocIds.stream().noneMatch(allCaseDocIds::contains);
             double score = noLeakage ? 5.0 : 1.0;
             String reasoning = noLeakage
@@ -215,17 +215,17 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
     }
 
     // -------------------------------------------------------------------------
-    // IR metric computation (inlined, no external dependency)
+    // IR 指标计算（就地实现，不依赖外部库）
     // -------------------------------------------------------------------------
 
-    /** Recall@K = matched expected docs / total expected docs */
+    /** Recall@K = 命中的期望文档数 / 期望文档总数 */
     private double computeRecallAtK(List<String> retrievedDocIds, List<String> expectedDocIds) {
         if (expectedDocIds.isEmpty()) return 0.0;
         long hits = expectedDocIds.stream().filter(retrievedDocIds::contains).count();
         return (double) hits / expectedDocIds.size();
     }
 
-    /** Precision@K = matched expected docs / K */
+    /** Precision@K = 命中的期望文档数 / K */
     private double computePrecisionAtK(List<String> retrievedDocIds, List<String> expectedDocIds) {
         if (expectedDocIds.isEmpty()) return 0.0;
         Set<String> expected = new LinkedHashSet<>(expectedDocIds);
@@ -233,14 +233,14 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
         return (double) hits / K;
     }
 
-    /** HitRate@K = at least one expected doc found ? 1.0 : 0.0 */
+    /** HitRate@K = 至少命中一篇期望文档 ? 1.0 : 0.0 */
     private double computeHitAtK(List<String> retrievedDocIds, List<String> expectedDocIds) {
         if (expectedDocIds.isEmpty()) return 0.0;
         Set<String> expected = new LinkedHashSet<>(expectedDocIds);
         return retrievedDocIds.stream().anyMatch(expected::contains) ? 1.0 : 0.0;
     }
 
-    /** MRR@K = 1.0 / (rank of first expected doc in retrieved list) */
+    /** MRR@K = 1.0 / (第一篇期望文档在召回列表里的排名) */
     private double computeMrrAtK(List<String> retrievedDocIds, List<String> expectedDocIds) {
         if (expectedDocIds.isEmpty()) return 0.0;
         Set<String> expected = new LinkedHashSet<>(expectedDocIds);
@@ -253,14 +253,14 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
     }
 
     /**
-     * NDCG@K = DCG@K / IDCG@K.
-     * Relevance is binary: 1.0 if doc is in expectedDocIds, 0.0 otherwise.
+     * NDCG@K = DCG@K / IDCG@K。
+     * 相关性是二值的：文档在 expectedDocIds 里记 1.0，否则记 0.0。
      */
     private double computeNdcgAtK(List<String> retrievedDocIds, List<String> expectedDocIds) {
         if (expectedDocIds.isEmpty()) return 0.0;
         Set<String> expected = new LinkedHashSet<>(expectedDocIds);
 
-        // DCG@K = sum( rel_i / log2(i+2) ) for i in [0, min(K, retrieved.size()))
+        // DCG@K = sum( rel_i / log2(i+2) )，i 取 [0, min(K, retrieved.size()))
         double dcg = 0.0;
         int limit = Math.min(K, retrievedDocIds.size());
         for (int i = 0; i < limit; i++) {
@@ -269,7 +269,7 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
             }
         }
 
-        // IDCG@K: ideal ranking places all relevant docs at the top
+        // IDCG@K：理想排序会把所有相关文档都排在最前面
         int idealHits = Math.min(expected.size(), K);
         double idcg = 0.0;
         for (int i = 0; i < idealHits; i++) {
@@ -280,7 +280,7 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
     }
 
     // -------------------------------------------------------------------------
-    // Aggregate report
+    // 汇总报告
     // -------------------------------------------------------------------------
 
     private void printAggregateReport(int caseCount,
@@ -310,7 +310,7 @@ class RagRecallEvaluationTest extends AbstractEvaluationTest {
     }
 
     // -------------------------------------------------------------------------
-    // Helpers
+    // 辅助方法
     // -------------------------------------------------------------------------
 
     private List<String> expectedDocIds(EvaluationCase evalCase) {

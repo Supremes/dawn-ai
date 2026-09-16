@@ -114,7 +114,7 @@ public class JudgeService {
 
     private String extractJson(String content) {
         String trimmed = content.trim();
-        // Strip markdown code fences if present
+        // 如果有 markdown 代码围栏就去掉
         if (trimmed.startsWith("```")) {
             int firstNewline = trimmed.indexOf('\n');
             int lastFence = trimmed.lastIndexOf("```");

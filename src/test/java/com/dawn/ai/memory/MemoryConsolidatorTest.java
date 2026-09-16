@@ -60,7 +60,7 @@ class MemoryConsolidatorTest {
         when(memoryManager.add(anyString(), anyString(), anyString(), any(MemoryType.class), anyDouble()))
                 .thenThrow(new RuntimeException("DB down"));
 
-        // Should not throw, and should NOT publish reflection event (early return on failure)
+        // 不应该抛异常，也不应该发 reflection 事件（失败时提前 return）
         consolidator.onEpisodicMemory(new EpisodicMemoryEvent("s1", "u1", "Some summary", 0.5));
 
         verify(eventPublisher, never()).publishEvent(any());

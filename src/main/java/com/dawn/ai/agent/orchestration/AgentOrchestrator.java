@@ -49,18 +49,18 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 /**
- * Agent Orchestrator — orchestrates the full ReAct loop with planning and step tracing.
+ * Agent Orchestrator —— 串起完整的 ReAct 循环，带 planning 和 step 追踪。
  *
- * Flow per streaming request:
- *  1. StepCollector.init()         — reset thread-local state
- *  2. TaskPlanner.plan()           — pre-execution planning via a separate LLM call (optional)
- *  3. Build system prompt          — base prompt + plan summary + max-steps instruction
- *  4. chatClient + .toolNames()    — Spring AI handles the tool-calling loop
- *  5. ToolExecutionAspect (AOP)    — intercepts each tool call, records it automatically
- *  6. StepCollector.collect()      — gather all recorded steps
- *  7. Publish SSE events           — stream plan, thinking, steps, tokens, done/error
- *  8. Persist to memory            — save turn to Redis
- *  9. StepCollector.clear()        — prevent ThreadLocal memory leak
+ * 每个流式请求的流程：
+ *  1. StepCollector.init()         —— 重置 ThreadLocal 状态
+ *  2. TaskPlanner.plan()           —— 执行前先用一次独立的 LLM 调用做规划（可选）
+ *  3. 构建 system prompt           —— 基础 prompt + plan 摘要 + 最大步数说明
+ *  4. chatClient + .toolNames()    —— tool-calling 循环交给 Spring AI 处理
+ *  5. ToolExecutionAspect (AOP)    —— 拦截每次 tool 调用，自动记录
+ *  6. StepCollector.collect()      —— 收集所有已记录的 step
+ *  7. 发布 SSE 事件                 —— 依次推 plan、thinking、steps、tokens、done/error
+ *  8. 持久化到 memory              —— 把本轮对话存进 Redis
+ *  9. StepCollector.clear()        —— 防止 ThreadLocal 内存泄漏
  */
 @Slf4j
 @Service
@@ -166,10 +166,9 @@ public class AgentOrchestrator {
     private static final int PLANNER_CONTEXT_MAX_CHARS_PER_MSG = 200;
 
     /**
-     * Builds compact planner context so it can honor topic-scoped routing and resolve
-     * references/ellipsis (e.g. "再试试 / 它 / key") that an isolated single-turn task lacks.
-     * Intentionally excludes long-term memory: it does not aid reference resolution and only
-     * adds noise/tokens to the planning call.
+     * 给 planner 构建一份精简的上下文，让它能遵守按 topic 划分的路由，
+     * 并解析孤立单轮任务里缺失的指代/省略（比如 "再试试 / 它 / key"）。
+     * 故意不带长期记忆：它对指代解析没帮助，只会给 planning 调用增加噪音和 token。
      */
     private String buildPlannerContext(String sessionId, String topicId, boolean knowledgeSearchEnabled) {
         StringBuilder sb = new StringBuilder();
@@ -207,16 +206,16 @@ public class AgentOrchestrator {
     }
 
     /**
-     * <p>Publishes SSE events to {@code sink} in this order:
+     * <p>按下面的顺序往 {@code sink} 发布 SSE 事件：
      * {@code connected → plan_thinking* → plan? → thinking* → step* → token* → done | error}
-     * (see {@link ChatStreamEvent} for the canonical sequence).
+     * （标准顺序见 {@link ChatStreamEvent}）。
      *
-     * <p>This method always returns normally; errors are surfaced via an {@code error} event.
-     * The caller must run this on a dedicated non-servlet thread and complete the
-     * {@code SseEmitter} after this method returns.
+     * <p>这个方法总是正常返回；出错时通过 {@code error} 事件对外暴露。
+     * 调用方必须在专用的非 servlet 线程上跑它，并在方法返回后自行 complete
+     * {@code SseEmitter}。
      *
-     * @param isCancelled supplier checked before each streamed chunk; when {@code true} the
-     *                    Reactor pipeline is torn down early (client disconnected).
+     * @param isCancelled 每次推送 chunk 前都会检查的 supplier；为 {@code true} 时
+     *                    提前拆掉 Reactor pipeline（客户端已断开）。
      */
     public void streamChat(String sessionId, String userMessage, String topicId,
                            Consumer<ChatStreamEvent> sink, BooleanSupplier isCancelled) {
@@ -242,7 +241,7 @@ public class AgentOrchestrator {
                     enabledToolDescriptions);
             List<PlanStep> plan = plannerResult.steps();
 
-            // Set re-plan context so ToolExecutionAspect can trigger dynamic re-planning
+            // 设置 re-plan 上下文，让 ToolExecutionAspect 能触发动态 re-plan
             StepCollector.setRePlanContext(plan, userMessage, enabledToolNames);
 
             String planReasoning = plannerResult.reasoningContent();
@@ -262,7 +261,7 @@ public class AgentOrchestrator {
                             && AiInteractionContext.isToolEnabled(KNOWLEDGE_SEARCH_TOOL));
 
             // 系统提示词 + 用户画像 + 相关记忆（top-k）
-            // skills meta data + subagent description + plan description
+            // skills 元数据 + subagent 描述 + plan 描述
             String systemPrompt = buildSystemPrompt(
                     plan,
                     topicId,
@@ -471,7 +470,7 @@ public class AgentOrchestrator {
         int usedTokens = 0;
         int maxTokens = tokenWindowManager.getMaxHistoryTokens();
 
-        // From newest to oldest, keep messages that fit the token budget
+        // 从最新到最旧遍历，只保留放得进 token 预算的消息
         for (int i = rawHistory.size() - 1; i >= 0; i--) {
             String content = rawHistory.get(i).get("content");
             int msgTokens = tokenWindowManager.estimateTokens(content);
@@ -490,8 +489,8 @@ public class AgentOrchestrator {
     }
 
     /**
-    * Builds the system prompt for the streaming ReAct path.
-     * Includes the execution plan, plan-enforcement directive, and max-steps constraint.
+    * 为流式 ReAct 路径构建 system prompt。
+     * 包含执行 plan、强制按 plan 执行的指令，以及最大步数限制。
      */
     private static final String SECURITY_GUIDANCE = """
 
@@ -546,7 +545,7 @@ public class AgentOrchestrator {
     }
 
     /**
-     * Keeps evaluation and non-request callers on server-default capabilities.
+     * 让评估和非请求场景的调用方使用服务端默认能力。
      */
     @SuppressWarnings("unused")
     private String buildSystemPrompt(List<PlanStep> plan, String topicId, String userQuery) {

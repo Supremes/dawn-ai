@@ -13,23 +13,22 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /**
- * Holds all per-request state for {@link StepCollector} as a single mutable object.
+ * 把 {@link StepCollector} 单次请求的全部状态收拢成一个可变对象。
  *
- * <p>Design rationale: ThreadLocal propagation (via Micrometer's {@code ThreadLocalAccessor})
- * copies the <em>reference</em> to this object — not a deep copy — so all Reactor worker
- * threads that receive the same reference work on the same underlying state.  This is the
- * key property that makes cross-thread step counting correct.
+ * <p>设计思路：ThreadLocal 传播（借助 Micrometer 的 {@code ThreadLocalAccessor}）复制的是
+ * 这个对象的<em>引用</em>，不是深拷贝，所以所有拿到同一引用的 Reactor worker 线程
+ * 操作的都是同一份底层状态。跨线程步数统计能正确，靠的就是这一点。
  *
- * <p>Thread safety:
+ * <p>线程安全：
  * <ul>
- *   <li>{@code steps}     — {@link Collections#synchronizedList} for safe concurrent appends</li>
- *   <li>{@code counter}   — {@link AtomicInteger}, inherently thread-safe</li>
- *   <li>{@code bashFailureStreak} — {@link AtomicInteger}, tracks consecutive empty/failed Bash observations</li>
- *   <li>{@code bashCircuitOpen} — once opened, prevents further Bash execution in this request</li>
- *   <li>{@code consecutiveRecoverySignals} — drives structured re-planning after unproductive outcomes</li>
- *   <li>{@code retrievedQueries} — {@link ConcurrentHashMap}-backed set</li>
- *   <li>{@code maxSteps}  — final, immutable</li>
- *   <li>{@code stepListener} — volatile; written once during init, read-only afterwards</li>
+ *   <li>{@code steps}     —— {@link Collections#synchronizedList}，保证并发追加安全</li>
+ *   <li>{@code counter}   —— {@link AtomicInteger}，天然线程安全</li>
+ *   <li>{@code bashFailureStreak} —— {@link AtomicInteger}，跟踪 Bash 连续为空/失败的观察次数</li>
+ *   <li>{@code bashCircuitOpen} —— 一旦打开，本次请求内不再允许执行 Bash</li>
+ *   <li>{@code consecutiveRecoverySignals} —— 连续无效结果后驱动结构化 re-plan</li>
+ *   <li>{@code retrievedQueries} —— 基于 {@link ConcurrentHashMap} 的 set</li>
+ *   <li>{@code maxSteps}  —— final，不可变</li>
+ *   <li>{@code stepListener} —— volatile；init 时写一次，之后只读</li>
  * </ul>
  */
 public final class StepCollectorContext {
@@ -53,7 +52,7 @@ public final class StepCollectorContext {
         this.stepListener = stepListener;
     }
 
-    // ── Re-plan context accessors ──
+    // ── Re-plan 上下文访问器 ──
 
     public List<PlanStep> getCurrentPlan() { return currentPlan; }
     public void setCurrentPlan(List<PlanStep> plan) { this.currentPlan = plan; }

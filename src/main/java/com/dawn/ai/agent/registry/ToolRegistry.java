@@ -16,15 +16,15 @@ import java.util.Set;
 import java.util.function.Function;
 
 /**
- * Auto-discovers all Tool beans in com.dawn.ai.agent.tools at startup.
+ * 启动时自动发现 com.dawn.ai.agent.tools 下的所有 Tool bean。
  *
- * A Tool is any Spring bean that:
- *   1. Implements java.util.function.Function
- *   2. Is annotated with @Description
- *   3. Lives under the com.dawn.ai.agent.tools package
+ * 满足下面三个条件的 Spring bean 就算一个 Tool：
+ *   1. 实现了 java.util.function.Function
+ *   2. 标了 @Description 注解
+ *   3. 位于 com.dawn.ai.agent.tools 包下
  *
- * This eliminates the dual maintenance of toolNames() and getToolDescriptions()
- * in AgentOrchestrator and TaskPlanner. New tools are picked up automatically.
+ * 这样就不用在 AgentOrchestrator 和 TaskPlanner 里同时维护 toolNames() 和 getToolDescriptions() 了，
+ * 新增工具会被自动捡起来。
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -37,7 +37,7 @@ public class ToolRegistry {
 
     private final ApplicationContext applicationContext;
 
-    /** Insertion-ordered map: bean name → @Description value */
+    /** 按插入顺序排列的 map：bean 名 → @Description 的值 */
     private Map<String, String> tools = Collections.emptyMap();
 
     @PostConstruct
@@ -45,7 +45,7 @@ public class ToolRegistry {
         Map<String, String> discovered = new LinkedHashMap<>();
 
         applicationContext.getBeansWithAnnotation(Description.class).forEach((beanName, bean) -> {
-            // 1. Safely unwrap the proxy to get the real target class
+            // 1. 安全地拆掉代理，拿到真正的目标类
             Class<?> targetClass = AopUtils.getTargetClass(bean);
 
             if (bean instanceof Function<?, ?>
@@ -66,12 +66,12 @@ public class ToolRegistry {
                 tools.size(), tools.keySet());
     }
 
-    /** Returns tool bean names for use with chatClient.toolNames(). */
+    /** 返回工具 bean 名列表，给 chatClient.toolNames() 用。 */
     public String[] getNames() {
         return tools.keySet().toArray(String[]::new);
     }
 
-    /** Returns tool name → description map for use in TaskPlanner prompts. */
+    /** 返回工具名 → 描述的 map，给 TaskPlanner 的 prompt 用。 */
     public Map<String, String> getDescriptions() {
         return tools;
     }

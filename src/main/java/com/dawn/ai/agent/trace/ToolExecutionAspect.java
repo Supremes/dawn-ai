@@ -40,28 +40,27 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /**
- * Intercepts every tool invocation in the agent tools package and records it as an AgentStep.
+ * 拦截 agent tools 包下的每一次工具调用，并记录为一条 AgentStep。
  *
- * The pointcut covers all current and future tools under com.dawn.ai.agent.tools,
- * so new tools are automatically traced without any modification.
+ * 切点覆盖 com.dawn.ai.agent.tools 下现有及未来的所有工具，
+ * 新增工具无需任何改动即可自动被追踪。
  *
- * Resilience (resilience4j, configured via {@code resilience4j.*} in application.yml):
- *   - Retry: one resilience4j {@link Retry} per tool obtained from {@link RetryRegistry}
- *     ({@code resilience4j.retry.configs.default} / {@code configs.<ToolName>}). Retries only
- *     {@link ToolOutcome} results with {@code RETRYABLE_FAILURE} + {@code safeToRetry()}, plus
- *     {@link BulkheadFullException} (the tool body never ran). Exceptions thrown by the tool body
- *     are never retried (non-idempotent tools such as BashTool must not re-run on exception);
- *     {@link CallNotPermittedException} fails fast.
- *   - Bulkhead: one semaphore {@link Bulkhead} per tool ({@code resilience4j.bulkhead.instances.<ToolName>},
- *     falling back to {@code configs.default}). Retry wraps Bulkhead so the permit is released between attempts.
- *     Sibling of BulkheadFullException: {@link AcquirePermissionCancelledException} is thrown (even with free
- *     permits) when the calling thread is already interrupted — the tool body never ran either, but it is NOT
- *     retried (the request is being torn down) and is classified as PERMANENT_FAILURE.
+ * 弹性能力（resilience4j，通过 application.yml 中的 {@code resilience4j.*} 配置）：
+ *   - Retry：每个工具一个从 {@link RetryRegistry} 取得的 resilience4j {@link Retry}
+ *     （{@code resilience4j.retry.configs.default} / {@code configs.<ToolName>}）。只重试
+ *     状态为 {@code RETRYABLE_FAILURE} 且 {@code safeToRetry()} 的 {@link ToolOutcome} 结果，
+ *     外加 {@link BulkheadFullException}（工具体根本没执行）。工具体抛出的异常一律不重试
+ *     （BashTool 这类非幂等工具绝不能因异常重跑）；{@link CallNotPermittedException} 快速失败。
+ *   - Bulkhead：每个工具一个信号量 {@link Bulkhead}（{@code resilience4j.bulkhead.instances.<ToolName>}，
+ *     缺省回落到 {@code configs.default}）。Retry 包在 Bulkhead 外层，所以每次尝试之间许可都会释放。
+ *     BulkheadFullException 的同类：调用线程已被中断时（即使还有空闲许可）会抛出
+ *     {@link AcquirePermissionCancelledException}。此时工具体同样没执行，但不会重试
+ *     （请求正在被拆除），并归类为 PERMANENT_FAILURE。
  *
- * Also exports per-tool metrics to Prometheus:
- *   - ai.tool.duration{tool, status, outcome}  — execution time histogram
- *   - ai.tool.calls.total{tool, status, outcome} — call count
- *   - ai.tool.retries.total{tool} — safe automatic retry count (emitted from Retry onRetry events)
+ * 同时向 Prometheus 导出每个工具的指标：
+ *   - ai.tool.duration{tool, status, outcome}  —— 执行耗时直方图
+ *   - ai.tool.calls.total{tool, status, outcome} —— 调用次数
+ *   - ai.tool.retries.total{tool} —— 安全自动重试次数（来自 Retry 的 onRetry 事件）
  */
 @Slf4j
 @Aspect

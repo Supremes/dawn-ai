@@ -24,7 +24,7 @@ import java.util.List;
 @Component
 public class DocumentTextExtractor {
 
-    /** Default JSON field whose value is used as the document body for each JSONL line. */
+    /** 默认的 JSON 字段名，JSONL 每一行取这个字段的值作为文档正文。 */
     public static final String DEFAULT_JSONL_TEXT_FIELD = "text";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -34,8 +34,8 @@ public class DocumentTextExtractor {
             String text = switch (documentType) {
                 case TEXT -> new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
                 case PDF, WORD, EXCEL -> extractWithTika(inputStream, file);
-                // JSONL is record-oriented (one document per line); it must be ingested via
-                // extractJsonlRecords(), not as a single concatenated string.
+                // JSONL 是按记录组织的（一行一个文档），必须走 extractJsonlRecords()
+                // 逐条导入，不能拼成一个大字符串处理。
                 case JSONL -> throw new IllegalArgumentException(
                         "JSONL files must be ingested per-record; use extractJsonlRecords()");
             };
@@ -50,16 +50,15 @@ public class DocumentTextExtractor {
     }
 
     /**
-     * Extract one document body per line from a JSONL (newline-delimited JSON) file.
+     * 从 JSONL（按行分隔的 JSON）文件里逐行提取文档正文，一行一条。
      *
-     * <p>Each non-blank line is parsed as a JSON object and the value of {@code textField}
-     * is taken as that record's body. Blank lines, malformed lines, and lines missing a
-     * usable text field are skipped with a warning so a few dirty rows don't abort the
-     * whole dataset. If no usable record is found at all, an exception is raised.
+     * <p>每个非空行都按 JSON 对象解析，取 {@code textField} 字段的值作为这条记录的正文。
+     * 空行、格式错误的行、缺少可用文本字段的行都会跳过并打一条 warning，
+     * 这样几条脏数据不会把整个数据集搞挂。如果一条可用记录都没有，就抛异常。
      *
-     * @param file      the uploaded JSONL file
-     * @param textField the JSON field holding the body; falls back to {@link #DEFAULT_JSONL_TEXT_FIELD}
-     * @return the body text of every valid record, in file order
+     * @param file      上传的 JSONL 文件
+     * @param textField 存放正文的 JSON 字段；没传就 fallback 到 {@link #DEFAULT_JSONL_TEXT_FIELD}
+     * @return 所有有效记录的正文，按文件里的顺序排列
      */
     public List<String> extractJsonlRecords(MultipartFile file, String textField) {
         String field = (textField != null && !textField.isBlank()) ? textField : DEFAULT_JSONL_TEXT_FIELD;

@@ -11,8 +11,8 @@ import java.io.IOException;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Pure mapping test for {@link AgentOrchestrator#streamErrorCode(Throwable)} — the function
- * that decides which SSE error code a failed stream emits.
+ * 针对 {@link AgentOrchestrator#streamErrorCode(Throwable)} 的纯映射测试 —— 这个方法
+ * 决定一条失败的 stream 最终发出哪个 SSE 错误码。
  */
 class AgentOrchestratorStreamErrorCodeTest {
 
@@ -36,7 +36,7 @@ class AgentOrchestratorStreamErrorCodeTest {
 
     @Test
     void llmUnavailable_takesPrecedenceOverOtherCauseMappings() {
-        // even if the direct cause is a MaxStepsExceededException, a circuit-open deeper in the chain wins
+        // 就算直接 cause 是 MaxStepsExceededException，只要 cause 链更深处有 circuit open，还是它优先
         MaxStepsExceededException maxSteps = new MaxStepsExceededException("max");
         maxSteps.initCause(circuitOpen());
         Throwable wrapped = new RuntimeException(maxSteps);
@@ -67,7 +67,7 @@ class AgentOrchestratorStreamErrorCodeTest {
 
     @Test
     void selfReferencingCause_doesNotLoopForever() {
-        // Throwable.getCause() returns null while cause == this; emulate a cycle via a subclass override
+        // cause == this 时 Throwable.getCause() 会返回 null；这里用子类重写来模拟一个环
         Throwable loop = new RuntimeException("loop") {
             @Override
             public synchronized Throwable getCause() {

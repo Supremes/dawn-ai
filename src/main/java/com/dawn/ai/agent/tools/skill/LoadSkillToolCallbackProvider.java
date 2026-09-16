@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Collection;
 
-/** Provides a dynamic enum schema for loadSkillTool.name. */
+/** 为 loadSkillTool.name 提供动态生成的 enum schema。 */
 @Component
 @RequiredArgsConstructor
 public class LoadSkillToolCallbackProvider implements ToolCallbackProvider {

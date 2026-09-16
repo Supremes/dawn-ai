@@ -22,7 +22,7 @@ import java.util.Map;
 import static j2html.TagCreator.*;
 
 /**
- * Generates a self-contained HTML evaluation report (all CSS inline, no external dependencies).
+ * 生成一份自包含的 HTML 评估报告（CSS 全部内联，不依赖外部资源）。
  */
 public class HtmlReportWriter {
 
@@ -57,29 +57,29 @@ public class HtmlReportWriter {
                                 style(css())
                         ),
                         body(
-                                // Header
+                                // 页头
                                 div(
                                         h1("Dawn AI Evaluation Report"),
                                         p(text("Run: " + runId + " | Dimension: " + dimensionId + " | " + timestamp))
                                 ).withClass("header"),
 
                                 div(
-                                        // Summary cards
+                                        // 概要卡片
                                         div(
                                                 summaryCard("Pass Rate", String.format("%.1f%%", passRate), passRateColor(passRate)),
                                                 summaryCard("Average Score", String.format("%.2f", avgScore), passRateColor(passRate)),
                                                 summaryCard("Total Cases", String.valueOf(totalCases), COLOR_PRIMARY)
                                         ).withClass("cards"),
 
-                                        // Dimension breakdown
+                                        // 各维度明细
                                         h2("Dimension Breakdown"),
                                         dimensionTable(report),
 
-                                        // Case details
+                                        // 用例详情
                                         h2("Case Details"),
                                         caseDetails(report),
 
-                                        // Footer
+                                        // 页脚
                                         div(
                                                 p("Generated at " + timestamp)
                                         ).withClass("footer")
@@ -234,13 +234,13 @@ public class HtmlReportWriter {
 
     private static DomContent metadataGrid(EvaluationCaseResult caseResult, String badgeText, String badgeColor) {
         List<DomContent> items = new ArrayList<>();
-        // Always show basic info
+        // 基础信息始终展示
         items.add(metaItem("Status", badgeText, badgeColor));
         items.add(metaItem("Score", String.format("%.2f", caseResult.result().score()), null));
         items.add(metaItem("Session", caseResult.sessionId(), null));
 
         if (isRagCase(caseResult)) {
-            // RAG IR metrics
+            // RAG 检索指标
             items.add(metaItem("Expected Docs", formatList(caseResult.expectedDocIds()), null));
             items.add(metaItem("Retrieved Docs", formatList(caseResult.retrievedDocIds()), null));
             items.add(metaItem("Recall@K", String.format("%.4f", caseResult.recallAtK()), null));
@@ -253,7 +253,7 @@ public class HtmlReportWriter {
         }
 
         if (isToolCase(caseResult)) {
-            // Tool selection fields
+            // 工具选择相关字段
             items.add(metaItem("Expected Tools", formatList(caseResult.expectedTools()), null));
             items.add(metaItem("Actual Tools", formatList(caseResult.actualTools()), null));
             items.add(metaItem("Forbidden Tools", formatList(caseResult.forbiddenTools()), null));
@@ -334,7 +334,7 @@ public class HtmlReportWriter {
                 k, caseResult.ndcgAtK()))
                 .append("\n");
 
-        // Match/mismatch summary
+        // 命中 / 未命中汇总
         List<String> expected = caseResult.expectedDocIds();
         List<String> retrieved = caseResult.retrievedDocIds();
         List<String> hits = retrieved.stream().filter(expected::contains).toList();

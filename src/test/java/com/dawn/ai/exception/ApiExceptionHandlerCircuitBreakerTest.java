@@ -16,8 +16,8 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * CallNotPermittedException (LLM circuit breaker OPEN) must surface as HTTP 503 with the
- * llm_circuit_open error type — whether thrown directly or wrapped by Spring / Reactor.
+ * CallNotPermittedException（LLM circuit breaker 处于 OPEN）必须以 HTTP 503 加
+ * llm_circuit_open 错误类型返回 —— 不管是直接抛出，还是被 Spring / Reactor 包了一层。
  */
 class ApiExceptionHandlerCircuitBreakerTest {
 

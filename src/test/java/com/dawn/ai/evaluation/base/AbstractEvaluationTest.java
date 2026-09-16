@@ -169,7 +169,7 @@ public abstract class AbstractEvaluationTest {
 
     protected void sleepBetweenCases() {
         try {
-            Thread.sleep(10000); // 10s delay between cases to avoid LLM 429 rate limiting
+            Thread.sleep(10000); // 每个 case 之间停 10s，避免触发 LLM 的 429 限流
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -355,7 +355,7 @@ public abstract class AbstractEvaluationTest {
 
     private void writeLocalReport(EvaluationReport report) {
         try {
-            // Don't write JSON report for now, only HTML report is needed
+            // 暂时不写 JSON 报告，只需要 HTML 报告
             // String path = "target/evaluation-reports/" + RUN_ID + "-" + dimension().id() + ".json";
             // java.io.File dir = new java.io.File("target/evaluation-reports");
             // dir.mkdirs();
@@ -374,7 +374,7 @@ public abstract class AbstractEvaluationTest {
 
             // log.info("[Evaluation] report written to {}", path);
 
-            // Generate HTML report alongside the JSON report
+            // 在 JSON 报告旁边一并生成 HTML 报告
             com.dawn.ai.evaluation.report.HtmlReportWriter.write(
                     report, RUN_ID, dimension().id(), java.nio.file.Path.of("target/evaluation-reports"));
             log.info("[Evaluation] HTML report written to target/evaluation-reports/{}-{}.html", RUN_ID, dimension().id());
@@ -425,7 +425,7 @@ public abstract class AbstractEvaluationTest {
             return stepMap;
         }).toList());
 
-        // RAG-specific fields (only when present)
+        // RAG 专属字段（有值时才写入）
         if (caseResult.expectedDocIds() != null && !caseResult.expectedDocIds().isEmpty()) {
             map.put("expectedDocIds", caseResult.expectedDocIds());
         }

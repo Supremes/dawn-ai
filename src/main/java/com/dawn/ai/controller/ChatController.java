@@ -45,14 +45,14 @@ public class ChatController {
     }
 
     /**
-     * SSE streaming chat endpoint.
+     * SSE 流式聊天接口。
      *
-     * <p>Returns a stream of server-sent events in the order:
+     * <p>按下面的顺序返回一串 server-sent event：
      * {@code connected → plan_thinking* → plan? → thinking* → step* → token* → done | error}
-     * (see {@link com.dawn.ai.sse.ChatStreamEvent} for the canonical sequence).
+     * （标准顺序见 {@link com.dawn.ai.sse.ChatStreamEvent}）。
      *
-     * <p>Use {@code fetch()} on the client side rather than {@code EventSource} because
-     * this endpoint accepts a POST body (same {@link ChatRequest} as the sync endpoint).
+     * <p>客户端要用 {@code fetch()} 而不是 {@code EventSource}，因为这个接口
+     * 接收 POST body（和同步接口一样的 {@link ChatRequest}）。
      */
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamChat(@Valid @RequestBody ChatRequest request) {

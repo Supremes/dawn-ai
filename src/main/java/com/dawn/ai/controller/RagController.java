@@ -36,7 +36,7 @@ public class RagController {
     private final QueryCategoryClassifier queryCategoryClassifier;
 
     /**
-     * Ingest a document into the vector knowledge base.
+     * 把一篇文档 ingest 进向量知识库。
      */
     @PostMapping(value = "/ingest", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, String>> ingest(@Valid @RequestBody RagRequest request) {
@@ -45,7 +45,7 @@ public class RagController {
     }
 
     /**
-     * Ingest file uploads for multiple document types (text/pdf/word/excel).
+     * 通过文件上传 ingest 多种类型的文档（text/pdf/word/excel）。
      */
     @PostMapping(value = "/ingest", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Map<String, String>> ingestFile(
@@ -62,7 +62,7 @@ public class RagController {
         DocumentType resolvedType = documentType != null ? documentType : inferDocumentType(file);
         String effectiveSource = (source != null && !source.isBlank()) ? source : file.getOriginalFilename();
 
-        // JSONL is record-oriented: one independent document per line, each with its own docId.
+        // JSONL 是按记录组织的：每一行都是一篇独立文档，各自有自己的 docId。
         if (resolvedType == DocumentType.JSONL) {
             List<String> records = documentTextExtractor.extractJsonlRecords(file, textField);
             List<String> docIds = ragService.ingestBatch(records, effectiveSource, category, topicId);
@@ -83,7 +83,7 @@ public class RagController {
     }
 
     /**
-     * Retrieve semantically similar documents for a given query.
+     * 根据给定 query 检索语义相似的文档。
      */
     @GetMapping("/search")
     public ResponseEntity<List<Document>> search(
@@ -105,7 +105,7 @@ public class RagController {
     }
 
     /**
-     * Delete all chunks belonging to a parent document.
+     * 删除某个父文档下的所有 chunk。
      */
     @DeleteMapping("/documents/{docId}")
     public ResponseEntity<Map<String, Object>> deleteDocument(@PathVariable String docId) {
@@ -119,7 +119,7 @@ public class RagController {
     }
 
     /**
-     * Update a document by replacing all its chunks with new content.
+     * 更新文档：用新内容替换掉它的全部 chunk。
      */
     @PutMapping("/documents/{docId}")
     public ResponseEntity<Map<String, Object>> updateDocument(
@@ -135,7 +135,7 @@ public class RagController {
     }
 
     /**
-     * List ingested documents grouped by docId, with optional filters.
+     * 列出已 ingest 的文档，按 docId 分组，支持可选的过滤条件。
      */
     @GetMapping("/documents")
     public ResponseEntity<List<Map<String, Object>>> listDocuments(
@@ -180,8 +180,8 @@ public class RagController {
                 ? file.getContentType().toLowerCase(Locale.ROOT)
                 : "";
 
-        // JSONL must be checked before TEXT: a .jsonl upload often carries a text/* content
-        // type, which would otherwise be misclassified as a single TEXT document.
+        // JSONL 必须先于 TEXT 判断：上传的 .jsonl 文件经常带着 text/* 的 content type，
+        // 不先判断的话就会被误当成一篇单独的 TEXT 文档。
         if (isJsonlDocument(filename, contentType)) {
             return DocumentType.JSONL;
         }

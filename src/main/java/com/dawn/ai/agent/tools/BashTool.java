@@ -51,11 +51,11 @@ public class BashTool implements Function<BashTool.Request, BashTool.Response> {
     );
 
     private static final List<Pattern> BLOCKED_PATTERNS = List.of(
-            Pattern.compile("rm\\s+(-[^\\s]*)?\\s*/\\s*$"),       // rm / or rm -rf /
+            Pattern.compile("rm\\s+(-[^\\s]*)?\\s*/\\s*$"),       // rm / 或 rm -rf /
             Pattern.compile("rm\\s+-[^\\s]*r[^\\s]*f[^\\s]*\\s+/"), // rm -rf /...
             Pattern.compile("chmod\\s+-R\\s+777\\s+/"),            // chmod -R 777 /
-            Pattern.compile(":(\\s*)\\{\\s*:\\|:\\s*&\\s*\\}"),     // fork bomb :(){ :|:& };:
-            Pattern.compile(">\\.?\\s*/dev/[sh]da")                // overwrite disk device
+            Pattern.compile(":(\\s*)\\{\\s*:\\|:\\s*&\\s*\\}"),     // fork 炸弹 :(){ :|:& };:
+            Pattern.compile(">\\.?\\s*/dev/[sh]da")                // 覆写磁盘设备
     );
 
     /** 写/删除类命令：受 app.tools.bash.allow-write 控制（默认放行）。 */

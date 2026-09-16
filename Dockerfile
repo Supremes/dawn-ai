@@ -1,23 +1,23 @@
-# ---- Build Stage ----
+# ---- 构建阶段 ----
 # syntax=docker/dockerfile:1
 FROM maven:3-eclipse-temurin-17 AS builder
 
 WORKDIR /build
 
-# Layer 1: pom.xml only — invalidated only when dependencies change
+# 第 1 层：只 COPY pom.xml —— 只有依赖变了才会让这层失效
 COPY pom.xml .
 
-# Layer 2: resolve all deps into the BuildKit cache mount (.m2 is NOT baked into the image)
-# --mount=type=cache persists /root/.m2 across builds on the same host, so deps are never re-downloaded
+# 第 2 层：把所有依赖拉到 BuildKit 的 cache mount 里（.m2 不会打进镜像）
+# --mount=type=cache 会让 /root/.m2 在同一台宿主机的多次 build 之间一直保留，所以依赖不会重复下载
 RUN --mount=type=cache,target=/root/.m2 \
     mvn -B dependency:go-offline
 
-# Layer 3: source code — changes every commit, but deps are already cached above
+# 第 3 层：源码 —— 每次 commit 都会变，但依赖已经在上面 cache 好了
 COPY src/ src/
 RUN --mount=type=cache,target=/root/.m2 \
     mvn -B clean package -DskipTests
 
-# ---- Runtime Stage ----
+# ---- 运行阶段 ----
 FROM eclipse-temurin:17-jre
 
 WORKDIR /app

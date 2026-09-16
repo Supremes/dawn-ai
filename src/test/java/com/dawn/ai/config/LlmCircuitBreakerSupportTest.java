@@ -37,8 +37,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Unit tests for {@link LlmCircuitBreakerSupport}: breaker naming, status classification,
- * RestClient interceptor and WebClient filter bookkeeping. No Spring context, no network.
+ * {@link LlmCircuitBreakerSupport} 的单元测试：breaker 命名、状态码分类、
+ * RestClient interceptor 和 WebClient filter 的计数记录。不起 Spring 上下文，不走网络。
  */
 class LlmCircuitBreakerSupportTest {
 
@@ -58,7 +58,7 @@ class LlmCircuitBreakerSupportTest {
                 .build());
     }
 
-    // ---------- naming / status helpers ----------
+    // ---------- 命名 / 状态码辅助方法 ----------
 
     @Test
     void breakerNameFor_shouldRouteByPath() {
@@ -70,9 +70,9 @@ class LlmCircuitBreakerSupportTest {
                 .isEqualTo("llmChat");
         assertThat(LlmCircuitBreakerSupport.breakerNameFor(URI.create("https://api.x.com/v1/embeddings")))
                 .isEqualTo("llmEmbedding");
-        // rerank (CrossEncoderRetrievalReranker clones the @Primary builder) is the only explicit deny-list entry
+        // rerank（CrossEncoderRetrievalReranker 会 clone @Primary builder）是唯一显式列在 deny-list 里的路径
         assertThat(LlmCircuitBreakerSupport.breakerNameFor(URI.create("http://localhost:9000/rerank"))).isNull();
-        // D4: anything else (custom gateway path, empty path) defaults to llmChat
+        // D4：其他所有路径（自定义 gateway 路径、空路径）默认走 llmChat
         assertThat(LlmCircuitBreakerSupport.breakerNameFor(URI.create("https://gw.internal/llm/v2/generate")))
                 .isEqualTo("llmChat");
         assertThat(LlmCircuitBreakerSupport.breakerNameFor(URI.create("http://localhost:9000"))).isEqualTo("llmChat");
@@ -90,7 +90,7 @@ class LlmCircuitBreakerSupportTest {
         assertThat(LlmCircuitBreakerSupport.isFailureStatus(503)).isTrue();
     }
 
-    // ---------- RestClient interceptor ----------
+    // ---------- RestClient interceptor 相关测试 ----------
 
     @Test
     void restInterceptor_shouldRecordSuccessFor2xxAndOther4xx() throws IOException {
@@ -111,7 +111,7 @@ class LlmCircuitBreakerSupportTest {
         ClientHttpResponse r1 = interceptor.intercept(request("/v1/chat/completions"), EMPTY_BODY, execution(429));
         ClientHttpResponse r2 = interceptor.intercept(request("/v1/chat/completions"), EMPTY_BODY, execution(503));
 
-        // response is returned untouched so downstream (logging interceptor / error handler) still sees it
+        // response 原样返回，下游（logging interceptor / error handler）还能看到它
         assertThat(r1.getStatusCode().value()).isEqualTo(429);
         assertThat(r2.getStatusCode().value()).isEqualTo(503);
         CircuitBreaker.Metrics m = registry.circuitBreaker("llmChat").getMetrics();
@@ -131,7 +131,7 @@ class LlmCircuitBreakerSupportTest {
 
         CircuitBreaker.Metrics m = registry.circuitBreaker("llmEmbedding").getMetrics();
         assertThat(m.getNumberOfFailedCalls()).isEqualTo(1);
-        // chat breaker untouched
+        // chat breaker 没被碰过
         assertThat(registry.find("llmChat")).isEmpty();
     }
 
@@ -165,12 +165,12 @@ class LlmCircuitBreakerSupportTest {
         ClientHttpResponse response = interceptor.intercept(request("/rerank"), EMPTY_BODY, execution(500));
 
         assertThat(response.getStatusCode().value()).isEqualTo(500);
-        // no breaker created for the unknown path, and llmChat metrics untouched
+        // 未知路径不会创建 breaker，llmChat 的 metrics 也不受影响
         assertThat(registry.getAllCircuitBreakers()).hasSize(1);
         assertThat(registry.circuitBreaker("llmChat").getMetrics().getNumberOfFailedCalls()).isZero();
     }
 
-    // ---------- WebClient filter ----------
+    // ---------- WebClient filter 相关测试 ----------
 
     @Test
     void webFilter_shouldRecordSuccessWhenResponseHeadArrives() {
@@ -228,17 +228,17 @@ class LlmCircuitBreakerSupportTest {
     void webFilter_shouldReleasePermissionOnCancelBeforeResponse() {
         ExchangeFilterFunction filter = LlmCircuitBreakerSupport.webClientFilter(registry);
         CircuitBreaker cb = registry.circuitBreaker("llmChat");
-        // HALF_OPEN with 1 permitted call makes permission accounting observable
+        // HALF_OPEN 且只放行 1 个调用，这样 permission 的计数才能观察到
         cb.transitionToOpenState();
         cb.transitionToHalfOpenState();
 
         Disposable inFlight = filter.filter(clientRequest("/v1/chat/completions"), req -> Mono.never()).subscribe();
-        // the single half-open permit is taken
+        // 唯一的 half-open permit 已被占用
         assertThat(cb.tryAcquirePermission()).isFalse();
 
         inFlight.dispose();
 
-        // permit returned, no call recorded
+        // permit 已归还，且没有记录任何调用
         assertThat(cb.tryAcquirePermission()).isTrue();
         cb.releasePermission();
         assertThat(cb.getMetrics().getNumberOfSuccessfulCalls()).isZero();
@@ -318,7 +318,7 @@ class LlmCircuitBreakerSupportTest {
         assertThat(registry.circuitBreaker("llmChat").getMetrics().getNumberOfFailedCalls()).isEqualTo(1);
     }
 
-    // ---------- slow-call config regression ----------
+    // ---------- 慢调用配置回归测试 ----------
 
     @Test
     void ymlMirroredConfig_shouldNotOpenOnSlowSuccessfulCalls() {
@@ -366,7 +366,7 @@ class LlmCircuitBreakerSupportTest {
         assertThat(cb.getState()).isEqualTo(CircuitBreaker.State.OPEN);
     }
 
-    // ---------- helpers ----------
+    // ---------- 辅助方法 ----------
 
     private static HttpRequest request(String path) {
         HttpRequest request = mock(HttpRequest.class);

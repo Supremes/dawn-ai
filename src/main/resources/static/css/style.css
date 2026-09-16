@@ -1,6 +1,6 @@
 @import url("https://cdn.jsdelivr.net/npm/cn-fontsource-lxgw-wen-kai-gb-screen-regular/font.css");
 
-/* ===== Dawn AI editorial design system ===== */
+/* ===== Dawn AI 编辑风设计系统 ===== */
 :root {
     --bg-primary: #ffffff;
     --bg-secondary: #fafaf7;
@@ -73,7 +73,7 @@
     --shadow-md: 0 18px 42px rgba(0, 0, 0, 0.28);
 }
 
-/* ===== Reset & Base ===== */
+/* ===== 重置与基础样式 ===== */
 *, *::before, *::after {
     box-sizing: border-box;
     margin: 0;
@@ -102,7 +102,7 @@ svg {
     flex-shrink: 0;
 }
 
-/* ===== Layout ===== */
+/* ===== 布局 ===== */
 .app {
     display: flex;
     height: 100vh;
@@ -177,7 +177,7 @@ svg {
     border-color: var(--accent-soft);
 }
 
-/* ===== Session History ===== */
+/* ===== 会话历史 ===== */
 .session-history {
     flex: 1;
     min-height: 0;
@@ -351,7 +351,7 @@ svg {
     color: var(--text-primary);
 }
 
-/* ===== Header controls ===== */
+/* ===== 顶栏控件 ===== */
 .session-info {
     display: flex;
     align-items: center;
@@ -417,7 +417,7 @@ svg {
     border-color: var(--accent-soft);
 }
 
-/* ===== Chat ===== */
+/* ===== 聊天区 ===== */
 .chat-container {
     flex: 1;
     min-height: 0;
@@ -632,7 +632,7 @@ code {
 }
 .message.user .message-meta { justify-content: flex-end; }
 
-/* ===== Thinking / steps ===== */
+/* ===== 思考过程 / 步骤 ===== */
 .thinking-panel,
 .steps-detail {
     border: 1px solid var(--border-color);
@@ -794,7 +794,7 @@ code {
     30% { transform: translateY(-6px); opacity: 1; }
 }
 
-/* ===== Chat input ===== */
+/* ===== 聊天输入框 ===== */
 .chat-input-area {
     flex-shrink: 0;
     width: 100%;
@@ -945,7 +945,7 @@ code {
     transform: none;
 }
 
-/* ===== Knowledge / dashboard shells ===== */
+/* ===== 知识库 / 仪表盘外壳 ===== */
 .knowledge-container,
 .dashboard-container {
     flex: 1;
@@ -1010,7 +1010,7 @@ code {
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 
-/* ===== Forms ===== */
+/* ===== 表单 ===== */
 .form-group { margin-bottom: 16px; }
 .form-group label {
     display: block;
@@ -1067,7 +1067,7 @@ code {
 }
 .radio-label input[type="radio"] { accent-color: var(--accent); }
 
-/* ===== Buttons ===== */
+/* ===== 按钮 ===== */
 .btn,
 .btn-sm,
 .btn-icon {
@@ -1120,7 +1120,7 @@ code {
     border-color: var(--accent-soft);
 }
 
-/* ===== File upload ===== */
+/* ===== 文件上传 ===== */
 .file-upload-zone {
     position: relative;
     min-height: 168px;
@@ -1175,7 +1175,7 @@ code {
     pointer-events: none;
 }
 
-/* ===== Results and search ===== */
+/* ===== 结果与搜索 ===== */
 .result-area {
     margin-top: 14px;
     padding: 12px 14px;
@@ -1235,7 +1235,7 @@ code {
     word-break: break-word;
 }
 
-/* ===== Dashboard ===== */
+/* ===== 仪表盘 ===== */
 .status-cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -1313,7 +1313,7 @@ code {
 }
 .text-muted { color: var(--text-secondary); }
 
-/* ===== Toast ===== */
+/* ===== Toast 提示 ===== */
 .toast-container {
     position: fixed;
     right: 24px;
@@ -1344,7 +1344,7 @@ code {
     to { opacity: 0; }
 }
 
-/* ===== Scrollbar ===== */
+/* ===== 滚动条 ===== */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
@@ -1353,7 +1353,7 @@ code {
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
 
-/* ===== Responsive ===== */
+/* ===== 响应式 ===== */
 @media (max-width: 920px) {
     .app {
         flex-direction: column;

@@ -261,7 +261,7 @@ class MemoryConversationFlowTest {
 
             memorySummarizer.onSummarizationRequest(makeEvent("sess-timeout", SUMMARY_BATCH_SIZE));
 
-            // Fallback：importance < 0.4
+            // Fallback 场景：importance < 0.4
             verify(memoryManager).add(eq(USER_ID), eq("sess-timeout"),
                     anyString(), eq(MemoryType.EPISODIC), doubleThat(v -> v < 0.4));
         }
@@ -462,7 +462,7 @@ class MemoryConversationFlowTest {
         @Test
         @DisplayName("scenario21 · 25 轮对话驱动完整 L1→L2→L3 管道")
         void scenario21_fullConversation_entirePipelineFires() {
-            // ── Arrange ──────────────────────────────────────────────────
+            // ── 准备 ──────────────────────────────────────────────────
             String sessionId = "sess-e2e";
             List<Map<String, String>> pendingStore = new ArrayList<>();
             List<Map<String, String>> activeStore  = new ArrayList<>();
@@ -506,13 +506,13 @@ class MemoryConversationFlowTest {
             when(memoryManager.search(eq(USER_ID), anyString(), anyInt(), eq(MemoryType.EPISODIC)))
                     .thenReturn(makeEpisodeResults(EPISODE_THRESHOLD));
 
-            // ── Act：发送 25 轮消息（每轮 user + assistant = 2 条）──────────
+            // ── 执行：发送 25 轮消息（每轮 user + assistant = 2 条）──────────
             for (int turn = 1; turn <= 25; turn++) {
                 memoryService.addMessage(sessionId, USER_ID, "user", "问题 " + turn);
                 memoryService.addMessage(sessionId, USER_ID, "assistant", "回答 " + turn);
             }
 
-            // ── Assert ────────────────────────────────────────────────────
+            // ── 断言 ────────────────────────────────────────────────────
             List<Object> events = pipelinePublisher.capturedEvents();
 
             long summarizationCount = events.stream()

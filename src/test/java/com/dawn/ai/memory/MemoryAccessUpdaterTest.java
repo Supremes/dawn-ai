@@ -36,7 +36,7 @@ class MemoryAccessUpdaterTest {
 
         updater.updateAccessTime(List.of(memoryDoc, ragDoc));
 
-        // Only the doc carrying 'type' metadata is treated as a memory doc
+        // 只有带 'type' metadata 的文档才算 memory 文档
         verify(memoryRepository).updateLastAccessedAt(
                 argThat((List<UUID> ids) -> ids.size() == 1 && ids.contains(UUID.fromString(memId))),
                 any(Instant.class));
@@ -66,7 +66,7 @@ class MemoryAccessUpdaterTest {
         when(memoryRepository.updateLastAccessedAt(anyList(), any(Instant.class)))
                 .thenThrow(new RuntimeException("DB error"));
 
-        // Should not propagate exception
+        // 异常不应该往外抛
         updater.updateAccessTime(List.of(memoryDoc));
     }
 

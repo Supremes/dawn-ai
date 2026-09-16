@@ -9,17 +9,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
- * HyDE (Hypothetical Document Embeddings) — Gao et al. 2022.
+ * HyDE (Hypothetical Document Embeddings) — Gao et al. 2022。
  *
- * Generate a single short hypothetical passage that *answers* the user's query,
- * then use that passage as the retrieval input. The hypothetical text typically
- * shares vocabulary and embedding-space neighborhood with real relevant docs,
- * improving recall on zero-shot dense retrieval.
+ * 先让 LLM 写一小段 *回答* 用户问题的假设性文本，再拿这段文本去做检索。
+ * 这段假设文本通常和真实相关文档共享词汇、在 embedding 空间里也挨得近，
+ * 所以能提升 zero-shot 稠密检索的召回率。
  *
- * Pipeline position:
- *   original query → QueryRewriter (keyword cleanup) → HydeQueryGenerator → retrieve
+ * 在 pipeline 里的位置：
+ *   原始 query → QueryRewriter（关键词清洗）→ HydeQueryGenerator → 检索
  *
- * Failure behavior: any LLM error → fall back to input query (no exception leaks out).
+ * 失败行为：LLM 出任何错都 fallback 到输入 query（不会往外抛异常）。
  */
 @Slf4j
 @Service
@@ -42,8 +41,7 @@ public class HydeQueryGenerator {
     private boolean hydeEnabled;
 
     /**
-     * Generate hypothetical document for the query. Returns the input query unchanged
-     * when disabled or on any error.
+     * 为 query 生成假设文档。功能关闭或出任何错时，原样返回输入的 query。
      */
     public String generate(String query) {
         if (!hydeEnabled || query == null || query.isBlank()) {

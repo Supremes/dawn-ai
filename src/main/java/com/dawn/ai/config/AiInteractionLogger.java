@@ -13,11 +13,11 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Records every outgoing AI HTTP request and incoming response to the
- * {@code AI_INTERACTION} file logger (rolling, see logback-spring.xml).
+ * 把每一次发出去的 AI HTTP 请求和收到的响应都写到
+ * {@code AI_INTERACTION} 文件 logger 里（滚动 log，见 logback-spring.xml）。
  *
- * <p>The frontend reads the resulting log file via
- * {@link com.dawn.ai.controller.AiInteractionController#tailLog}.
+ * <p>前端通过
+ * {@link com.dawn.ai.controller.AiInteractionController#tailLog} 读这个 log 文件。
  */
 @Component
 public class AiInteractionLogger {
@@ -53,8 +53,8 @@ public class AiInteractionLogger {
     }
 
     /**
-     * Application-level entry for events that don't map cleanly to a single HTTP
-     * exchange (e.g. final aggregated answer of a streaming chat).
+     * 应用层面的记录，给那些没法对应到单次 HTTP 往返的事件用
+     * （比如流式聊天最后聚合出来的完整回答）。
      */
     public void logLogical(String sessionId, String direction, String label, String body, Long latencyMs) {
         write(Entry.builder()

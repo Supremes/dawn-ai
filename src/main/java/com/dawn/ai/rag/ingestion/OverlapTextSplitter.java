@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Token-aware splitter with configurable overlap and punctuation-aware boundaries.
+ * 按 token 切分的 splitter，支持可配置的 overlap，并且会在标点处找切分边界。
  */
 @Component
 public class OverlapTextSplitter implements DocumentTransformer {

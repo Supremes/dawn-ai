@@ -54,7 +54,7 @@ public class MemoryDiagnosticsController {
     private final EvictionPolicyManager evictionPolicyManager;
 
     @Value("${spring.ai.vectorstore.pgvector.table-name:vector_store}")
-    private String vectorTableName = "vector_store";  // non-final: injected via @Value after construction
+    private String vectorTableName = "vector_store";  // 不能是 final：构造完成后再由 @Value 注入
 
     // ─────────────────────────────────────────────────────────────────
     //  注入消息 → 触发 L1→L2→L3→L4 管道
@@ -190,7 +190,7 @@ public class MemoryDiagnosticsController {
     }
 
     // ─────────────────────────────────────────────────────────────────
-    //  Request records
+    //  请求体 record 定义
     // ─────────────────────────────────────────────────────────────────
 
     record InjectRequest(Integer count, String template, String role) {}

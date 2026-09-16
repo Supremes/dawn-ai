@@ -111,7 +111,7 @@ public class MemoryManager {
         entity.setLastAccessedAt(now);
         entity.setDeleted(false);
 
-        // Write VectorStore first — if it fails, JPA won't commit
+        // 先写 VectorStore —— 它要是失败了，JPA 就不会 commit
         upsertVectorDocument(entity);
         memoryRepository.save(entity);
 
@@ -290,7 +290,7 @@ public class MemoryManager {
             return List.of();
         }
 
-        // Post-filter: verify documents still exist in JPA and are not soft-deleted
+        // 后置过滤：确认文档在 JPA 里还存在，且没被软删除
         log.debug("记忆查询 - JPA 查询");
         List<String> ids = results.stream().map(Document::getId).toList();
         Set<UUID> existingIds = memoryRepository.findAllById(ids.stream().map(id -> parseUuidSafe(id)).filter(Objects::nonNull).toList())
@@ -370,8 +370,8 @@ public class MemoryManager {
         entity.setUpdatedAt(Instant.now());
         memoryRepository.save(entity);
 
-        // VectorStore cleanup is best-effort; JPA soft-delete is the source of truth.
-        // search() post-filters against JPA, so a stale VectorStore doc won't surface.
+        // VectorStore 的清理尽力而为就行；JPA 软删除才是唯一可信来源。
+        // search() 会拿 JPA 做后置过滤，所以 VectorStore 里残留的旧文档不会被返回。
         try {
             vectorStore.delete(List.of(memoryId));
         } catch (Exception e) {

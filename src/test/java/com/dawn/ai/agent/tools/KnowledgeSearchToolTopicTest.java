@@ -34,7 +34,7 @@ class KnowledgeSearchToolTopicTest {
 
     @Test
     void apply_withTopicId_shouldIncludeTopicIdInMetadataFilter() {
-        // Return a non-empty list so the fallback (no-filter retry) is not triggered
+        // 返回非空列表，避免触发 fallback（去掉过滤条件的 retry）
         when(ragService.retrieve(any(RetrievalRequest.class)))
                 .thenReturn(List.of(new org.springframework.ai.document.Document("result")));
         ArgumentCaptor<RetrievalRequest> captor = ArgumentCaptor.forClass(RetrievalRequest.class);

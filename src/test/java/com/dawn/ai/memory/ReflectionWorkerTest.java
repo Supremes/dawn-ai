@@ -33,7 +33,7 @@ class ReflectionWorkerTest {
         when(requestSpec.user(anyString())).thenReturn(requestSpec);
         when(requestSpec.call()).thenReturn(callSpec);
 
-        // episodeThreshold=4, so needs >= 2 episodes to proceed
+        // episodeThreshold=4，所以至少要有 2 条 episode 才会往下走
         reflectionWorker = new ReflectionWorker(memoryManager, chatClient, userProfileService, 4);
     }
 
@@ -62,7 +62,7 @@ class ReflectionWorkerTest {
 
     @Test
     void onReflectionRequest_skipsWhenNotEnoughEpisodes() {
-        // episodeThreshold=4, threshold/2=2, only 1 episode → skip
+        // episodeThreshold=4，threshold/2=2，只有 1 条 episode → 跳过
         when(memoryManager.search(eq("user1"), anyString(), anyInt(), eq(MemoryType.EPISODIC)))
                 .thenReturn(episodes(1));
 
