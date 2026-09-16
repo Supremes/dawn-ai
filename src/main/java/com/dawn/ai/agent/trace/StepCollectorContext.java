@@ -30,6 +30,13 @@ import java.util.function.Consumer;
  *   <li>{@code maxSteps}  —— final，不可变</li>
  *   <li>{@code stepListener} —— volatile；init 时写一次，之后只读</li>
  * </ul>
+ *
+ * <p><b>职责边界</b>：本类只是状态袋子，不放业务逻辑。字段一律 package-private，
+ * 由同包的 {@link StepCollector} 直接读写——步数上限、bash 熔断、re-plan 判定这些规则
+ * 全部住在 {@code StepCollector} 里。唯一的例外是 {@link #snapshotSteps()}：它服务的是
+ * 「手里攥着某个 context 引用」的跨包调用方（sub-agent 执行器），而不是当前线程的
+ * ThreadLocal，所以只能做成 public 实例方法。新增字段时照此办理：字段放这里，逻辑放
+ * {@code StepCollector}。
  */
 public final class StepCollectorContext {
 
@@ -50,28 +57,6 @@ public final class StepCollectorContext {
     StepCollectorContext(int maxSteps, Consumer<AgentStep> stepListener) {
         this.maxSteps = maxSteps;
         this.stepListener = stepListener;
-    }
-
-    // ── Re-plan 上下文访问器 ──
-
-    public List<PlanStep> getCurrentPlan() { return currentPlan; }
-    public void setCurrentPlan(List<PlanStep> plan) { this.currentPlan = plan; }
-
-    public String getUserMessage() { return userMessage; }
-    public void setUserMessage(String userMessage) { this.userMessage = userMessage; }
-
-    public Set<String> getToolDescriptions() { return toolDescriptions; }
-    public void setToolDescriptions(Set<String> toolDescriptions) { this.toolDescriptions = toolDescriptions; }
-
-    public boolean isRePlanTriggered() { return rePlanTriggered; }
-    public void markRePlanTriggered() { this.rePlanTriggered = true; }
-
-    public int incrementConsecutiveRecoverySignals() {
-        return consecutiveRecoverySignals.incrementAndGet();
-    }
-
-    public void resetConsecutiveRecoverySignals() {
-        consecutiveRecoverySignals.set(0);
     }
 
     /**

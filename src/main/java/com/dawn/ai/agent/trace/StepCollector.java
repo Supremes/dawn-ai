@@ -204,48 +204,48 @@ public class StepCollector {
     public static void setRePlanContext(List<PlanStep> plan, String userMessage, Set<String> toolDescriptions) {
         StepCollectorContext ctx = CONTEXT.get();
         if (ctx != null) {
-            ctx.setCurrentPlan(plan);
-            ctx.setUserMessage(userMessage);
-            ctx.setToolDescriptions(toolDescriptions);
+            ctx.currentPlan = plan;
+            ctx.userMessage = userMessage;
+            ctx.toolDescriptions = toolDescriptions;
         }
     }
 
     public static List<PlanStep> getCurrentPlan() {
         StepCollectorContext ctx = CONTEXT.get();
-        return ctx != null ? ctx.getCurrentPlan() : null;
+        return ctx != null ? ctx.currentPlan : null;
     }
 
     public static String getUserMessage() {
         StepCollectorContext ctx = CONTEXT.get();
-        return ctx != null ? ctx.getUserMessage() : null;
+        return ctx != null ? ctx.userMessage : null;
     }
 
     public static Set<String> getToolDescriptions() {
         StepCollectorContext ctx = CONTEXT.get();
-        return ctx != null ? ctx.getToolDescriptions() : null;
+        return ctx != null ? ctx.toolDescriptions : null;
     }
 
     public static int incrementConsecutiveRecoverySignals() {
         StepCollectorContext ctx = CONTEXT.get();
-        return ctx != null ? ctx.incrementConsecutiveRecoverySignals() : 0;
+        return ctx != null ? ctx.consecutiveRecoverySignals.incrementAndGet() : 0;
     }
 
     public static void resetConsecutiveRecoverySignals() {
         StepCollectorContext ctx = CONTEXT.get();
         if (ctx != null) {
-            ctx.resetConsecutiveRecoverySignals();
+            ctx.consecutiveRecoverySignals.set(0);
         }
     }
 
     public static boolean isRePlanTriggered() {
         StepCollectorContext ctx = CONTEXT.get();
-        return ctx != null && ctx.isRePlanTriggered();
+        return ctx != null && ctx.rePlanTriggered;
     }
 
     public static void markRePlanTriggered() {
         StepCollectorContext ctx = CONTEXT.get();
         if (ctx != null) {
-            ctx.markRePlanTriggered();
+            ctx.rePlanTriggered = true;
         }
     }
 
