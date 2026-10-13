@@ -125,9 +125,6 @@ public class AgentOrchestrator {
     @Value("${app.memory.default-user-id:local-user}")
     private String defaultUserId;
 
-    @Value("${app.memory.injection.procedural-top-k:2}")
-    private int proceduralTopK;
-
     @Value("${app.memory.injection.semantic-top-k:3}")
     private int semanticTopK;
 
@@ -713,12 +710,9 @@ public class AgentOrchestrator {
 
     private String formatMemories(String userId, String query) {
         try {
-            // 仅注入 PROCEDURAL（长期偏好/习惯）与 SEMANTIC（事实），按配额分配 topK；
-            // EPISODIC（对话摘要）是反思的中间产物，不进主 prompt，避免长文本挤占名额。
-            log.debug("系统提示词 - 记忆:  PROCEDURAL（长期偏好/习惯）与 SEMANTIC（事实），按配额分配 topK");
-            List<MemoryManager.MemorySearchResult> memories = new ArrayList<>();
-            memories.addAll(memoryManager.search(userId, query, proceduralTopK, MemoryType.PROCEDURAL));
-            memories.addAll(memoryManager.search(userId, query, semanticTopK, MemoryType.SEMANTIC));
+            log.debug("系统提示词 - 记忆: SEMANTIC（事实），按配额分配 topK");
+            List<MemoryManager.MemorySearchResult> memories =
+                    memoryManager.search(userId, query, semanticTopK, MemoryType.SEMANTIC);
             if (memories.isEmpty()) {
                 log.debug("系统提示词 - 记忆为空");
                 return "";

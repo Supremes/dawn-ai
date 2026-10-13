@@ -47,15 +47,14 @@ class ReflectionWorkerTest {
     }
 
     @Test
-    void onReflectionRequest_persistsHighImportanceReflectionAsProcedural() {
+    void onReflectionRequest_updatesProfileWithoutPersistingMemory() {
         when(memoryManager.search(eq("user1"), anyString(), anyInt(), eq(MemoryType.EPISODIC)))
                 .thenReturn(episodes(4));
         when(callSpec.content()).thenReturn("用户是Java开发者，擅长并发，正在学Spring。");
 
         reflectionWorker.onReflectionRequest(new ReflectionRequestEvent("session1", "user1"));
 
-        verify(memoryManager).add(eq("user1"), eq("session1"),
-                eq("用户是Java开发者，擅长并发，正在学Spring。"), eq(MemoryType.PROCEDURAL), eq(0.9));
+        verify(memoryManager, never()).add(anyString(), anyString(), anyString(), any(MemoryType.class), anyDouble());
         verify(userProfileService).upsertAttribute(eq("user1"), eq("reflection"),
                 eq("用户是Java开发者，擅长并发，正在学Spring。"));
     }

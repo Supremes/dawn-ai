@@ -335,17 +335,15 @@ class MemoryConversationFlowTest {
     class L4ReflectionAndProfile {
 
         @Test
-        @DisplayName("scenario13 · Episodes 足够，LLM 提炼画像，写入 MemoryManager + UserProfile")
-        void scenario13_sufficientEpisodes_profilePersistedEverywhere() {
+        @DisplayName("scenario13 · Episodes 足够，LLM 提炼画像，仅写入 UserProfile")
+        void scenario13_sufficientEpisodes_profilePersistedOnlyInRedis() {
             when(memoryManager.search(eq(USER_ID), anyString(), anyInt(), eq(MemoryType.EPISODIC)))
                     .thenReturn(makeEpisodeResults(EPISODE_THRESHOLD));
             when(callSpec.content()).thenReturn("用户是后端开发者，熟悉 Java/Go，关注系统性能。");
 
             reflectionWorker.onReflectionRequest(new ReflectionRequestEvent("sess-prof", USER_ID));
 
-            // 写入 MemoryManager，type=PROCEDURAL，importance=0.9
-            verify(memoryManager).add(eq(USER_ID), eq("sess-prof"),
-                    eq("用户是后端开发者，熟悉 Java/Go，关注系统性能。"), eq(MemoryType.PROCEDURAL), eq(0.9));
+            verify(memoryManager, never()).add(anyString(), anyString(), anyString(), any(MemoryType.class), anyDouble());
 
             // 写入 UserProfile（Redis Hash）
             verify(hashOps).put(

@@ -88,7 +88,10 @@ class PromptAssemblyEvaluationTest {
         TokenWindowManager tokenWindowManager = mock(TokenWindowManager.class);
 
         when(memoryManager.search(anyString(), anyString(), anyInt(), any(MemoryType.class)))
-                .thenReturn(List.of());
+                .thenAnswer(invocation -> {
+                    assertThat(invocation.getArgument(3, MemoryType.class)).isEqualTo(MemoryType.SEMANTIC);
+                    return List.of();
+                });
         when(tokenWindowManager.truncateToTokenBudget(anyString(), anyInt()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(tokenWindowManager.getMaxMemoryTokens()).thenReturn(1000);
@@ -107,7 +110,6 @@ class PromptAssemblyEvaluationTest {
                 tokenWindowManager,
                 Optional.empty());
         ReflectionTestUtils.setField(orchestrator, "defaultUserId", "evaluation-user");
-        ReflectionTestUtils.setField(orchestrator, "proceduralTopK", 2);
         ReflectionTestUtils.setField(orchestrator, "semanticTopK", 2);
         ReflectionTestUtils.setField(orchestrator, "maxSubAgentDispatches", 3);
         return orchestrator;

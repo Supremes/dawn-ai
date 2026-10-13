@@ -7232,13 +7232,13 @@
       "ragDocuments": [
         {
           "id": "doc-reflection",
-          "content": "ReflectionWorker listens for ReflectionRequestEvent asynchronously. It searches EPISODIC memories for user preferences and habits using MemoryManager.search(). If enough episodes are found (>= episodeThreshold/2, threshold default 4), it concatenates episode content and sends to LLM with a reflection prompt asking for long-term user preferences extraction (200 chars max). The reflection result is persisted as PROCEDURAL memory with importance 0.9 and also upserted into the user profile via UserProfileService.upsertAttribute()."
+          "content": "ReflectionWorker listens for ReflectionRequestEvent asynchronously. It searches EPISODIC memories for user preferences and habits using MemoryManager.search(). If enough episodes are found (>= episodeThreshold/2, threshold default 4), it concatenates episode content and sends to LLM with a reflection prompt asking for long-term user preferences extraction (200 chars max). The reflection result is only upserted into the Redis user profile via UserProfileService.upsertAttribute(), refreshing its 30-day TTL; it is not persisted as PROCEDURAL memory."
         }
       ]
     },
     "expected": {
       "tools": null,
-      "answerCriteria": "Should mention: 1)Async event listener for ReflectionRequestEvent 2)EPISODIC memory search for user patterns 3)Episode threshold check 4)LLM reflection with character limit 5)Dual persistence: PROCEDURAL memory + user profile",
+      "answerCriteria": "Should mention: 1)Async event listener for ReflectionRequestEvent 2)EPISODIC memory search for user patterns 3)Episode threshold check 4)LLM reflection with character limit 5)Only updating the Redis user profile with a refreshed 30-day TTL, without persisting PROCEDURAL memory",
       "docIds": null
     }
   },
