@@ -56,7 +56,7 @@ class EvictionPolicyManagerTest {
 
     @Test
     void evict_keepsHighImportanceDocumentsEvenIfOld() {
-        // JPA query filters out high-importance docs (importance < threshold) before returning
+        // JPA 查询返回前就已把高 importance 的文档过滤掉了（只留 importance < 阈值的）
         when(memoryRepository.findEvictionCandidates(anyDouble(), any(Instant.class), any(Pageable.class)))
                 .thenReturn(List.of());
 
@@ -67,7 +67,7 @@ class EvictionPolicyManagerTest {
 
     @Test
     void evict_keepsRecentDocumentsEvenIfLowImportance() {
-        // JPA query filters out recent docs (createdAt < cutoff) before returning
+        // JPA 查询返回前就已把最近的文档过滤掉了（只留 createdAt < cutoff 的）
         when(memoryRepository.findEvictionCandidates(anyDouble(), any(Instant.class), any(Pageable.class)))
                 .thenReturn(List.of());
 
@@ -83,7 +83,7 @@ class EvictionPolicyManagerTest {
                 .thenReturn(List.of(stale));
         when(memoryManager.delete(anyString())).thenThrow(new RuntimeException("delete failed"));
 
-        // Per-entity failures are caught; evict() should not propagate
+        // 单条 entity 的失败会被捕获；evict() 不应该往外抛
         manager.evict();
 
         verify(memoryManager).delete(stale.getId().toString());

@@ -54,7 +54,7 @@ public class HumanAnnotationCalibrator {
         int agreements = 0;
         double totalAbsError = 0;
 
-        // For Cohen's Kappa: build confusion matrix for binary pass/fail
+        // 给 Cohen's Kappa 用：按 pass/fail 二分类构建混淆矩阵
         int bothPass = 0, bothFail = 0, judgePassHumanFail = 0, judgeFailHumanPass = 0;
 
         List<Discrepancy> discrepancies = new ArrayList<>();
@@ -80,10 +80,10 @@ public class HumanAnnotationCalibrator {
         double mae = totalAbsError / total;
 
         // Cohen's Kappa
-        double po = accuracy; // observed agreement
+        double po = accuracy; // 实际观测到的一致率
         double pJudgePass = (double) (bothPass + judgePassHumanFail) / total;
         double pHumanPass = (double) (bothPass + judgeFailHumanPass) / total;
-        double pe = pJudgePass * pHumanPass + (1 - pJudgePass) * (1 - pHumanPass); // expected agreement
+        double pe = pJudgePass * pHumanPass + (1 - pJudgePass) * (1 - pHumanPass); // 偶然一致的期望值
         double kappa = pe == 1.0 ? 1.0 : (po - pe) / (1 - pe);
 
         log.info("[Calibration] results: accuracy={:.3f}, kappa={:.3f}, mae={:.3f}, discrepancies={}",
@@ -98,8 +98,8 @@ public class HumanAnnotationCalibrator {
             String query,
             double judgeScore,
             String judgeReasoning,
-            Double humanScore,      // null = not yet annotated
-            String humanComment     // optional
+            Double humanScore,      // null 表示还没标注
+            String humanComment     // 可选
     ) {}
 
     public record Discrepancy(String caseId, String dimension, double judgeScore, double humanScore, String query) {}

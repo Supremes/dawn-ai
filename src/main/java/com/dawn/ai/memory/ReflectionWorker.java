@@ -62,7 +62,6 @@ public class ReflectionWorker {
         }
 
         try {
-            memoryManager.add(event.userId(), event.sessionId(), reflection, MemoryType.PROCEDURAL, 0.9);
             userProfileService.upsertAttribute(event.userId(), "reflection", reflection);
             log.info("[ReflectionWorker] Reflection persisted for session={}", event.sessionId());
         } catch (Exception e) {

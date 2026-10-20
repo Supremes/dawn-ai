@@ -13,24 +13,30 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /**
- * Holds all per-request state for {@link StepCollector} as a single mutable object.
+ * 把 {@link StepCollector} 单次请求的全部状态收拢成一个可变对象。
  *
- * <p>Design rationale: ThreadLocal propagation (via Micrometer's {@code ThreadLocalAccessor})
- * copies the <em>reference</em> to this object — not a deep copy — so all Reactor worker
- * threads that receive the same reference work on the same underlying state.  This is the
- * key property that makes cross-thread step counting correct.
+ * <p>设计思路：ThreadLocal 传播（借助 Micrometer 的 {@code ThreadLocalAccessor}）复制的是
+ * 这个对象的<em>引用</em>，不是深拷贝，所以所有拿到同一引用的 Reactor worker 线程
+ * 操作的都是同一份底层状态。跨线程步数统计能正确，靠的就是这一点。
  *
- * <p>Thread safety:
+ * <p>线程安全：
  * <ul>
- *   <li>{@code steps}     — {@link Collections#synchronizedList} for safe concurrent appends</li>
- *   <li>{@code counter}   — {@link AtomicInteger}, inherently thread-safe</li>
- *   <li>{@code bashFailureStreak} — {@link AtomicInteger}, tracks consecutive empty/failed Bash observations</li>
- *   <li>{@code bashCircuitOpen} — once opened, prevents further Bash execution in this request</li>
- *   <li>{@code consecutiveRecoverySignals} — drives structured re-planning after unproductive outcomes</li>
- *   <li>{@code retrievedQueries} — {@link ConcurrentHashMap}-backed set</li>
- *   <li>{@code maxSteps}  — final, immutable</li>
- *   <li>{@code stepListener} — volatile; written once during init, read-only afterwards</li>
+ *   <li>{@code steps}     —— {@link Collections#synchronizedList}，保证并发追加安全</li>
+ *   <li>{@code counter}   —— {@link AtomicInteger}，天然线程安全</li>
+ *   <li>{@code bashFailureStreak} —— {@link AtomicInteger}，跟踪 Bash 连续为空/失败的观察次数</li>
+ *   <li>{@code bashCircuitOpen} —— 一旦打开，本次请求内不再允许执行 Bash</li>
+ *   <li>{@code consecutiveRecoverySignals} —— 连续无效结果后驱动结构化 re-plan</li>
+ *   <li>{@code retrievedQueries} —— 基于 {@link ConcurrentHashMap} 的 set</li>
+ *   <li>{@code maxSteps}  —— final，不可变</li>
+ *   <li>{@code stepListener} —— volatile；init 时写一次，之后只读</li>
  * </ul>
+ *
+ * <p><b>职责边界</b>：本类只是状态袋子，不放业务逻辑。字段一律 package-private，
+ * 由同包的 {@link StepCollector} 直接读写——步数上限、bash 熔断、re-plan 判定这些规则
+ * 全部住在 {@code StepCollector} 里。唯一的例外是 {@link #snapshotSteps()}：它服务的是
+ * 「手里攥着某个 context 引用」的跨包调用方（sub-agent 执行器），而不是当前线程的
+ * ThreadLocal，所以只能做成 public 实例方法。新增字段时照此办理：字段放这里，逻辑放
+ * {@code StepCollector}。
  */
 public final class StepCollectorContext {
 
@@ -51,28 +57,6 @@ public final class StepCollectorContext {
     StepCollectorContext(int maxSteps, Consumer<AgentStep> stepListener) {
         this.maxSteps = maxSteps;
         this.stepListener = stepListener;
-    }
-
-    // ── Re-plan context accessors ──
-
-    public List<PlanStep> getCurrentPlan() { return currentPlan; }
-    public void setCurrentPlan(List<PlanStep> plan) { this.currentPlan = plan; }
-
-    public String getUserMessage() { return userMessage; }
-    public void setUserMessage(String userMessage) { this.userMessage = userMessage; }
-
-    public Set<String> getToolDescriptions() { return toolDescriptions; }
-    public void setToolDescriptions(Set<String> toolDescriptions) { this.toolDescriptions = toolDescriptions; }
-
-    public boolean isRePlanTriggered() { return rePlanTriggered; }
-    public void markRePlanTriggered() { this.rePlanTriggered = true; }
-
-    public int incrementConsecutiveRecoverySignals() {
-        return consecutiveRecoverySignals.incrementAndGet();
-    }
-
-    public void resetConsecutiveRecoverySignals() {
-        consecutiveRecoverySignals.set(0);
     }
 
     /**

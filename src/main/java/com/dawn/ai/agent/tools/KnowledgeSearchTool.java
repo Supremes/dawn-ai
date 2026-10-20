@@ -24,10 +24,10 @@ import java.util.Set;
 import java.util.function.Function;
 
 /**
- * Agent tool that searches the internal knowledge base.
+ * 搜索内部知识库的 Agent 工具。
  *
- * Placed in the tools package so ToolRegistry auto-discovers it.
- * ToolExecutionAspect intercepts apply() for step tracing and metrics automatically.
+ * 放在 tools 包下，ToolRegistry 会自动发现它。
+ * ToolExecutionAspect 会自动拦截 apply() 做 step 追踪和指标统计。
  *
  * 查询变换（rewrite + HyDE）由 {@link RagService#retrieve} 统一负责；本工具仅把
  * 用户传入的 query 和 metadata filter 透传过去。dedup key 使用原始 query + filters，
@@ -55,7 +55,7 @@ public class KnowledgeSearchTool implements Function<KnowledgeSearchTool.Request
 
     private Counter dedupCounter;
 
-    /** package-private for test access */
+    /** 包内可见，方便测试调用 */
     void initMetrics() {
         dedupCounter = Counter.builder("ai.rag.dedup.skipped")
                 .description("RAG queries skipped due to deduplication within one request")

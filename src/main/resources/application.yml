@@ -7,7 +7,7 @@ spring:
       max-file-size: 50MB
       max-request-size: 100MB
 
-  # DataSource (PostgreSQL with pgvector extension)
+  # 数据源（PostgreSQL，带 pgvector 扩展）
   datasource:
     url: jdbc:postgresql://localhost:5432/dawn_ai
     username: dawn
@@ -20,14 +20,14 @@ spring:
     show-sql: false
     database-platform: org.hibernate.dialect.PostgreSQLDialect
 
-  # Redis (Conversation Memory)
+  # Redis（对话记忆）
   data:
     redis:
       host: localhost
       port: 6379
       timeout: 3000ms
 
-  # Spring AI - OpenAI
+  # Spring AI - OpenAI 配置
   ai:
     openai:
       api-key: ${OPENAI_API_KEY}
@@ -47,7 +47,18 @@ spring:
           encodingFormat: float
           dimensions: ${EMBEDDING_DIMENSIONS:1024}
 
-    # Vector Store - PGVector
+    # Spring AI 内置 RetryTemplate（spring-ai-starter-model-openai 自带 spring-retry）。默认 10 次尝试、2s 起步 x5 倍、最长 3 分钟，
+    # 与 app.ai.stream.timeout-ms=1200000 叠加会让一个失败的上游请求占住 chatStreamExecutor 线程数分钟。
+    # 这里收紧为最多 2 次尝试（1 次重试），把"熔断/快速失败"交给 resilience4j.circuitbreaker.instances.llmChat/llmEmbedding，避免重试叠加。
+    retry:
+      max-attempts: 2            # 含首次调用
+      on-client-errors: false    # 4xx（鉴权/参数错误）不重试
+      backoff:
+        initial-interval: 1s
+        multiplier: 2            # 该属性在 Spring AI 1.1.4 中是 Integer
+        max-interval: 5s
+
+    # 向量库 - PGVector
     vectorstore:
       pgvector:
         table-name: vector_store
@@ -59,12 +70,12 @@ spring:
 server:
   port: 8080
 
-# Actuator & Prometheus Metrics + OTLP tracing → Langfuse
+# Actuator 与 Prometheus 指标 + OTLP tracing → Langfuse
 management:
   endpoints:
     web:
       exposure:
-        include: health, info, prometheus, metrics, skills
+        include: health, info, prometheus, metrics, skills, circuitbreakers, circuitbreakerevents, retries, retryevents, bulkheads, bulkheadevents
   endpoint:
     health:
       show-details: always
@@ -82,7 +93,7 @@ management:
       headers:
         Authorization: Basic ${LANGFUSE_AUTH_BASE64:}
 
-# Application config
+# 应用配置
 app:
   ai:
     react:
@@ -90,8 +101,7 @@ app:
       show-steps: true    # 响应体中是否包含 steps 详情
       plan-enabled: true   # 是否启用执行前规划（关闭后跳过 TaskPlanner)
       replan-threshold: 2  # 连续 EMPTY/FAILURE/REFUSED 结果达到此阈值后触发动态重规划
-      max-tool-retries: 1  # 仅对工具显式声明为可安全重试的 RETRYABLE_FAILURE 自动重试
-      tool-retry-backoff-ms: 200
+      # 工具自动重试/并发隔离参数已迁移到顶层 resilience4j.retry.configs.default 与 resilience4j.bulkhead.*（见文件末尾）
     token:
       max-tool-output-tokens: 3000    # 工具输出超过此 token 数时自动截断
       max-history-tokens: 8000        # 对话历史 token 预算（从最新往回截取）
@@ -105,7 +115,7 @@ app:
         max-batch-size: 10        #
       chunk-size: 500                 # 单个 chunk 的 token 数
       chunk-overlap: 50              # 相邻 chunk 的重叠 token 数
-      similarity-threshold: 0.6  # 向量相似度过滤阈值，低于此值的文档被丢弃 (bge-m3 cosine scores are typically 0.4-0.65)
+      similarity-threshold: 0.6  # 向量相似度过滤阈值，低于此值的文档被丢弃（bge-m3 的 cosine 分数一般在 0.4-0.65）
       default-top-k: 5            # 最终返回的文档数
       rerank-enabled: true        # 是否启用召回后的二阶段重排
       reranker:
@@ -180,7 +190,6 @@ app:
     search:
       importance-weight: 0.3           # 召回加权：finalScore = similarity * (1 + w * importance)
     injection:
-      procedural-top-k: 2              # 注入 system prompt 的 PROCEDURAL 记忆条数
       semantic-top-k: 3               # 注入 system prompt 的 SEMANTIC 记忆条数
     summary:
       batch-size: 4
@@ -203,6 +212,64 @@ app:
     reflection:
       episode-threshold: 4 # ReflectionWorker 至少需要 ≥2 个 episode 才执行
 
+# Resilience4j（resilience4j-spring-boot3 自动装配 RetryRegistry / BulkheadRegistry / CircuitBreakerRegistry，并自动导出 resilience4j_* Prometheus 指标）
+# - retry / bulkhead 的实例名 = 工具类 SimpleName（WebTool、BashTool、DispatchSubAgentTool、KnowledgeSearchTool、LoadSkillTool、ReadSkillResourceTool）
+# - 重试"是否重试"的判定在代码里（ToolExecutionAspect：仅 ToolOutcome=RETRYABLE_FAILURE 且 safeToRetry() 的结果、以及 BulkheadFullException），
+#   所以这里不要配置 retry-exceptions / ignore-exceptions / result-predicate；只调次数与退避。
+# - retry 请用 configs.<ToolName>（named config）而不是 instances.<ToolName>：aspect 会按 名字 → configs.<ToolName> → configs.default 取基础配置再叠加判定谓词。
+resilience4j:
+  retry:
+    configs:
+      default:
+        max-attempts: 2                       # 含首次调用：2 == 旧 app.ai.react.max-tool-retries=1
+        wait-duration: 200ms                  # == 旧 tool-retry-backoff-ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        exponential-max-wait-duration: 5s
+        enable-randomized-wait: true          # 与指数退避同时开启 => IntervalFunction.ofExponentialRandomBackoff（抖动）
+        randomized-wait-factor: 0.3
+        fail-after-max-attempts: false        # 重试用尽后返回最后一次结果（保持旧语义），不要抛 MaxRetriesExceededException
+      # 示例：单独调某个工具
+      # WebTool:
+      #   base-config: default
+      #   max-attempts: 3
+  bulkhead:
+    configs:
+      default:
+        max-concurrent-calls: 32              # 宽松默认值：未单独配置的工具行为不变
+        max-wait-duration: 0                  # 满了立刻抛 BulkheadFullException（aspect 归类为 RETRYABLE_FAILURE 并可安全重试，因为工具体没执行）
+    instances:
+      WebTool:
+        base-config: default
+        max-concurrent-calls: 8
+      BashTool:
+        base-config: default
+        max-concurrent-calls: 4
+      DispatchSubAgentTool:
+        base-config: default
+        max-concurrent-calls: 4
+  circuitbreaker:
+    configs:
+      llm:                                    # LLM 上游（chat / embeddings）熔断：由 AiConfig 中的 RestClient 拦截器 / WebClient filter 手动记录成功失败
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 2
+        automatic-transition-from-open-to-half-open-enabled: true
+        # 慢调用熔断实际上是靠 duration 阈值关掉的：20m 与 app.ai.stream.timeout-ms=1200000 对齐，正常调用不可能超过。
+        # 注意 slow-call-rate-threshold=100 并不等于关闭 —— resilience4j 用的是 slowCallRate >= threshold，
+        # 窗口内 100% 慢调用照样会 OPEN；而同步 chat（TaskPlanner / 反思 / 总结 .call()）的完整耗时会被计入 slow call。
+        slow-call-duration-threshold: 20m
+        slow-call-rate-threshold: 100
+        event-consumer-buffer-size: 20
+    instances:
+      llmChat:
+        base-config: llm
+      llmEmbedding:
+        base-config: llm
+
 logging:
   level:
     com.dawn.ai: DEBUG
@@ -215,6 +282,6 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36}:%line - %msg%n"
 
-# Langfuse environment label, attached as OTel resource attribute
+# Langfuse 环境标签，作为 OTel resource attribute 附加上去
 langfuse:
   environment: ${LANGFUSE_ENVIRONMENT:dev}

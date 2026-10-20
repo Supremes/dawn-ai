@@ -41,7 +41,7 @@ class ImportanceDecayManagerTest {
         return entity;
     }
 
-    // ── computeDecay unit tests ──────────────────────────────────────────────
+    // ── computeDecay 单元测试 ──────────────────────────────────────────────
 
     @Test
     void computeDecay_halvesImportanceAfterOneHalfLife() {
@@ -50,7 +50,7 @@ class ImportanceDecayManagerTest {
 
         double result = manager.computeDecay(0.5, thirtyDaysAgo, now);
 
-        // After exactly one half-life, importance should be ~0.25 (halved)
+        // 刚好过了一个半衰期，importance 应该约为 0.25（减半）
         assertThat(result).isCloseTo(0.25, org.assertj.core.data.Offset.offset(0.001));
     }
 
@@ -61,7 +61,7 @@ class ImportanceDecayManagerTest {
 
         double result = manager.computeDecay(0.5, veryOld, now);
 
-        assertThat(result).isEqualTo(0.01); // clamped to minImportance
+        assertThat(result).isEqualTo(0.01); // 被钳在 minImportance 下限
     }
 
     @Test
@@ -69,7 +69,7 @@ class ImportanceDecayManagerTest {
         long now = Instant.now().toEpochMilli();
 
         assertThat(manager.computeDecay(0.5, now, now)).isEqualTo(0.5);
-        assertThat(manager.computeDecay(0.5, now + 1000, now)).isEqualTo(0.5); // future
+        assertThat(manager.computeDecay(0.5, now + 1000, now)).isEqualTo(0.5); // 未来时间戳
     }
 
     @Test
@@ -79,15 +79,15 @@ class ImportanceDecayManagerTest {
 
         double result = manager.computeDecay(0.5, oneHourAgo, now);
 
-        // 1 hour / 30-day half-life → negligible decay, still very close to 0.5
+        // 1 小时 / 30 天半衰期 → 衰减可以忽略，仍然非常接近 0.5
         assertThat(result).isGreaterThan(0.499);
     }
 
-    // ── decay() integration tests (repository mocked) ─────────────────────────
+    // ── decay() 集成测试（repository 用 mock） ─────────────────────────
 
     @Test
     void decay_appliesDecayToStaleDocuments() {
-        long oldTs = Instant.now().minus(30, ChronoUnit.DAYS).toEpochMilli(); // one half-life
+        long oldTs = Instant.now().minus(30, ChronoUnit.DAYS).toEpochMilli(); // 一个半衰期
         MemoryEntity stale = candidate(0.5, oldTs);
 
         when(memoryRepository.findDecayCandidates(any(Pageable.class)))
@@ -95,7 +95,7 @@ class ImportanceDecayManagerTest {
 
         manager.decay();
 
-        // importance should be reduced (delta ≈ 0.25 >> MIN_DELTA)
+        // importance 应该被降低（delta ≈ 0.25 >> MIN_DELTA）
         verify(memoryRepository).updateImportance(eq(stale.getId()),
                 doubleThat(v -> v < 0.5));
     }
@@ -103,7 +103,7 @@ class ImportanceDecayManagerTest {
     @Test
     void decay_skipsDocumentsWithInsignificantDelta() {
         long justNow = Instant.now().minus(1, ChronoUnit.HOURS).toEpochMilli();
-        // 1 hour / 30-day half-life → delta << MIN_DELTA (0.001)
+        // 1 小时 / 30 天半衰期 → delta << MIN_DELTA (0.001)
         MemoryEntity fresh = candidate(0.5, justNow);
 
         when(memoryRepository.findDecayCandidates(any(Pageable.class)))
@@ -126,8 +126,8 @@ class ImportanceDecayManagerTest {
 
     @Test
     void decay_processesMixedBatch() {
-        long oldTs   = Instant.now().minus(30, ChronoUnit.DAYS).toEpochMilli(); // needs decay
-        long freshTs = Instant.now().minus(1,  ChronoUnit.HOURS).toEpochMilli(); // skip
+        long oldTs   = Instant.now().minus(30, ChronoUnit.DAYS).toEpochMilli(); // 需要衰减
+        long freshTs = Instant.now().minus(1,  ChronoUnit.HOURS).toEpochMilli(); // 跳过
 
         MemoryEntity old   = candidate(0.5, oldTs);
         MemoryEntity fresh = candidate(0.5, freshTs);
@@ -137,7 +137,7 @@ class ImportanceDecayManagerTest {
 
         manager.decay();
 
-        // Only the stale document is updated
+        // 只有过期的那条文档被更新
         verify(memoryRepository).updateImportance(eq(old.getId()), anyDouble());
         verify(memoryRepository, never()).updateImportance(eq(fresh.getId()), anyDouble());
     }

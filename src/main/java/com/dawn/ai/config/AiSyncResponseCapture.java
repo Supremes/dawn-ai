@@ -1,10 +1,10 @@
 package com.dawn.ai.config;
 
 /**
- * Captures the last synchronous AI response body on the current thread.
+ * 在当前线程上记录最近一次同步 AI 响应的 body。
  *
- * <p>Used as a fallback for providers/SDK paths where Spring AI does not
- * surface reasoning content through ChatResponse metadata.
+ * <p>作为 fallback 使用：有些 provider / SDK 路径下，Spring AI 不会把
+ * reasoning 内容放进 ChatResponse metadata，这时就从这里取。
  */
 public final class AiSyncResponseCapture {
 

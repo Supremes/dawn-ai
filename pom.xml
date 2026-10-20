@@ -38,31 +38,31 @@
     </dependencyManagement>
 
     <dependencies>
-        <!-- Spring Boot Web -->
+        <!-- Spring Boot Web 启动器 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <!-- Spring Boot Actuator -->
+        <!-- Spring Boot Actuator 监控端点 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
-        <!-- Spring AI - OpenAI -->
+        <!-- Spring AI - OpenAI 模型接入 -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-model-openai</artifactId>
         </dependency>
 
-        <!-- Spring AI - PGVector Store -->
+        <!-- Spring AI - PGVector 向量存储 -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-vector-store-pgvector</artifactId>
         </dependency>
 
-        <!-- Apache Tika - Multi-format document text extraction -->
+        <!-- Apache Tika - 多格式文档文本提取 -->
         <dependency>
             <groupId>org.apache.tika</groupId>
             <artifactId>tika-core</artifactId>
@@ -74,69 +74,76 @@
             <version>2.9.2</version>
         </dependency>
 
-        <!-- Spring Data Redis -->
+        <!-- Spring Data Redis 数据访问 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
-        <!-- Spring Data JPA -->
+        <!-- Spring Data JPA 数据访问 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
 
-        <!-- PostgreSQL Driver -->
+        <!-- PostgreSQL 驱动 -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Micrometer Prometheus -->
+        <!-- Micrometer Prometheus 指标导出 -->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
 
-        <!-- Micrometer Tracing → OpenTelemetry bridge -->
+        <!-- Micrometer Tracing → OpenTelemetry 桥接 -->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-tracing-bridge-otel</artifactId>
         </dependency>
 
-        <!-- OpenTelemetry OTLP exporter (HTTP/Protobuf) -->
+        <!-- OpenTelemetry OTLP 导出器（HTTP/Protobuf） -->
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-exporter-otlp</artifactId>
         </dependency>
 
-        <!-- OpenTelemetry SDK AutoConfigure SPI (for @Bean customizers) -->
+        <!-- OpenTelemetry SDK AutoConfigure SPI（给 @Bean customizer 用） -->
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-sdk-extension-autoconfigure-spi</artifactId>
         </dependency>
 
-        <!-- Lombok -->
+        <!-- Lombok 注解处理器 -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
 
-        <!-- AOP — enables @Aspect for ToolExecutionAspect -->
+        <!-- AOP — 让 ToolExecutionAspect 的 @Aspect 生效 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-aop</artifactId>
         </dependency>
 
-        <!-- Validation -->
+        <!-- Resilience4j — 工具级 Retry/Bulkhead + LLM CircuitBreaker（在 ToolExecutionAspect / AiConfig 中以 Registry 方式编程使用，不用注解） -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-spring-boot3</artifactId>
+            <version>2.2.0</version>
+        </dependency>
+
+        <!-- 参数校验 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
-        <!-- Test -->
+        <!-- 测试依赖 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

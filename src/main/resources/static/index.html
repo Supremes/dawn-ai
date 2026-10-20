@@ -7,7 +7,7 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23c26b3c' d='M12 2 22 20H2z'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="/css/style.css">
 
-    <!-- Markdown rendering & syntax highlighting (local) -->
+    <!-- Markdown 渲染和语法高亮（本地资源） -->
     <link rel="stylesheet" href="/css/lib/github.min.css" id="hljs-light-theme">
     <link rel="stylesheet" href="/css/lib/github-dark.min.css" id="hljs-dark-theme" disabled>
     <script src="/js/lib/marked.min.js"></script>
@@ -28,7 +28,7 @@
 </head>
 <body>
     <div class="app">
-        <!-- Sidebar -->
+        <!-- 侧边栏 -->
         <aside class="sidebar">
             <div class="sidebar-header">
                 <h1 class="logo">Dawn AI</h1>
@@ -64,9 +64,9 @@
             </div>
         </aside>
 
-        <!-- Main Content -->
+        <!-- 主内容区 -->
         <main class="main">
-            <!-- Chat Page -->
+            <!-- 聊天页 -->
             <div class="page active" id="page-chat">
                 <div class="page-header">
                     <h2>Chat</h2>
@@ -126,13 +126,13 @@
                 </div>
             </div>
 
-            <!-- Knowledge Base Page -->
+            <!-- 知识库页 -->
             <div class="page" id="page-knowledge">
                 <div class="page-header">
                     <h2>Knowledge Base</h2>
                 </div>
                 <div class="knowledge-container">
-                    <!-- Ingest Section -->
+                    <!-- 导入区块 -->
                     <section class="card">
                         <h3>Document Ingestion</h3>
                         <div class="tabs">
@@ -204,7 +204,7 @@
                         </div>
                     </section>
 
-                    <!-- Search Section -->
+                    <!-- 检索区块 -->
                     <section class="card">
                         <h3>Similarity Search</h3>
                         <div class="form-group">
@@ -250,7 +250,7 @@
                 </div>
             </div>
 
-            <!-- Dashboard Page -->
+            <!-- Dashboard 页 -->
             <div class="page" id="page-dashboard">
                 <div class="page-header">
                     <h2>Dashboard</h2>
@@ -297,10 +297,10 @@
 
     <div class="toast-container" id="toastContainer"></div>
 
-    <!-- Shared topic suggestions for all topic inputs -->
+    <!-- 所有 topic 输入框共用的 topic 候选列表 -->
     <datalist id="allTopics"></datalist>
 
-    <!-- Shared category suggestions for all category inputs -->
+    <!-- 所有 category 输入框共用的 category 候选列表 -->
     <datalist id="ragCategories"></datalist>
 
     <script src="/js/app.js"></script>

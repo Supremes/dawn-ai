@@ -10,30 +10,27 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * Request-scoped step collector backed by a single {@link ThreadLocal}&lt;{@link StepCollectorContext}&gt;.
+ * 请求级步骤收集器，底层只有一个 {@link ThreadLocal}&lt;{@link StepCollectorContext}&gt;。
  *
- * <h3>Cross-thread correctness (streaming mode)</h3>
- * In streaming mode, Spring AI executes tool callbacks on Reactor Netty worker threads
- * — different from the {@code chatStreamExecutor} thread that calls {@link #init}.
- * Raw {@code ThreadLocal} values are invisible across thread boundaries, which previously
- * caused a {@link NullPointerException} and silent tool failures.
+ * <h3>跨线程正确性（流式模式）</h3>
+ * 流式模式下，Spring AI 在 Reactor Netty worker 线程上执行工具回调，
+ * 与调用 {@link #init} 的 {@code chatStreamExecutor} 线程并不是同一个。
+ * 裸 {@code ThreadLocal} 的值跨线程不可见，之前因此出现过 {@link NullPointerException}
+ * 以及工具静默失败。
  *
- * <p>The fix uses <b>Micrometer context propagation</b>:
+ * <p>修复方式是 <b>Micrometer context propagation</b>：
  * <ol>
- *   <li>{@link StepCollectorContextAccessor} is registered with {@code ContextRegistry}.</li>
- *   <li>{@code Hooks.enableAutomaticContextPropagation()} (called in {@code AgentConfig})
- *       tells Reactor to capture all registered ThreadLocals into the reactive pipeline's
- *       context at subscription time.</li>
- *   <li>Before each operator executes on any thread, Reactor restores the ThreadLocals
- *       via the accessor — giving every worker thread the same {@link StepCollectorContext}
- *       <em>reference</em>.</li>
- *   <li>Because all threads share the same object reference (not a copy), mutations
- *       (appending steps, incrementing counter, marking queries) are immediately visible
- *       to all participants.</li>
+ *   <li>把 {@link StepCollectorContextAccessor} 注册到 {@code ContextRegistry}。</li>
+ *   <li>{@code Hooks.enableAutomaticContextPropagation()}（在 {@code AgentConfig} 中调用）
+ *       让 Reactor 在订阅时把所有已注册的 ThreadLocal 捕获进响应式管道的 context。</li>
+ *   <li>每个 operator 在任意线程上执行前，Reactor 都会通过 accessor 恢复 ThreadLocal，
+ *       于是每个 worker 线程拿到的都是同一个 {@link StepCollectorContext} <em>引用</em>。</li>
+ *   <li>所有线程共享同一个对象引用（不是副本），所以追加步骤、递增计数、标记查询
+ *       这些修改对所有参与者立即可见。</li>
  * </ol>
  *
- * <h3>Lifecycle per request</h3>
- * {@code AgentOrchestrator} calls {@link #init} → AOP/tools record steps → {@link #collect} → {@link #clear}
+ * <h3>单次请求的生命周期</h3>
+ * {@code AgentOrchestrator} 调用 {@link #init} → AOP/工具记录步骤 → {@link #collect} → {@link #clear}
  */
 @Slf4j
 public class StepCollector {
@@ -41,26 +38,25 @@ public class StepCollector {
     private static final ThreadLocal<StepCollectorContext> CONTEXT = new ThreadLocal<>();
 
     // -------------------------------------------------------------------------
-    // Lifecycle
+    // 生命周期
     // -------------------------------------------------------------------------
 
-    /** Initialises a fresh {@link StepCollectorContext} for the current request. */
+    /** 为当前请求初始化一个全新的 {@link StepCollectorContext}。 */
     public static void init(Integer maxSteps) {
         init(maxSteps, null);
     }
 
     /**
-     * Streaming overload: registers a real-time {@code stepListener} in addition to
-     * initialising the request context.
+     * 流式重载：除了初始化请求上下文，还会注册一个实时的 {@code stepListener}。
      *
-     * @param listener optional; {@code null} for non-streaming requests
+     * @param listener 可选；非流式请求传 {@code null}
      */
     public static void init(Integer maxSteps, Consumer<AgentStep> listener) {
         CONTEXT.set(new StepCollectorContext(maxSteps, listener));
     }
 
     // -------------------------------------------------------------------------
-    // Package-private accessors used by StepCollectorContextAccessor
+    // 包内访问器，供 StepCollectorContextAccessor 使用
     // -------------------------------------------------------------------------
 
     static StepCollectorContext currentContext() {
@@ -76,7 +72,7 @@ public class StepCollector {
     }
 
     // -------------------------------------------------------------------------
-    // Sub-agent context management (public — used by SubAgent executors)
+    // Sub-agent 上下文管理（public，供 SubAgent 执行器使用）
     //
     // Sub-agent 在自己的 StepCollectorContext 中跑 ReAct，主 Agent 的步骤计数与
     // 步骤列表完全不被污染。{@link #snapshotContext()} 与 {@link #adoptContext}
@@ -103,10 +99,10 @@ public class StepCollector {
     }
 
     // -------------------------------------------------------------------------
-    // Public API
+    // 公开 API
     // -------------------------------------------------------------------------
 
-    /** Called by {@link ToolExecutionAspect} after every completed or failed tool invocation. */
+    /** 由 {@link ToolExecutionAspect} 在每次工具调用完成或失败后调用。 */
     public static void record(AgentStep step) {
         StepCollectorContext ctx = CONTEXT.get();
         if (ctx == null) {
@@ -122,14 +118,14 @@ public class StepCollector {
     }
 
     /**
-     * Returns the next monotonically increasing step number and enforces the per-request
-     * step limit.  Called by {@link ToolExecutionAspect} before every tool invocation.
+     * 返回下一个单调递增的步骤编号，并强制执行单次请求的步数上限。
+     * 由 {@link ToolExecutionAspect} 在每次工具调用前调用。
      */
     public static int getAndIncreaseStepNumber() {
         StepCollectorContext ctx = CONTEXT.get();
         if (ctx == null) {
-            // Context not yet propagated — should not happen with Micrometer auto-propagation,
-            // but log clearly and allow the call to proceed rather than crash.
+            // 上下文尚未传播过来。开启了 Micrometer 自动传播后按理不该发生，
+            // 这里打清楚日志并放行调用，而不是直接 crash。
             log.warn("[StepCollector] getAndIncreaseStepNumber() called on thread '{}' with no active context. " +
                      "Verify that Hooks.enableAutomaticContextPropagation() is enabled.",
                     Thread.currentThread().getName());
@@ -145,7 +141,7 @@ public class StepCollector {
         return next;
     }
 
-    /** Returns a snapshot of all steps recorded for the current request. */
+    /** 返回当前请求已记录的全部步骤的快照。 */
     public static List<AgentStep> collect() {
         StepCollectorContext ctx = CONTEXT.get();
         if (ctx == null) return List.of();
@@ -153,8 +149,8 @@ public class StepCollector {
     }
 
     /**
-     * Returns {@code true} if the given rewritten query has already been searched this
-     * request.  Used by {@code KnowledgeSearchTool} to prevent duplicate RAG calls.
+     * 给定的改写后查询在本次请求中是否已经检索过，是则返回 {@code true}。
+     * 供 {@code KnowledgeSearchTool} 用来避免重复的 RAG 调用。
      */
     public static boolean isQueryRetrieved(String query) {
         StepCollectorContext ctx = CONTEXT.get();
@@ -162,8 +158,8 @@ public class StepCollector {
     }
 
     /**
-     * Marks a rewritten query as already searched for this request.
-     * Call immediately before executing a RAG retrieval.
+     * 把一条改写后的查询标记为本次请求已检索。
+     * 请在执行 RAG 检索之前立即调用。
      */
     public static void markQueryRetrieved(String query) {
         StepCollectorContext ctx = CONTEXT.get();
@@ -173,8 +169,8 @@ public class StepCollector {
     }
 
     /**
-     * Tracks consecutive BashTool observations that are either failed or empty.
-     * Returns {@code true} when the current observation reaches the stop threshold.
+     * 跟踪 BashTool 连续失败或为空的观察结果。
+     * 当前观察结果达到停止阈值时返回 {@code true}。
      */
     public static boolean recordBashObservation(boolean failedOrEmpty, int stopThreshold) {
         StepCollectorContext ctx = CONTEXT.get();
@@ -201,55 +197,55 @@ public class StepCollector {
     }
 
     // -------------------------------------------------------------------------
-    // Re-plan context management
+    // Re-plan 上下文管理
     // -------------------------------------------------------------------------
 
-    /** Sets the re-plan context (plan, user message, tool descriptions) for the current request. */
+    /** 为当前请求设置 re-plan 上下文（计划、用户消息、工具描述）。 */
     public static void setRePlanContext(List<PlanStep> plan, String userMessage, Set<String> toolDescriptions) {
         StepCollectorContext ctx = CONTEXT.get();
         if (ctx != null) {
-            ctx.setCurrentPlan(plan);
-            ctx.setUserMessage(userMessage);
-            ctx.setToolDescriptions(toolDescriptions);
+            ctx.currentPlan = plan;
+            ctx.userMessage = userMessage;
+            ctx.toolDescriptions = toolDescriptions;
         }
     }
 
     public static List<PlanStep> getCurrentPlan() {
         StepCollectorContext ctx = CONTEXT.get();
-        return ctx != null ? ctx.getCurrentPlan() : null;
+        return ctx != null ? ctx.currentPlan : null;
     }
 
     public static String getUserMessage() {
         StepCollectorContext ctx = CONTEXT.get();
-        return ctx != null ? ctx.getUserMessage() : null;
+        return ctx != null ? ctx.userMessage : null;
     }
 
     public static Set<String> getToolDescriptions() {
         StepCollectorContext ctx = CONTEXT.get();
-        return ctx != null ? ctx.getToolDescriptions() : null;
+        return ctx != null ? ctx.toolDescriptions : null;
     }
 
     public static int incrementConsecutiveRecoverySignals() {
         StepCollectorContext ctx = CONTEXT.get();
-        return ctx != null ? ctx.incrementConsecutiveRecoverySignals() : 0;
+        return ctx != null ? ctx.consecutiveRecoverySignals.incrementAndGet() : 0;
     }
 
     public static void resetConsecutiveRecoverySignals() {
         StepCollectorContext ctx = CONTEXT.get();
         if (ctx != null) {
-            ctx.resetConsecutiveRecoverySignals();
+            ctx.consecutiveRecoverySignals.set(0);
         }
     }
 
     public static boolean isRePlanTriggered() {
         StepCollectorContext ctx = CONTEXT.get();
-        return ctx != null && ctx.isRePlanTriggered();
+        return ctx != null && ctx.rePlanTriggered;
     }
 
     public static void markRePlanTriggered() {
         StepCollectorContext ctx = CONTEXT.get();
         if (ctx != null) {
-            ctx.markRePlanTriggered();
+            ctx.rePlanTriggered = true;
         }
     }
 
@@ -265,7 +261,7 @@ public class StepCollector {
         return ctx != null ? ctx.pendingRecoveryGuidance.getAndSet(null) : null;
     }
 
-    /** Must be called in a {@code finally} block to prevent ThreadLocal memory leaks. */
+    /** 必须在 {@code finally} 块中调用，防止 ThreadLocal 内存泄漏。 */
     public static void clear() {
         CONTEXT.remove();
     }

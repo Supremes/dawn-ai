@@ -40,10 +40,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
 /**
- * RAG (Retrieval Augmented Generation) Service.
+ * RAG（Retrieval Augmented Generation）服务。
  *
- * Pipeline: Document → Chunk(500 tokens, overlap=50) → Embed → Store
- *           → Query → SimilarityThreshold filter → Augment Prompt → Generate
+ * 流水线：Document → Chunk(500 tokens, overlap=50) → Embed → Store
+ *           → Query → SimilarityThreshold 过滤 → 增强 Prompt → Generate
  */
 @Slf4j
 @Service
@@ -58,9 +58,9 @@ public class RagService {
     private final ReciprocalRankFusion reciprocalRankFusion;
     private final RetrievalRouter retrievalRouter;
     private final DocumentTransformer splitter;
-    // Keep an explicit constructor with parameter-level @Qualifier because the
-    // application defines multiple ExecutorService beans and this dependency must
-    // bind to the retrieval pool rather than relying on type-only resolution.
+    // 这里保留显式构造器并在参数上加 @Qualifier，因为应用里定义了多个
+    // ExecutorService bean，这个依赖必须绑到检索线程池，
+    // 不能只靠类型来解析。
     private final ExecutorService ragRetrievalExecutor;
     private final MemoryAccessUpdater memoryAccessUpdater;
     private final HydeQueryGenerator hydeQueryGenerator;
@@ -159,13 +159,13 @@ public class RagService {
     }
 
     /**
-     * Ingest multiple independent documents in one batch, sharing the same source/category/topicId.
+     * 一批次导入多个互相独立的文档，共用同一组 source/category/topicId。
      *
-     * <p>Each entry becomes its own parent document (its own docId and chunk set), mirroring
-     * {@link #ingest} per record. All chunks are split and written to the vector store in a single
-     * pass so a large dataset costs only one {@code vectorStore.add} call.
+     * <p>每条记录都是一个独立的父文档（有自己的 docId 和 chunk 集合），效果等同于
+     * 对每条记录调一次 {@link #ingest}。所有 chunk 一次性切分并写入向量库，
+     * 所以再大的数据集也只需要一次 {@code vectorStore.add} 调用。
      *
-     * @return the generated docId of every ingested record, in input order
+     * @return 每条导入记录生成的 docId，按输入顺序排列
      */
     public List<String> ingestBatch(List<String> contents, String source, String category, String topicId) {
         aiAvailabilityChecker.ensureConfigured();
@@ -187,9 +187,9 @@ public class RagService {
     }
 
     /**
-     * Delete all chunks belonging to a parent document identified by docId.
+     * 按 docId 删除该父文档下的所有 chunk。
      *
-     * @return number of deleted chunks, or 0 if no chunks matched
+     * @return 删除的 chunk 数量，没有匹配则返回 0
      */
     public int deleteByDocId(String docId) {
         List<String> chunkIds = jdbcTemplate.queryForList(
@@ -204,9 +204,9 @@ public class RagService {
     }
 
     /**
-     * Update a document by deleting all existing chunks and re-ingesting with new content.
+     * 更新文档：先删掉已有的全部 chunk，再用新内容重新导入。
      *
-     * @return the new docId assigned to the re-ingested document
+     * @return 重新导入后分配的新 docId
      */
     public String updateDocument(String docId, String content, String source, String category, String topicId) {
         int deleted = deleteByDocId(docId);
@@ -215,7 +215,7 @@ public class RagService {
     }
 
     /**
-     * List ingested documents grouped by docId, with optional filters.
+     * 按 docId 分组列出已导入的文档，支持可选过滤条件。
      */
     public List<Map<String, Object>> listDocuments(String source, String category, String topicId,
                                                    int limit, int offset) {
@@ -263,12 +263,12 @@ public class RagService {
     }
 
     /**
-     * Retrieve top-K semantically similar documents for a query.
+     * 针对一个 query 检索语义最相近的 top-K 文档。
      *
-     * Strategy:
-     *  1. Request topK*2 candidates from vector store with similarityThreshold filter.
-     *  2. Record how many candidates were filtered out (candidates - returned).
-     *  3. Limit final result to topK.
+     * 策略：
+     *  1. 带 similarityThreshold 过滤，从向量库请求 topK*2 个候选。
+     *  2. 记录被过滤掉的候选数量（候选数 - 实际返回数）。
+     *  3. 最终结果截断到 topK。
      */
     public List<Document> retrieve(RetrievalRequest retrievalRequest) {
         aiAvailabilityChecker.ensureConfigured();
@@ -379,8 +379,8 @@ public class RagService {
                     doc.getMetadata().get("category"),
                     doc.getMetadata().get(CrossEncoderRetrievalReranker.RERANK_SCORE_METADATA_KEY)));
         }
-        // Async: refresh lastAccessedAt for memory docs (type=summary/reflection) that were hit.
-        // RAG knowledge docs have no 'type' field and are silently skipped inside the updater.
+        // 异步：刷新被命中的记忆文档（type=summary/reflection）的 lastAccessedAt。
+        // RAG 知识文档没有 'type' 字段，updater 内部会直接跳过。
         memoryAccessUpdater.updateAccessTime(limited);
         return limited;
     }

@@ -3,11 +3,11 @@ package com.dawn.ai.config;
 import io.micrometer.context.ThreadLocalAccessor;
 
 /**
- * Bridges Micrometer context propagation with {@link AiInteractionContext} so the
- * immutable request snapshot follows reactive pipelines across worker threads
- * (e.g. Reactor's {@code boundedElastic} scheduler used by Spring AI tool callbacks).
+ * 把 Micrometer 的上下文传播和 {@link AiInteractionContext} 接起来，让不可变的请求快照
+ * 能跟着响应式管线跨 worker 线程流转
+ * （比如 Spring AI tool callback 用到的 Reactor {@code boundedElastic} 调度器）。
  *
- * <p>Registered in {@link AgentConfig#enableReactorContextPropagation()}.
+ * <p>在 {@link AgentConfig#enableReactorContextPropagation()} 里注册。
  */
 public class AiInteractionContextAccessor implements ThreadLocalAccessor<AiInteractionContext.State> {
 

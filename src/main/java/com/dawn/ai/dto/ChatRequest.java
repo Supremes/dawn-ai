@@ -11,21 +11,21 @@ public class ChatRequest {
     @NotBlank(message = "Message cannot be blank")
     private String message;
 
-    /** Conversation session ID for memory context */
+    /** 会话 session ID，用来带上 memory 上下文 */
     private String sessionId;
 
-    /** Optional research topic context — restricts KnowledgeSearchTool to this topic */
+    /** 可选的研究主题上下文，把 KnowledgeSearchTool 限制在这个主题内 */
     private String topicId;
 
     /**
-     * Request-scoped tool allowlist. {@code null} keeps the server defaults;
-     * an empty set explicitly disables all user-selectable tools.
+     * 请求级别的工具白名单。{@code null} 表示沿用服务端默认值；
+     * 空集合表示明确关掉所有用户可选的工具。
      */
     private Set<String> enabledTools;
 
     /**
-     * Request-scoped skill allowlist. {@code null} keeps the server defaults;
-     * an empty set explicitly disables all skills.
+     * 请求级别的 skill 白名单。{@code null} 表示沿用服务端默认值；
+     * 空集合表示明确关掉所有 skill。
      */
     private Set<String> enabledSkills;
 }

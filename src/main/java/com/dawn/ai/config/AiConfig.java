@@ -2,6 +2,7 @@ package com.dawn.ai.config;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.reactivestreams.Publisher;
@@ -77,9 +78,14 @@ public class AiConfig {
                 .build();
     }
 
+    // 所有 Spring AI 到模型提供方的流量（同步 chat、流式 chat、embeddings）都经过下面两个 builder，
+    // 这是 LLM 侧 resilience（熔断）的唯一切入点。注意 CrossEncoderRetrievalReranker 也会克隆
+    // @Primary 的 RestClient.Builder 去调 /rerank，所以 LlmCircuitBreakerSupport 仅对 /rerank 等显式列出的
+    // 非 LLM 路径放行；/embeddings 走 llmEmbedding，其余路径默认 llmChat。
     @Bean
     @Primary
-    public RestClient.Builder openAiRestClientBuilder(AiInteractionLogger aiInteractionLogger) {
+    public RestClient.Builder openAiRestClientBuilder(AiInteractionLogger aiInteractionLogger,
+                                                      CircuitBreakerRegistry circuitBreakerRegistry) {
         ClientHttpRequestInterceptor loggingInterceptor = (request, body, execution) -> {
             String reqBodyText = new String(body, StandardCharsets.UTF_8);
             String sessionId = AiInteractionContext.getSessionId();
@@ -96,8 +102,8 @@ public class AiConfig {
             AiSyncResponseCapture.set(responseBodyText);
 
             if (response.getStatusCode().isError()) {
-                // Failure path: dump full request + response so the upstream rejection reason is
-                // visible in logs instead of being swallowed inside the IOException wrapper.
+                // 失败路径：把完整的请求 + 响应都打出来，让上游拒绝的原因直接在 log 里可见，
+                // 而不是被吞进 IOException 包装里。
                 log.error("[AI HTTP] <-- ERROR status={} latencyMs={} url={} {}\nrequestBody={}\nresponseBody={}",
                         response.getStatusCode(),
                         latency,
@@ -116,20 +122,25 @@ public class AiConfig {
             return response;
         };
 
+        // 熔断拦截器必须在最外层（先注册），才能看到 logging 拦截器 / 传输层抛出的 IOException
         return RestClient.builder()
                 .requestFactory(new BufferingClientHttpRequestFactory(new JdkClientHttpRequestFactory()))
+                .requestInterceptor(LlmCircuitBreakerSupport.restClientInterceptor(circuitBreakerRegistry))
                 .requestInterceptor(loggingInterceptor);
     }
 
+    // 流式调用出口，同样由 LlmCircuitBreakerSupport 在最外层 filter 做熔断（只管准入与结果记录，绝不重试流）。
     @Bean
     @Primary
-    public WebClient.Builder openAiWebClientBuilder(AiInteractionLogger aiInteractionLogger) {
+    public WebClient.Builder openAiWebClientBuilder(AiInteractionLogger aiInteractionLogger,
+                                                    CircuitBreakerRegistry circuitBreakerRegistry) {
         ExchangeStrategies strategies = ExchangeStrategies.builder()
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
                 .build();
 
         return WebClient.builder()
                 .exchangeStrategies(strategies)
+                .filter(LlmCircuitBreakerSupport.webClientFilter(circuitBreakerRegistry))
                 .filter(logStreamingRequest(aiInteractionLogger))
                 .filter(logStreamingResponse(aiInteractionLogger));
     }
@@ -159,7 +170,7 @@ public class AiConfig {
         };
     }
 
-    // --- request/response summarizers ---
+    // --- 请求/响应摘要 ---
 
     private String summarizeRequestBody(String body) {
         try {
@@ -171,7 +182,7 @@ public class AiConfig {
             if (root.has("messages")) {
                 JsonNode messages = root.get("messages");
                 sb.append(", messages=").append(messages.size());
-                // Show the last user turn briefly so we know what was sent
+                // 简要展示最后一轮 user 消息，方便知道到底发了什么
                 for (int i = messages.size() - 1; i >= 0; i--) {
                     JsonNode msg = messages.get(i);
                     if ("user".equals(msg.path("role").asText())) {
@@ -281,16 +292,16 @@ public class AiConfig {
         return ExchangeFilterFunction.ofResponseProcessor(response -> {
             log.debug("[AI STREAM HTTP] <-- status={} | contentType={}",
                     response.statusCode(), response.headers().contentType().orElse(null));
-            // SSE response body is too large/streamy to capture fully here.
-            // ChatService writes a LOGICAL response with the aggregated answer when streaming completes.
+            // SSE 响应体太大、又是流式的，这里没法完整抓下来。
+            // 流式结束后 ChatService 会把聚合好的答案作为一条逻辑响应写入 log。
             return Mono.just(response);
         });
     }
 
     /**
-     * Reactive client request wrapper that buffers the outgoing body bytes so we can
-     * record them to the AI interaction log. Uses {@link DataBufferUtils#join} to safely
-     * combine all chunks into a single buffer regardless of underlying DataBuffer impl.
+     * 响应式客户端请求的包装类，把发出去的 body 字节先缓存一份，好记到 AI 交互 log 里。
+     * 用 {@link DataBufferUtils#join} 把所有 chunk 安全地合并成一个 buffer，
+     * 不依赖底层 DataBuffer 的具体实现。
      */
     private static final class BodyCapturingHttpRequest extends ClientHttpRequestDecorator {
         private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -407,7 +418,7 @@ public class AiConfig {
         return headers;
     }
 
-    // --- helpers ---
+    // --- 工具方法 ---
 
     private String maskApiKey(String apiKey) {
         if (apiKey == null || apiKey.isBlank()) {

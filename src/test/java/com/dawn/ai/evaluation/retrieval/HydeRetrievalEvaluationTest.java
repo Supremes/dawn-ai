@@ -16,12 +16,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Demonstration test: with the same baseline retrieval engine, the HyDE-rewritten
- * query string should be a better retrieval input than the bare keyword query
- * for under-specified / paraphrased queries.
+ * 演示型测试：检索引擎不变，对于表述不完整 / 换了说法的 query，
+ * 经 HyDE 改写后的 query 字符串应该比裸关键词 query 更适合拿去做检索。
  *
- * The retrieval engine here is mocked: real-world hypothetical documents tend to
- * lexically overlap with relevant chunks, which is exactly what the mock encodes.
+ * 这里的检索引擎是 mock 的：现实中假设性文档往往和相关 chunk 在词面上有重叠，
+ * mock 编码的就是这一点。
  */
 class HydeRetrievalEvaluationTest {
 
@@ -30,13 +29,13 @@ class HydeRetrievalEvaluationTest {
     @Test
     @DisplayName("HyDE 改写后查询 + 同一检索器，metric 应不劣于 baseline")
     void hyde_improvesRetrievalMetricsOnParaphrasedQueries() {
-        // Same evaluation cases used by RetrievalEvaluatorTest.
+        // 和 RetrievalEvaluatorTest 用的是同一组评测用例。
         List<RetrievalEvaluationCase> cases = List.of(
                 new RetrievalEvaluationCase("退款政策怎么走", List.of("doc-2", "doc-3")),
                 new RetrievalEvaluationCase("发票怎么改", List.of("doc-4"))
         );
 
-        // Baseline retriever: short paraphrased queries miss relevant docs.
+        // baseline 检索器：简短的换说法 query 会漏掉相关文档。
         Map<String, List<Document>> baselineCorpus = Map.of(
                 "退款政策怎么走", List.of(
                         new Document("doc-1", "pricing overview", Map.of()),
@@ -47,8 +46,8 @@ class HydeRetrievalEvaluationTest {
                 )
         );
 
-        // After HyDE expands to a hypothetical answer, the query string lexically
-        // matches the target docs much better.
+        // HyDE 把 query 扩展成假设答案之后，query 字符串在词面上
+        // 和目标文档的匹配度明显更高。
         Map<String, List<Document>> hydeCorpus = Map.of(
                 "退款政策怎么走 → 假设答案：根据退款条款，用户可在 7 天内申请退款...",
                 List.of(
@@ -62,7 +61,7 @@ class HydeRetrievalEvaluationTest {
                 )
         );
 
-        // Stubbed HyDE generator that maps query -> hypothetical text used as retrieval key.
+        // stub 掉的 HyDE 生成器：把 query 映射成假设文本，作为检索 key。
         HydeQueryGenerator hyde = mock(HydeQueryGenerator.class);
         when(hyde.generate(anyString())).thenAnswer(inv -> {
             String q = inv.getArgument(0);

@@ -25,16 +25,16 @@ import java.util.Deque;
 import java.util.List;
 
 /**
- * Exposes the {@code ai_interaction.log} file (written by {@link com.dawn.ai.config.AiInteractionLogger})
- * as plain text or browser-friendly pretty-printed HTML for the frontend
- * "Interactions" link to view.
+ * 把 {@code ai_interaction.log} 文件（由 {@link com.dawn.ai.config.AiInteractionLogger} 写入）
+ * 以纯文本或浏览器友好的 pretty-print HTML 形式暴露出来，给前端
+ * "Interactions" 链接查看用。
  *
- * <p>Endpoint: {@code GET /api/v1/ai-interactions/log[?tail=N&sessionId=xxx]}
+ * <p>接口：{@code GET /api/v1/ai-interactions/log[?tail=N&sessionId=xxx]}
  *
  * <ul>
- *   <li>{@code tail} — number of trailing lines to return (default 500, max 5000).</li>
- *   <li>{@code sessionId} — optional, return only lines whose JSON contains the matching sessionId.</li>
- *   <li>{@code pretty} — optional, render the response as HTML with pretty-printed JSON.</li>
+ *   <li>{@code tail} — 返回末尾多少行（默认 500，最大 5000）。</li>
+ *   <li>{@code sessionId} — 可选，只返回 JSON 里包含匹配 sessionId 的行。</li>
+ *   <li>{@code pretty} — 可选，把响应渲染成 HTML，JSON 做 pretty-print。</li>
  * </ul>
  */
 @Slf4j
@@ -213,8 +213,8 @@ public class AiInteractionController {
     }
 
     /**
-     * Read the last {@code n} lines of {@code file} efficiently by scanning backwards
-     * through the file in 8 KB chunks. Avoids loading the whole file into memory.
+     * 高效读取 {@code file} 的最后 {@code n} 行：按 8 KB 分块从文件尾部往前扫。
+     * 不用把整个文件加载进内存。
      */
     private List<String> readLastLines(Path file, int n) throws IOException {
         Deque<String> buffer = new ArrayDeque<>(n);
@@ -230,7 +230,7 @@ public class AiInteractionController {
                 String text = new String(chunk, 0, read, StandardCharsets.UTF_8);
                 String combined = text + leftover;
                 String[] parts = combined.split("\n", -1);
-                // first segment may be partial — keep for next iteration
+                // 第一段可能不完整——留到下一轮迭代再拼
                 leftover.setLength(0);
                 leftover.append(parts[0]);
                 for (int i = parts.length - 1; i >= 1 && buffer.size() < n; i--) {

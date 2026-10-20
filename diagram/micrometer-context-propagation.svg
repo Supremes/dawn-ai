@@ -1,0 +1,285 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="1370" viewBox="0 0 1320 1370" font-family="'Chalkboard SE','Comic Sans MS','Hanzipen SC','Segoe Print',cursive">
+
+  <defs>
+    <filter id="rough" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="3" seed="23" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="2.2" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="soft" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="1.3" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <marker id="aRed" markerWidth="10" markerHeight="10" refX="7.5" refY="5" orient="auto">
+      <path d="M1,1 L8,5 L1,9" fill="none" stroke="#C2453C" stroke-width="1.7" stroke-linecap="round"/>
+    </marker>
+    <marker id="aGrn" markerWidth="10" markerHeight="10" refX="7.5" refY="5" orient="auto">
+      <path d="M1,1 L8,5 L1,9" fill="none" stroke="#4E7C5B" stroke-width="1.7" stroke-linecap="round"/>
+    </marker>
+    <marker id="aBlu" markerWidth="10" markerHeight="10" refX="7.5" refY="5" orient="auto">
+      <path d="M1,1 L8,5 L1,9" fill="none" stroke="#3C6E9E" stroke-width="1.7" stroke-linecap="round"/>
+    </marker>
+  </defs>
+
+  <style>
+    .ink{fill:#33302B}.red{fill:#C2453C}.grn{fill:#4E7C5B}.blu{fill:#3C6E9E}.amb{fill:#A8730F}.gry{fill:#8C867D}
+    .sRed{stroke:#C2453C}.sGrn{stroke:#4E7C5B}.sBlu{stroke:#3C6E9E}.sGry{stroke:#B5AEA3}.sAmb{stroke:#D9A441}
+    .code{font-family:Menlo,Monaco,monospace;font-size:12px}
+    .codeb{font-family:Menlo,Monaco,monospace;font-size:12px;font-weight:bold}
+    .xs{font-size:11.5px}.sm{font-size:13px}.t{font-size:14.5px}.tb{font-size:14.5px;font-weight:bold}
+    .big{font-size:17px;font-weight:bold}.h{font-size:20px;font-weight:bold}
+  </style>
+
+  <rect width="1320" height="1370" fill="#FDFAF4"/>
+
+  <text x="660" y="50" text-anchor="middle" class="ink" font-size="26" font-weight="bold">io.micrometer:context-propagation 全流程</text>
+  <text x="660" y="78" text-anchor="middle" class="gry" font-size="13.5">把 ThreadLocal 变成可搬运的：提交线程拍快照 → 工作线程还原 → 结束后擦干净。Reactor / Spring 6 / Micrometer Tracing 底层都靠它</text>
+  <path d="M300,90 Q660,85 1020,90" fill="none" class="sGry" stroke-width="2" filter="url(#rough)"/>
+
+  <!-- ═══════ ① 问题 ═══════ -->
+  <g filter="url(#soft)">
+    <rect x="40" y="110" width="250" height="150" rx="10" fill="#FBF6EC" stroke="#D9C7A4" stroke-width="2"/>
+  </g>
+  <g filter="url(#rough)">
+    <rect x="300" y="110" width="980" height="150" rx="12" fill="#FCF2F1" class="sRed" stroke-width="2.4"/>
+  </g>
+  <text x="165" y="142" text-anchor="middle" class="ink big">① 问题</text>
+  <text x="165" y="172" text-anchor="middle" class="ink xs">ThreadLocal 只对</text>
+  <text x="165" y="190" text-anchor="middle" class="ink xs">当前线程可见</text>
+  <text x="165" y="228" text-anchor="middle" class="red tb">线程一换就丢</text>
+
+  <g filter="url(#soft)">
+    <rect x="330" y="140" width="220" height="76" rx="8" fill="#FFFFFF" class="sBlu" stroke-width="2"/>
+    <rect x="645" y="140" width="260" height="76" rx="8" fill="#EFEAE0" class="sGry" stroke-width="2"/>
+    <rect x="1000" y="140" width="250" height="76" rx="8" fill="#F6DEDB" class="sRed" stroke-width="2.2"/>
+  </g>
+  <text x="440" y="168" text-anchor="middle" class="ink tb">提交线程</text>
+  <text x="440" y="192" text-anchor="middle" class="grn codeb">TL = ctx@1a2b  ✓</text>
+  <text x="775" y="168" text-anchor="middle" class="ink tb">线程切换点</text>
+  <text x="775" y="192" text-anchor="middle" class="gry xs">线程池 · Reactor · CompletableFuture</text>
+  <text x="1125" y="168" text-anchor="middle" class="ink tb">工作线程</text>
+  <text x="1125" y="192" text-anchor="middle" class="red codeb">TL = null  ✗ → NPE</text>
+
+  <path d="M550,178 Q597,175 640,178" fill="none" class="sBlu" stroke-width="2.4" marker-end="url(#aBlu)"/>
+  <path d="M905,178 Q950,175 995,178" fill="none" class="sRed" stroke-width="2.4" stroke-dasharray="5 5" marker-end="url(#aRed)"/>
+
+  <text x="790" y="241" text-anchor="middle" class="gry xs">MDC traceId · Security context · StepCollector · AiInteractionContext —— 全在虚线那一跳断掉</text>
+
+  <!-- ═══════ ② 四个核心 API ═══════ -->
+  <g filter="url(#soft)">
+    <rect x="40" y="278" width="250" height="210" rx="10" fill="#FBF6EC" stroke="#D9C7A4" stroke-width="2"/>
+  </g>
+  <g filter="url(#rough)">
+    <rect x="300" y="278" width="980" height="210" rx="12" fill="#F1F6FB" class="sBlu" stroke-width="2.4"/>
+  </g>
+  <text x="165" y="310" text-anchor="middle" class="ink big">② 四个核心 API</text>
+  <text x="165" y="340" text-anchor="middle" class="ink xs">两个你实现（Accessor）</text>
+  <text x="165" y="358" text-anchor="middle" class="ink xs">两个库提供（Registry / Snapshot）</text>
+  <text x="165" y="400" text-anchor="middle" class="blu tb">Accessor 注册进 Registry</text>
+  <text x="165" y="424" text-anchor="middle" class="blu tb">Snapshot 负责搬运</text>
+  <text x="165" y="462" text-anchor="middle" class="gry xs">都在 io.micrometer.context 包下</text>
+
+  <g filter="url(#soft)">
+    <rect x="320" y="298" width="222" height="170" rx="10" fill="#FFFFFF" class="sBlu" stroke-width="2"/>
+    <rect x="560" y="298" width="222" height="170" rx="10" fill="#FFFFFF" class="sBlu" stroke-width="2"/>
+    <rect x="800" y="298" width="222" height="170" rx="10" fill="#FFFFFF" class="sBlu" stroke-width="2"/>
+    <rect x="1040" y="298" width="222" height="170" rx="10" fill="#FFFFFF" class="sBlu" stroke-width="2"/>
+    <rect x="330" y="432" width="202" height="28" rx="8" fill="#E3EFF9" class="sBlu" stroke-width="1.8"/>
+    <rect x="570" y="432" width="202" height="28" rx="8" fill="#E3EFF9" class="sBlu" stroke-width="1.8"/>
+    <rect x="810" y="432" width="202" height="28" rx="8" fill="#E3EFF9" class="sBlu" stroke-width="1.8"/>
+    <rect x="1050" y="432" width="202" height="28" rx="8" fill="#E3EFF9" class="sBlu" stroke-width="1.8"/>
+  </g>
+
+  <!-- card 1 -->
+  <text x="334" y="324" class="blu codeb">ThreadLocalAccessor&lt;T&gt;</text>
+  <text x="334" y="344" class="gry xs">你实现 · 一个 TL 怎么读写清</text>
+  <text x="334" y="368" class="ink code">key()</text>
+  <text x="460" y="368" class="gry xs">唯一 id</text>
+  <text x="334" y="386" class="ink code">getValue()</text>
+  <text x="460" y="386" class="gry xs">读</text>
+  <text x="334" y="404" class="ink code">setValue(v)</text>
+  <text x="460" y="404" class="gry xs">写 / 还原</text>
+  <text x="334" y="422" class="ink code">setValue()</text>
+  <text x="460" y="422" class="gry xs">清</text>
+  <text x="431" y="451" text-anchor="middle" class="blu xs" font-weight="bold">告诉库：这个 TL 长啥样</text>
+
+  <!-- card 2 -->
+  <text x="574" y="324" class="blu codeb">ContextAccessor&lt;R,W&gt;</text>
+  <text x="574" y="344" class="gry xs">你实现（可选）· 非 TL 容器</text>
+  <text x="574" y="368" class="ink code">readValues(...)</text>
+  <text x="700" y="368" class="gry xs">从容器读</text>
+  <text x="574" y="386" class="ink code">writeValues(...)</text>
+  <text x="700" y="386" class="gry xs">写回容器</text>
+  <text x="574" y="404" class="ink code">ReactorContextAccessor</text>
+  <text x="574" y="422" class="gry xs">└→ 库自带，Reactor 直接用</text>
+  <text x="671" y="451" text-anchor="middle" class="blu xs" font-weight="bold">适配 Reactor Context / Map</text>
+
+  <!-- card 3 -->
+  <text x="814" y="324" class="blu codeb">ContextRegistry</text>
+  <text x="814" y="344" class="gry xs">库提供 · 全局登记表</text>
+  <text x="814" y="368" class="ink code">getInstance()</text>
+  <text x="940" y="368" class="gry xs">全局单例</text>
+  <text x="814" y="386" class="ink code">registerThreadLocalAccessor</text>
+  <text x="814" y="404" class="ink code">registerContextAccessor</text>
+  <text x="814" y="422" class="gry xs">└→ 启动时注册一次即可</text>
+  <text x="911" y="451" text-anchor="middle" class="blu xs" font-weight="bold">登记：哪些 TL 要被搬</text>
+
+  <!-- card 4 -->
+  <text x="1054" y="324" class="blu codeb">ContextSnapshot(Factory)</text>
+  <text x="1054" y="344" class="gry xs">库提供 · 不可变快照 + 搬运</text>
+  <text x="1054" y="368" class="ink code">captureAll()</text>
+  <text x="1180" y="368" class="gry xs">拍 TL</text>
+  <text x="1054" y="386" class="ink code">captureFrom(ctx)</text>
+  <text x="1180" y="386" class="gry xs">拍容器</text>
+  <text x="1054" y="404" class="ink code">wrap(task)</text>
+  <text x="1180" y="404" class="gry xs">带着跑</text>
+  <text x="1054" y="422" class="ink code">setThreadLocals()</text>
+  <text x="1180" y="422" class="gry xs">手动还原</text>
+  <text x="1151" y="451" text-anchor="middle" class="blu xs" font-weight="bold">真正干活的搬运工</text>
+
+  <!-- ═══════ ③ 全流程 ═══════ -->
+  <g filter="url(#soft)">
+    <rect x="40" y="506" width="250" height="350" rx="10" fill="#FBF6EC" stroke="#D9C7A4" stroke-width="2"/>
+  </g>
+  <g filter="url(#rough)">
+    <rect x="300" y="506" width="980" height="350" rx="12" fill="#F1F6FB" class="sBlu" stroke-width="2.4"/>
+  </g>
+  <text x="165" y="538" text-anchor="middle" class="ink big">③ 全流程</text>
+  <text x="165" y="568" text-anchor="middle" class="ink xs">一次 submit 到底发生了什么</text>
+  <text x="60" y="604" class="ink code">var snap = factory</text>
+  <text x="60" y="622" xml:space="preserve" class="ink code">    .captureAll();</text>
+  <text x="60" y="640" class="ink code">pool.submit(</text>
+  <text x="60" y="658" xml:space="preserve" class="ink code">    snap.wrap(task));</text>
+  <text x="165" y="704" text-anchor="middle" class="blu tb">captureAll = 拍照</text>
+  <text x="165" y="728" text-anchor="middle" class="blu tb">wrap = 带着照片跑</text>
+  <text x="165" y="770" text-anchor="middle" class="gry xs">偷懒写法：</text>
+  <text x="165" y="790" text-anchor="middle" class="ink code">ContextExecutorService</text>
+  <text x="165" y="808" text-anchor="middle" class="ink code">.wrap(pool)</text>
+  <text x="165" y="838" text-anchor="middle" class="gry xs">= SessionAwareExecutor 的库版</text>
+
+  <!-- 泳道 -->
+  <text x="330" y="534" class="blu tb">提交线程 (caller)</text>
+  <text x="830" y="534" class="blu tb">工作线程 (worker)</text>
+  <path d="M790,546 Q788,680 790,812" fill="none" class="sGry" stroke-width="2" stroke-dasharray="6 4"/>
+
+  <g filter="url(#soft)">
+    <rect x="330" y="550" width="420" height="66" rx="8" fill="#FFFFFF" class="sBlu" stroke-width="2"/>
+    <rect x="330" y="640" width="420" height="66" rx="8" fill="#E3EFF9" class="sBlu" stroke-width="2.2"/>
+    <rect x="330" y="730" width="420" height="66" rx="8" fill="#FFFFFF" class="sBlu" stroke-width="2"/>
+    <rect x="830" y="550" width="420" height="66" rx="8" fill="#FFFFFF" class="sBlu" stroke-width="2"/>
+    <rect x="830" y="640" width="420" height="66" rx="8" fill="#DFEDE4" class="sGrn" stroke-width="2.2"/>
+    <rect x="830" y="730" width="420" height="66" rx="8" fill="#FFFFFF" class="sBlu" stroke-width="2"/>
+  </g>
+
+  <text x="350" y="574" class="blu codeb">① factory.captureAll()</text>
+  <text x="350" y="596" class="ink xs">对 registry 里每个 accessor 调 getValue()　← 必须在提交线程调</text>
+  <text x="350" y="664" class="blu codeb">② ContextSnapshot  (不可变 Map)</text>
+  <text x="350" y="686" class="ink code">{ stepCollector→ctx@1a2b, session→State@3c4d, span→… }</text>
+  <text x="350" y="754" class="blu codeb">③ snapshot.wrap(task) → pool.submit(wrapped)</text>
+  <text x="350" y="776" class="ink xs">快照被闭包捕获，随任务进队列；此刻还没换线程</text>
+
+  <text x="850" y="574" class="blu codeb">④ snapshot.setThreadLocals()  → Scope</text>
+  <text x="850" y="596" class="ink xs">对每个 accessor 调 setValue(v)，先记住旧值</text>
+  <text x="850" y="664" class="grn codeb">⑤ task.run()  — 原任务照常跑</text>
+  <text x="850" y="686" class="ink xs">TL 已还原：traceId / StepCollector 全在 ✓</text>
+  <text x="850" y="754" class="blu codeb">⑥ scope.close()  → 复原旧值 / 清空</text>
+  <text x="850" y="776" class="ink xs">线程还给池子前擦干净，下一个请求不串号</text>
+
+  <path d="M540,616 Q541,628 540,636" fill="none" class="sBlu" stroke-width="2.4" marker-end="url(#aBlu)"/>
+  <path d="M540,706 Q541,718 540,726" fill="none" class="sBlu" stroke-width="2.4" marker-end="url(#aBlu)"/>
+  <path d="M1040,616 Q1041,628 1040,636" fill="none" class="sBlu" stroke-width="2.4" marker-end="url(#aBlu)"/>
+  <path d="M1040,706 Q1041,718 1040,726" fill="none" class="sGrn" stroke-width="2.4" marker-end="url(#aGrn)"/>
+  <path d="M752,763 Q806,763 806,672 Q806,583 826,583" fill="none" class="sBlu" stroke-width="2.6" marker-end="url(#aBlu)"/>
+  <text x="812" y="632" class="amb xs" font-weight="bold">线程切换</text>
+
+  <text x="790" y="834" text-anchor="middle" class="gry xs">①②③ 在提交线程 · ④⑤⑥ 在工作线程 —— 中间隔着任意长的排队时间，快照把两者解耦</text>
+
+  <!-- ═══════ ④ 三种接法 ═══════ -->
+  <g filter="url(#soft)">
+    <rect x="40" y="874" width="250" height="210" rx="10" fill="#FBF6EC" stroke="#D9C7A4" stroke-width="2"/>
+  </g>
+  <g filter="url(#rough)">
+    <rect x="300" y="874" width="980" height="210" rx="12" fill="#F2F8F4" class="sGrn" stroke-width="2.4"/>
+  </g>
+  <text x="165" y="906" text-anchor="middle" class="ink big">④ 三种接法</text>
+  <text x="165" y="936" text-anchor="middle" class="ink xs">从手动到全自动</text>
+  <text x="165" y="954" text-anchor="middle" class="ink xs">看你的线程模型选</text>
+  <text x="165" y="996" text-anchor="middle" class="grn tb">dawn-ai 三种都在用</text>
+  <text x="165" y="1030" text-anchor="middle" class="gry xs">每张卡片底部</text>
+  <text x="165" y="1048" text-anchor="middle" class="gry xs">└→ 对应项目文件</text>
+
+  <g filter="url(#soft)">
+    <rect x="320" y="894" width="300" height="170" rx="10" fill="#FFFFFF" class="sGrn" stroke-width="2"/>
+    <rect x="640" y="894" width="300" height="170" rx="10" fill="#FFFFFF" class="sGrn" stroke-width="2"/>
+    <rect x="960" y="894" width="300" height="170" rx="10" fill="#FFFFFF" class="sGrn" stroke-width="2"/>
+    <rect x="332" y="1018" width="276" height="34" rx="8" fill="#DFEDE4" class="sGrn" stroke-width="1.8"/>
+    <rect x="652" y="1018" width="276" height="34" rx="8" fill="#DFEDE4" class="sGrn" stroke-width="1.8"/>
+    <rect x="972" y="1018" width="276" height="34" rx="8" fill="#DFEDE4" class="sGrn" stroke-width="1.8"/>
+  </g>
+
+  <text x="338" y="920" class="grn tb">A. 手动 · 自己的线程池</text>
+  <text x="338" y="944" class="ink code">snapshot.wrap(task)</text>
+  <text x="338" y="962" class="ink code">ContextExecutorService.wrap(pool)</text>
+  <text x="338" y="986" class="ink xs">适用：ExecutorService · CF.supplyAsync</text>
+  <text x="338" y="1004" class="ink xs">ThreadPoolBulkhead / TimeLimiter 的池子</text>
+  <text x="470" y="1040" text-anchor="middle" class="grn codeb">└→ SessionAwareExecutor.java:80</text>
+
+  <text x="658" y="920" class="grn tb">B. Reactor · 一行开关</text>
+  <text x="658" y="944" class="ink code">Hooks.enableAutomatic-</text>
+  <text x="658" y="962" xml:space="preserve" class="ink code">      ContextPropagation()</text>
+  <text x="658" y="986" class="ink xs">适用：WebFlux · Spring AI 流式调用</text>
+  <text x="658" y="1004" class="ink xs">订阅时 captureFrom，每个 operator 前还原</text>
+  <text x="790" y="1040" text-anchor="middle" class="grn codeb">└→ AgentConfig.java:119-123</text>
+
+  <text x="978" y="920" class="grn tb">C. 框架自带 · 零代码</text>
+  <text x="978" y="944" class="ink code">micrometer-tracing-bridge-*</text>
+  <text x="978" y="962" class="ink code">Spring Boot 3 / Spring 6</text>
+  <text x="978" y="986" class="ink xs">自动搬：traceId / spanId / MDC</text>
+  <text x="978" y="1004" class="ink xs">Observation 跨线程仍是同一条 trace</text>
+  <text x="1110" y="1040" text-anchor="middle" class="grn codeb">└→ pom.xml: tracing-bridge-otel</text>
+
+  <!-- ═══════ ⑤ 四个坑 ═══════ -->
+  <g filter="url(#soft)">
+    <rect x="40" y="1102" width="250" height="150" rx="10" fill="#FBF6EC" stroke="#D9C7A4" stroke-width="2"/>
+  </g>
+  <g filter="url(#rough)">
+    <rect x="300" y="1102" width="980" height="150" rx="12" fill="#FDF6E8" class="sAmb" stroke-width="2.6"/>
+  </g>
+  <text x="165" y="1134" text-anchor="middle" class="ink big">⑤ 四个坑</text>
+  <text x="165" y="1164" text-anchor="middle" class="ink xs">用起来简单</text>
+  <text x="165" y="1182" text-anchor="middle" class="ink xs">踩坑都在时机和清理</text>
+  <text x="165" y="1222" text-anchor="middle" class="amb tb">resilience4j 要特别看</text>
+
+  <g filter="url(#soft)">
+    <rect x="320" y="1120" width="222" height="112" rx="10" fill="#F8E9CE" class="sAmb" stroke-width="2.2"/>
+    <rect x="560" y="1120" width="222" height="112" rx="10" fill="#F8E9CE" class="sAmb" stroke-width="2.2"/>
+    <rect x="800" y="1120" width="222" height="112" rx="10" fill="#F8E9CE" class="sAmb" stroke-width="2.2"/>
+    <rect x="1040" y="1120" width="222" height="112" rx="10" fill="#F8E9CE" class="sAmb" stroke-width="2.2"/>
+  </g>
+
+  <text x="336" y="1146" class="amb tb">① 快照时机</text>
+  <text x="336" y="1170" class="ink xs">captureAll 必须在提交</text>
+  <text x="336" y="1188" class="ink xs">线程调；进了池子再拍，</text>
+  <text x="336" y="1206" class="ink xs">拍到的全是 null</text>
+
+  <text x="576" y="1146" class="amb tb">② Scope 必须 close</text>
+  <text x="576" y="1170" class="ink xs">线程池复用线程；不复原</text>
+  <text x="576" y="1188" class="ink xs">上一个请求的 ctx 就会</text>
+  <text x="576" y="1206" class="ink xs">串到下一个 —— 用 try-with</text>
+
+  <text x="816" y="1146" class="amb tb">③ 引用 vs 拷贝</text>
+  <text x="816" y="1170" class="ink xs">StepCollectorContext 按</text>
+  <text x="816" y="1188" class="ink xs">引用传播，多线程共写</text>
+  <text x="816" y="1206" class="ink xs">→ 对象内部必须线程安全</text>
+
+  <text x="1056" y="1146" class="amb tb">④ resilience4j 线程池</text>
+  <text x="1056" y="1170" class="ink xs">ThreadPoolBulkhead /</text>
+  <text x="1056" y="1188" class="ink xs">TimeLimiter 自带池子，</text>
+  <text x="1056" y="1206" class="ink xs">不包一层 ctx 就断在这一跳</text>
+
+  <!-- ═══ 结论条 ═══ -->
+  <g filter="url(#soft)">
+    <rect x="215" y="1284" width="890" height="52" rx="26" fill="#FDF3E2" stroke="#D9A441" stroke-width="2.4"/>
+  </g>
+  <text x="660" y="1316" text-anchor="middle" class="ink" font-size="16.5" font-weight="bold">提交时拍快照 · 执行前还原 · 结束后清理 —— 三步把 ThreadLocal 从「线程私有」变成「可搬运」</text>
+
+</svg>

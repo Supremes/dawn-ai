@@ -37,8 +37,8 @@ public class PostgresBm25Retriever implements SparseRetriever {
             return List.of();
         }
 
-        // Keep regconfig parameterized so the search config is application-configurable
-        // without fragile string interpolation inside SQL text blocks.
+        // regconfig 走参数绑定，这样 search config 能在应用层配置，
+        // 不用在 SQL 文本块里做容易出错的字符串拼接。
         StringBuilder sql = new StringBuilder("""
                 SELECT id, content, metadata
                 FROM %s

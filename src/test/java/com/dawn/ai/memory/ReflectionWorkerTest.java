@@ -33,7 +33,7 @@ class ReflectionWorkerTest {
         when(requestSpec.user(anyString())).thenReturn(requestSpec);
         when(requestSpec.call()).thenReturn(callSpec);
 
-        // episodeThreshold=4, so needs >= 2 episodes to proceed
+        // episodeThreshold=4，所以至少要有 2 条 episode 才会往下走
         reflectionWorker = new ReflectionWorker(memoryManager, chatClient, userProfileService, 4);
     }
 
@@ -47,22 +47,21 @@ class ReflectionWorkerTest {
     }
 
     @Test
-    void onReflectionRequest_persistsHighImportanceReflectionAsProcedural() {
+    void onReflectionRequest_updatesProfileWithoutPersistingMemory() {
         when(memoryManager.search(eq("user1"), anyString(), anyInt(), eq(MemoryType.EPISODIC)))
                 .thenReturn(episodes(4));
         when(callSpec.content()).thenReturn("用户是Java开发者，擅长并发，正在学Spring。");
 
         reflectionWorker.onReflectionRequest(new ReflectionRequestEvent("session1", "user1"));
 
-        verify(memoryManager).add(eq("user1"), eq("session1"),
-                eq("用户是Java开发者，擅长并发，正在学Spring。"), eq(MemoryType.PROCEDURAL), eq(0.9));
+        verify(memoryManager, never()).add(anyString(), anyString(), anyString(), any(MemoryType.class), anyDouble());
         verify(userProfileService).upsertAttribute(eq("user1"), eq("reflection"),
                 eq("用户是Java开发者，擅长并发，正在学Spring。"));
     }
 
     @Test
     void onReflectionRequest_skipsWhenNotEnoughEpisodes() {
-        // episodeThreshold=4, threshold/2=2, only 1 episode → skip
+        // episodeThreshold=4，threshold/2=2，只有 1 条 episode → 跳过
         when(memoryManager.search(eq("user1"), anyString(), anyInt(), eq(MemoryType.EPISODIC)))
                 .thenReturn(episodes(1));
 

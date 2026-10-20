@@ -53,14 +53,13 @@ public class AgentConfig {
     }
 
     /**
-     * Dedicated thread pool for SSE streaming requests.
-     * Each active SSE stream occupies one thread for the duration of the request.
+     * SSE 流式请求专用的线程池。
+     * 每个活跃的 SSE 流在整个请求期间都会独占一个线程。
      *
-     * <p>Uses {@link ThreadPoolExecutor.AbortPolicy} so that overload is surfaced as a
-     * {@link java.util.concurrent.RejectedExecutionException} that {@code ChatService}
-     * converts to a {@code CAPACITY_EXCEEDED} error event and an HTTP-level 503, rather
-     * than silently falling back to the Tomcat servlet thread (which would block it for
-     * the full 120 s SSE timeout).
+     * <p>用 {@link ThreadPoolExecutor.AbortPolicy}，这样过载时会直接抛出
+     * {@link java.util.concurrent.RejectedExecutionException}，由 {@code ChatService}
+     * 转成 {@code CAPACITY_EXCEEDED} 错误事件和 HTTP 层的 503，而不是悄悄 fallback
+     * 到 Tomcat 的 servlet 线程上（那样会把它卡住整整 120 秒的 SSE timeout）。
      */
     @Bean(name = "chatStreamExecutor", destroyMethod = "shutdown")
     public ExecutorService chatStreamExecutor() {

@@ -117,7 +117,7 @@ public class MemoryService {
                     .map(o -> (Map<String, String>) o)
                     .toList();
         } catch (Exception e) {
-            // rename fails when key doesn't exist (lost race or already empty) — normal
+            // key 不存在时 rename 会失败（被别人抢先 drain 了，或者本来就是空的），这是正常情况
             log.debug("[MemoryService] drain skipped for session={}: {}", sessionId, e.getMessage());
             return List.of();
         }

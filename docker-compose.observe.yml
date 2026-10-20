@@ -20,7 +20,7 @@ services:
     environment:
       MANAGEMENT_TRACING_ENABLED: "${MANAGEMENT_TRACING_ENABLED:-true}"
 
-  # ───────── metrics profile ─────────
+  # ───────── metrics profile（指标监控）─────────
   prometheus:
     image: prom/prometheus:v3.2.1
     profiles: ["metrics"]
@@ -47,7 +47,7 @@ services:
     networks:
       - dawn-network
 
-  # ───────── observe profile (Langfuse v3) ─────────
+  # ───────── observe profile（Langfuse v3 可观测性）─────────
   langfuse-postgres:
     image: postgres:16-alpine
     profiles: ["observe"]
@@ -125,8 +125,8 @@ services:
     networks:
       - dawn-network
 
-  # One-shot bucket creator. Langfuse v3 writes OTLP events to S3,
-  # so the `langfuse` bucket must exist before ingestion succeeds.
+  # 一次性建 bucket 的任务。Langfuse v3 会把 OTLP 事件写到 S3，
+  # 所以 `langfuse` 这个 bucket 得先存在，ingestion 才能成功。
   minio-init:
     image: minio/mc:latest
     profiles: ["observe"]
@@ -172,8 +172,8 @@ services:
       REDIS_HOST: langfuse-redis
       REDIS_PORT: 6379
       REDIS_AUTH: langfuse123
-      # Allow LLM connections to host-machine services (e.g. oMLX via host.docker.internal)
-      # Ref: https://github.com/langfuse/langfuse/pull/13073
+      # 允许 LLM 连接宿主机上的服务（比如通过 host.docker.internal 访问 oMLX）
+      # 参考：https://github.com/langfuse/langfuse/pull/13073
       LANGFUSE_LLM_CONNECTION_WHITELISTED_HOST: host.docker.internal
     networks:
       - dawn-network
@@ -221,8 +221,8 @@ services:
       LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:-admin@dawn.local}
       LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:-dawn-admin-123}
       LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME:-Dawn Admin}
-      # Allow LLM connections to host-machine services (e.g. oMLX via host.docker.internal)
-      # Ref: https://github.com/langfuse/langfuse/pull/13073
+      # 允许 LLM 连接宿主机上的服务（比如通过 host.docker.internal 访问 oMLX）
+      # 参考：https://github.com/langfuse/langfuse/pull/13073
       LANGFUSE_LLM_CONNECTION_WHITELISTED_HOST: host.docker.internal
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/public/health"]

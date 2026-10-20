@@ -5,6 +5,8 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.sun.net.httpserver.HttpServer;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,17 +28,16 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 /**
- * Regression test for the upstream 4xx visibility fix.
+ * 上游 4xx 可见性修复的回归测试。
  *
- * Prior bug: openAiRestClientBuilder used SimpleClientHttpRequestFactory (JDK
- * HttpURLConnection). When upstream returned 4xx, getInputStream() threw IOException
- * and Spring wrapped it as ResourceAccessException — the actual error body from the
- * provider was never read or logged. This test guards against any regression by
- * verifying the interceptor:
- *   1. surfaces a normal HttpClientErrorException carrying the upstream body,
- *   2. captures the body into AiSyncResponseCapture (used by TaskPlanner fallback),
- *   3. forwards the body to AiInteractionLogger,
- *   4. emits the body at ERROR level on the [AI HTTP] logger.
+ * 之前的 bug：openAiRestClientBuilder 用的是 SimpleClientHttpRequestFactory（JDK
+ * HttpURLConnection）。上游返回 4xx 时，getInputStream() 抛 IOException，
+ * Spring 把它包成 ResourceAccessException —— provider 返回的真实错误 body
+ * 从来没被读出来，也没被 log。这个测试用来防止回归，验证 interceptor 会：
+ *   1. 正常抛出带上游 body 的 HttpClientErrorException，
+ *   2. 把 body 存进 AiSyncResponseCapture（TaskPlanner 的 fallback 会用到），
+ *   3. 把 body 转发给 AiInteractionLogger，
+ *   4. 在 [AI HTTP] logger 上以 ERROR 级别输出 body。
  */
 class AiConfigErrorLoggingTest {
 
@@ -84,7 +85,8 @@ class AiConfigErrorLoggingTest {
     void interceptor_shouldSurfaceUpstream4xxBody_insteadOfSwallowingIt() {
         AiInteractionLogger interactionLogger = mock(AiInteractionLogger.class);
         AiConfig config = new AiConfig();
-        RestClient client = config.openAiRestClientBuilder(interactionLogger)
+        CircuitBreakerRegistry registry = CircuitBreakerRegistry.ofDefaults();
+        RestClient client = config.openAiRestClientBuilder(interactionLogger, registry)
                 .baseUrl("http://127.0.0.1:" + port)
                 .build();
 
@@ -96,13 +98,13 @@ class AiConfigErrorLoggingTest {
                 .isInstanceOf(HttpClientErrorException.class)
                 .hasMessageContaining("Not supported model X");
 
-        // Body must be captured for the TaskPlanner reasoning-extraction fallback path.
+        // body 必须被捕获，TaskPlanner 提取 reasoning 的 fallback 路径要用。
         assertThat(AiSyncResponseCapture.get()).contains("Not supported model X");
 
-        // AiInteractionLogger receives the full upstream body, not a placeholder.
+        // AiInteractionLogger 收到的是完整的上游 body，不是占位符。
         verify(interactionLogger).logResponse(any(), eq(400), contains("Not supported model X"), anyLong());
 
-        // The upstream body is logged at ERROR level so operators can see it without DEBUG.
+        // 上游 body 以 ERROR 级别 log 出来，运维不用开 DEBUG 也能看到。
         boolean errorLogged = logAppender.list.stream()
                 .anyMatch(e -> e.getLevel() == Level.ERROR
                         && e.getFormattedMessage().contains("Not supported model X")
@@ -110,5 +112,10 @@ class AiConfigErrorLoggingTest {
         assertThat(errorLogged)
                 .as("expected an ERROR log line containing the upstream 4xx body")
                 .isTrue();
+
+        // 400（客户端/配置错误）绝不能算作 circuit breaker 的失败。
+        CircuitBreaker.Metrics m = registry.circuitBreaker("llmChat").getMetrics();
+        assertThat(m.getNumberOfFailedCalls()).isZero();
+        assertThat(m.getNumberOfSuccessfulCalls()).isEqualTo(1);
     }
 }

@@ -119,13 +119,13 @@ public class ChatService {
     }
 
     /**
-     * Creates an {@link SseEmitter} and asynchronously streams the agent response.
+     * 创建一个 {@link SseEmitter}，然后异步把 agent 的响应流式推出去。
      *
-     * <p>Events are published in order:
+     * <p>事件按这个顺序发布：
      * {@code connected → plan_thinking* → plan? → thinking* → step* → token* → done | error}
-     * (see {@link com.dawn.ai.sse.ChatStreamEvent} for the canonical sequence).
-     * The caller (controller) returns the emitter to Spring MVC immediately; the actual
-     * processing happens on the {@code chatStreamExecutor} thread pool.
+     * （标准顺序见 {@link com.dawn.ai.sse.ChatStreamEvent}）。
+     * 调用方（controller）会立刻把 emitter 返回给 Spring MVC；真正的处理
+     * 跑在 {@code chatStreamExecutor} 线程池上。
      */
     public SseEmitter streamChat(ChatRequest request) {
         aiAvailabilityChecker.ensureConfigured();
@@ -184,8 +184,14 @@ public class ChatService {
                             cancelled::get);
                 } catch (Exception e) {
                     agentObservation.error(e);
-                    log.error("[ChatService] Unexpected error in stream thread, sessionId={}", sessionId, e);
-                    sendEvent(emitter, ChatStreamEvent.error(sessionId, "INTERNAL_ERROR", e.getMessage()), seqCounter);
+                    if ("LLM_UNAVAILABLE".equals(AgentOrchestrator.streamErrorCode(e))) {
+                        log.warn("[ChatService] LLM circuit open, sessionId={}", sessionId);
+                        sendEvent(emitter, ChatStreamEvent.error(sessionId, "LLM_UNAVAILABLE",
+                                AgentOrchestrator.LLM_UNAVAILABLE_MESSAGE), seqCounter);
+                    } else {
+                        log.error("[ChatService] Unexpected error in stream thread, sessionId={}", sessionId, e);
+                        sendEvent(emitter, ChatStreamEvent.error(sessionId, "INTERNAL_ERROR", e.getMessage()), seqCounter);
+                    }
                 } finally {
                     agentObservation.stop();
                     AiInteractionContext.clear();

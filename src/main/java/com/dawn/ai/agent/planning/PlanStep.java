@@ -1,8 +1,8 @@
 package com.dawn.ai.agent.planning;
 
 /**
- * A single planner-generated step.
- * This is intentionally a pure value object so structured output parsing can fail fast.
+ * planner 生成的单个步骤。
+ * 故意做成纯 value object，这样结构化输出解析出问题时能 fail fast。
  */
 public record PlanStep(
         Integer step,
