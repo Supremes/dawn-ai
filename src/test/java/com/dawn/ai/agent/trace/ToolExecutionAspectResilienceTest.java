@@ -37,6 +37,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -46,7 +47,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -590,5 +593,26 @@ class ToolExecutionAspectResilienceTest {
             release.countDown();
             executor.shutdownNow();
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // re-plan 上下文透传
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("触发 re-plan 时把请求开始时存入的精简对话上下文传给 TaskPlanner，保证指代消解")
+    void rePlanReceivesStoredConversationContext() throws Throwable {
+        String context = "最近对话：\n用户: Redis 的 maxmemory 怎么配？\n";
+        StepCollector.setRePlanContext(List.of(), "那它的淘汰策略呢", context, Set.of("WebTool"));
+        ProceedingJoinPoint pjp = joinPoint(new WebTool());
+        when(pjp.proceed()).thenReturn(PERMANENT);
+
+        aspect(retryRegistry(1), bulkheadRegistry()).captureStep(pjp);
+
+        verify(taskPlanner).rePlan(
+                eq("那它的淘汰策略呢"),
+                eq(context),
+                anyList(),
+                eq(Set.of("WebTool")));
     }
 }

@@ -1,5 +1,6 @@
 package com.dawn.ai.agent.planning;
 
+import com.dawn.ai.agent.trace.AgentStep;
 import com.dawn.ai.exception.PlanGenerationException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -13,7 +14,9 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -94,6 +97,35 @@ class TaskPlannerTest {
         assertThatThrownBy(() -> taskPlanner.plan("帮我看天气", Map.of("weatherTool", "查询天气"), ""))
                 .isInstanceOf(PlanGenerationException.class)
                 .hasMessage("Planner returned invalid structured output.");
+    }
+
+    @Test
+    void rePlanPromptShouldIncludeConversationContextForCoreference() {
+        when(callResponseSpec.content()).thenReturn("步骤1: [webTool] 换关键词检索");
+
+        String guidance = taskPlanner.rePlan(
+                "那它的淘汰策略呢",
+                "最近对话：\n用户: Redis 的 maxmemory 怎么配？\n",
+                List.of(new AgentStep(1, "webTool", "淘汰策略", "", 10, "empty", List.of())),
+                Set.of("webTool"));
+
+        assertThat(guidance).isEqualTo("步骤1: [webTool] 换关键词检索");
+        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(requestSpec).user(promptCaptor.capture());
+        assertThat(promptCaptor.getValue())
+                .contains("补充规划上下文")
+                .contains("Redis 的 maxmemory 怎么配？");
+    }
+
+    @Test
+    void rePlanPromptShouldOmitContextSectionWhenContextIsBlank() {
+        when(callResponseSpec.content()).thenReturn("直接回答");
+
+        taskPlanner.rePlan("帮我看天气", "  ", List.of(), Set.of("weatherTool"));
+
+        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(requestSpec).user(promptCaptor.capture());
+        assertThat(promptCaptor.getValue()).doesNotContain("补充规划上下文");
     }
 
         private ChatResponse chatResponse(String content) {

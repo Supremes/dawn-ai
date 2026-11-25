@@ -137,20 +137,14 @@ public class AgentOrchestrator {
                 .register(meterRegistry);
     }
 
-    private TaskPlanner.PlannerResult resolvePlan(String sessionId, String userMessage, String topicId,
+    private TaskPlanner.PlannerResult resolvePlan(String userMessage, String plannerContext,
                                                   Map<String, String> toolDescriptions) {
         if (!planEnabled || toolDescriptions.isEmpty()) {
             return TaskPlanner.PlannerResult.empty();
         }
 
         try {
-            return taskPlanner.plan(
-                    userMessage,
-                    toolDescriptions,
-                    buildPlannerContext(
-                            sessionId,
-                            topicId,
-                            toolDescriptions.containsKey(KNOWLEDGE_SEARCH_TOOL)));
+            return taskPlanner.plan(userMessage, toolDescriptions, plannerContext);
         } catch (PlanGenerationException exception) {
             log.warn("[AgentOrchestrator] Planner failed, falling back to direct execution. userMsg={}, reason={}",
                     userMessage.substring(0, Math.min(50, userMessage.length())),
@@ -231,15 +225,19 @@ public class AgentOrchestrator {
             Set<String> enabledToolNames = Collections.unmodifiableSet(
                     new LinkedHashSet<>(enabledToolDescriptions.keySet()));
 
-            TaskPlanner.PlannerResult plannerResult = resolvePlan(
+            // 首轮规划与 re-plan 共用同一份上下文快照，re-plan 时不再读 Redis
+            String plannerContext = buildPlannerContext(
                     sessionId,
-                    userMessage,
                     topicId,
+                    enabledToolDescriptions.containsKey(KNOWLEDGE_SEARCH_TOOL));
+            TaskPlanner.PlannerResult plannerResult = resolvePlan(
+                    userMessage,
+                    plannerContext,
                     enabledToolDescriptions);
             List<PlanStep> plan = plannerResult.steps();
 
             // 设置 re-plan 上下文，让 ToolExecutionAspect 能触发动态 re-plan
-            StepCollector.setRePlanContext(plan, userMessage, enabledToolNames);
+            StepCollector.setRePlanContext(plan, userMessage, plannerContext, enabledToolNames);
 
             String planReasoning = plannerResult.reasoningContent();
             if (planReasoning != null && !planReasoning.isBlank()) {

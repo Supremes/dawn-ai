@@ -5,6 +5,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+import java.util.Set;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class StepCollectorTest {
@@ -59,5 +62,15 @@ class StepCollectorTest {
         StepCollector.init(10); // 重新 init
 
         assertThat(StepCollector.isQueryRetrieved("old query")).isFalse();
+    }
+
+    @Test
+    @DisplayName("setRePlanContext: 精简对话上下文与用户消息一起存入，可被 re-plan 读取")
+    void setRePlanContext_storesConversationContext() {
+        StepCollector.setRePlanContext(List.of(), "再试试它", "最近对话：\n用户: Redis\n",
+                Set.of("webTool"));
+
+        assertThat(StepCollector.getUserMessage()).isEqualTo("再试试它");
+        assertThat(StepCollector.getConversationContext()).isEqualTo("最近对话：\n用户: Redis\n");
     }
 }

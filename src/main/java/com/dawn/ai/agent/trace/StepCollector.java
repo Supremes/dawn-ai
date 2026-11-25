@@ -200,12 +200,14 @@ public class StepCollector {
     // Re-plan 上下文管理
     // -------------------------------------------------------------------------
 
-    /** 为当前请求设置 re-plan 上下文（计划、用户消息、工具描述）。 */
-    public static void setRePlanContext(List<PlanStep> plan, String userMessage, Set<String> toolDescriptions) {
+    /** 为当前请求设置 re-plan 上下文（计划、用户消息、精简对话上下文、工具描述）。 */
+    public static void setRePlanContext(List<PlanStep> plan, String userMessage, String conversationContext,
+                                        Set<String> toolDescriptions) {
         StepCollectorContext ctx = CONTEXT.get();
         if (ctx != null) {
             ctx.currentPlan = plan;
             ctx.userMessage = userMessage;
+            ctx.conversationContext = conversationContext;
             ctx.toolDescriptions = toolDescriptions;
         }
     }
@@ -218,6 +220,11 @@ public class StepCollector {
     public static String getUserMessage() {
         StepCollectorContext ctx = CONTEXT.get();
         return ctx != null ? ctx.userMessage : null;
+    }
+
+    public static String getConversationContext() {
+        StepCollectorContext ctx = CONTEXT.get();
+        return ctx != null ? ctx.conversationContext : null;
     }
 
     public static Set<String> getToolDescriptions() {

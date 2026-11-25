@@ -329,7 +329,8 @@ public class ToolExecutionAspect {
         // 先标记已尝试，避免重规划自身失败后每个后续工具结果都再次消耗一次 LLM 调用。
         StepCollector.markRePlanTriggered();
         List<AgentStep> completedSteps = StepCollector.collect();
-        String rePlanGuidance = taskPlanner.rePlan(userMessage, completedSteps, toolDescriptions);
+        String rePlanGuidance = taskPlanner.rePlan(
+                userMessage, StepCollector.getConversationContext(), completedSteps, toolDescriptions);
         if (rePlanGuidance == null || rePlanGuidance.isBlank()) {
             return null;
         }

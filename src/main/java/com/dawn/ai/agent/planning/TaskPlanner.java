@@ -114,10 +114,7 @@ public class TaskPlanner {
                                    Map<String, String> toolDescriptions,
                                    String formatInstructions,
                                    String conversationContext) {
-        String contextSection = (conversationContext == null || conversationContext.isBlank())
-            ? ""
-            : "补充规划上下文（用于理解用户的指代/省略和工具路由约束，不要复述）：\n"
-              + conversationContext + "\n";
+        String contextSection = formatContextSection(conversationContext);
         String toolList = toolDescriptions.entrySet().stream()
                 .map(e -> "- " + e.getKey() + ": " + e.getValue())
                 .collect(Collectors.joining("\n"));
@@ -242,12 +239,14 @@ public class TaskPlanner {
      * 连续几次工具调用都返回空/失败结果时会调用它，
      * 这说明原计划没有按预期走通。
      *
-     * @param userMessage      用户的原始问题
-     * @param completedSteps   到目前为止已执行的步骤及其结果
-     * @param toolDescriptions 可用工具的名称
+     * @param userMessage         用户的原始问题
+     * @param conversationContext 与首轮规划相同的精简上下文，用来做指代消解；可以为空
+     * @param completedSteps      到目前为止已执行的步骤及其结果
+     * @param toolDescriptions    可用工具的名称
      * @return re-plan 指导文本；re-plan 本身失败时返回 null
      */
-    public String rePlan(String userMessage, List<AgentStep> completedSteps, Set<String> toolDescriptions) {
+    public String rePlan(String userMessage, String conversationContext,
+                         List<AgentStep> completedSteps, Set<String> toolDescriptions) {
         String stepsHistory = completedSteps.stream()
                 .map(s -> String.format("步骤%d: [%s] → %s",
                         s.stepNumber(),
@@ -258,7 +257,7 @@ public class TaskPlanner {
         String prompt = String.format("""
                 你是执行计划调整器。用户的原始问题是：%s
 
-                已执行的步骤及结果：
+                %s已执行的步骤及结果：
                 %s
 
                 前几步工具调用未获得有效结果，需要调整后续策略。
@@ -268,7 +267,8 @@ public class TaskPlanner {
                 - 如果仍需调用工具，给出 1-3 个步骤，格式为：步骤N: [工具名] 原因
                 - 步骤中的工具名必须来自上方可用工具，不要添加任何非工具步骤
                 - 如果已有足够信息回答，直接建议停止调用工具并回答用户。""",
-                userMessage, stepsHistory, String.join(", ", toolDescriptions));
+                userMessage, formatContextSection(conversationContext), stepsHistory,
+                String.join(", ", toolDescriptions));
 
         try {
             String response = chatClient.prompt()
@@ -282,6 +282,16 @@ public class TaskPlanner {
             log.warn("[TaskPlanner] Re-plan failed: {}", e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * 首轮规划与 re-plan 共用的上下文段落；上下文为空时返回空串，不改变 prompt。
+     */
+    private static String formatContextSection(String conversationContext) {
+        return (conversationContext == null || conversationContext.isBlank())
+                ? ""
+                : "补充规划上下文（用于理解用户的指代/省略和工具路由约束，不要复述）：\n"
+                  + conversationContext + "\n";
     }
 
     private String formatStepOutcome(AgentStep step) {

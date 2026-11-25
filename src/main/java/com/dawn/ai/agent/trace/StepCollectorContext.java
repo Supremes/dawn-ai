@@ -51,6 +51,7 @@ public final class StepCollectorContext {
     volatile Consumer<AgentStep> stepListener;
     volatile List<PlanStep> currentPlan;
     volatile String userMessage;
+    volatile String conversationContext;
     volatile Set<String> toolDescriptions;
     volatile boolean rePlanTriggered = false;
 
