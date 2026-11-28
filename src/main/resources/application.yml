@@ -88,10 +88,12 @@ management:
       probability: 1.0
   otlp:
     tracing:
-      endpoint: ${LANGFUSE_OTLP_ENDPOINT:http://localhost:3001/api/public/otel/v1/traces}
+      endpoint: ${LANGFUSE_OTLP_ENDPOINT:https://jp.cloud.langfuse.com/api/public/otel/v1/traces}
       compression: gzip
       headers:
         Authorization: Basic ${LANGFUSE_AUTH_BASE64:}
+        # Langfuse Cloud v4 实时入库要求携带此头，否则 OTLP 数据最多延迟 10 分钟
+        x-langfuse-ingestion-version: 4
 
 # 应用配置
 app:

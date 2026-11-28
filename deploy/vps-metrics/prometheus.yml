@@ -1,0 +1,17 @@
+# VPS Prometheus 抓取配置
+# 通过本地运行的 scripts/vps-metrics-tunnel.sh 建立的 SSH 反向隧道抓取本地 dawn-ai:8080
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+
+scrape_configs:
+  - job_name: 'dawn-ai'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['127.0.0.1:18080']
+        labels:
+          instance: 'dawn-ai-local'
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['127.0.0.1:9090']

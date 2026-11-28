@@ -1,21 +1,13 @@
 # docker-compose.yml
 # Apple Silicon 本地开发：
-#   - 业务侧默认启动：app / postgres / redis
-#   - 可观测能力全部移到 docker-compose.observe.yml，按需 opt-in：
-#       --profile metrics  → Prometheus + Grafana
-#       --profile observe  → Langfuse 全家桶
+#   - 本地仅启动核心业务栈：app / postgres / redis
+#   - 可观测能力已拆分到远端（0 本地重容器）：
+#       Tracing → Langfuse Cloud (JP Region)，通过 .env 配置 OTLP 推送
+#       Metrics → 远程 VPS（编排见 deploy/vps-metrics/），本地按需运行 ./scripts/vps-metrics-tunnel.sh
 #
-# 启动步骤：
-#   1. docker compose up -d
-#                                                                            # 业务（最小）
-#   2. docker compose -f docker-compose.yml -f docker-compose.observe.yml --profile metrics up -d
-#                                                                            # + Prometheus/Grafana
-#   3. docker compose -f docker-compose.yml -f docker-compose.observe.yml --profile observe up -d
-#                                                                            # + Langfuse 全家桶
-#   4. 全开：上一行再追加 `--profile metrics`
-#
-# 停止：
-#   docker compose [上述同样的 -f / --profile 组合] down
+# 启动 / 停止：
+#   docker compose up -d
+#   docker compose down
 
 services:
   app:
@@ -38,13 +30,12 @@ services:
       - SPRING_DATASOURCE_USERNAME=dawn
       - SPRING_DATASOURCE_PASSWORD=dawn123
       - SPRING_DATA_REDIS_HOST=redis
-      - LANGFUSE_OTLP_ENDPOINT=${LANGFUSE_OTLP_ENDPOINT:-http://langfuse-web:3000/api/public/otel/v1/traces}
+      - LANGFUSE_OTLP_ENDPOINT=${LANGFUSE_OTLP_ENDPOINT:-https://jp.cloud.langfuse.com/api/public/otel/v1/traces}
       - LANGFUSE_AUTH_BASE64=${LANGFUSE_AUTH_BASE64}
       - LANGFUSE_ENVIRONMENT=${LANGFUSE_ENVIRONMENT:-dev}
       # Spring Boot 原生开关 management.tracing.enabled。
-      # 业务单独跑时默认 false，避免 OTLP exporter 找不到 langfuse-web 持续 warn。
-      # 叠加 docker-compose.observe.yml 时会被覆盖为 true（见 overlay 文件）。
-      - MANAGEMENT_TRACING_ENABLED=${MANAGEMENT_TRACING_ENABLED:-false}
+      # 默认直连 Langfuse Cloud JP；若尚未填写 LANGFUSE_AUTH_BASE64，可在 .env 中设为 false 避免 401 warn。
+      - MANAGEMENT_TRACING_ENABLED=${MANAGEMENT_TRACING_ENABLED:-true}
       - APP_SKILLS_PATH=/app/skills
       - TAVILY_API_KEY=${TAVILY_API_KEY}
     volumes:

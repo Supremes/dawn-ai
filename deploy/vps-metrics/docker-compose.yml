@@ -1,0 +1,63 @@
+# deploy/vps-metrics/docker-compose.yml
+# 方案 B：在轻量 VPS（2C/2G）上独立运行 Prometheus + Grafana。
+#
+# 安全与网络设计：
+#   - 两个容器使用 network_mode: host 且全部显式绑定 127.0.0.1，0 公网暴露面。
+#   - 本地开发机通过 scripts/vps-metrics-tunnel.sh 建立 SSH 双向隧道：
+#       -R 127.0.0.1:18080 -> 本地 dawn-ai:8080（供 Prometheus 抓取 /actuator/prometheus）
+#       -L 127.0.0.1:3000  -> VPS Grafana UI（本机浏览器访问 http://localhost:3000）
+#       -L 127.0.0.1:9090  -> VPS Prometheus UI（本机浏览器访问 http://localhost:9090）
+#   - 两个容器均配置硬内存上限（各 256m），避免挤压 VPS 上其他常驻服务。
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    container_name: dawn-prometheus
+    network_mode: host
+    restart: unless-stopped
+    mem_limit: 256m
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --storage.tsdb.retention.size=2GB
+      - --web.listen-address=127.0.0.1:9090
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9090/-/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: dawn-grafana
+    network_mode: host
+    restart: unless-stopped
+    mem_limit: 256m
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    environment:
+      GF_SERVER_HTTP_ADDR: 127.0.0.1
+      GF_SERVER_HTTP_PORT: 3000
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin123}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  prometheus_data:
+  grafana_data:

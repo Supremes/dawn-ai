@@ -126,63 +126,65 @@ See [docs/agent-paradigms/multi-agent/design.md](docs/agent-paradigms/multi-agen
 
 ## 📊 Observability
 
-可观测能力分两条独立线，全部走 **`docker-compose.observe.yml`** overlay 文件，
-按需 opt-in，互不依赖：
+可观测能力按职责拆分，默认走**轻量云端 + VPS 方案**（本地仅跑 `app + postgres + redis`）：
 
-| Profile | 启动的容器 | 用途 | UI |
+| 能力 | 部署位置 | 接入方式 | UI |
 |---|---|---|---|
-| `--profile metrics` | `prometheus` + `grafana` | JVM / HTTP / 业务指标 | http://localhost:3000 |
-| `--profile observe` | `langfuse-*` + `clickhouse` + `minio` 等 7 个 | LLM trace / prompt / tool I/O | http://localhost:3001 |
+| **LLM Tracing / Evaluation** | **Langfuse Cloud (JP Region)** | OTLP/HTTP (`x-langfuse-ingestion-version: 4`) | https://jp.cloud.langfuse.com |
+| **JVM / HTTP / 业务指标** | **远程 VPS** (`/opt/dawn-ai-metrics`，编排见 `deploy/vps-metrics/`) | SSH 双向隧道 (`scripts/vps-metrics-tunnel.sh`) | http://localhost:3000（经隧道） |
 
-### 启动命令矩阵
+### 1. Langfuse Cloud (JP Region) 接入
+
+在 https://jp.cloud.langfuse.com 创建项目并获取 API Keys 后，填入 `.env`：
+
+```dotenv
+LANGFUSE_BASE_URL=https://jp.cloud.langfuse.com
+LANGFUSE_PUBLIC_KEY=pk-lf-...
+LANGFUSE_SECRET_KEY=sk-lf-...
+LANGFUSE_OTLP_ENDPOINT=https://jp.cloud.langfuse.com/api/public/otel/v1/traces
+MANAGEMENT_TRACING_ENABLED=true
+```
+
+然后生成并填入 `LANGFUSE_AUTH_BASE64`：
 
 ```bash
-# 业务最小（仅 app + postgres + redis，~1.1 GB）
-docker compose up -d
+./scripts/langfuse-auth-header.sh
+```
 
-# + 监控
-docker compose -f docker-compose.yml -f docker-compose.observe.yml --profile metrics up -d
+### 2. VPS 指标监控（Prometheus + Grafana）
 
-# + Langfuse（首次启动等 ~60s 让 langfuse-web 健康）
-docker compose -f docker-compose.yml -f docker-compose.observe.yml --profile observe up -d
+VPS 上的 Prometheus 与 Grafana 均采用 `network_mode: host` 且仅绑定 `127.0.0.1`（0 公网暴露），完整编排与预装看板统一位于 `deploy/vps-metrics/`（同步到 VPS `/opt/dawn-ai-metrics/`）。
 
-# 全开
-docker compose -f docker-compose.yml -f docker-compose.observe.yml \
-  --profile metrics --profile observe up -d
+> **为什么需要保活隧道**：`scripts/vps-metrics-tunnel.sh` 同时维护反向抓取通道（`VPS:18080 → 本地:8080`）和正向 UI 映射（`本地:3000/9090 → VPS:3000/9090`）。若隧道未开启，VPS Prometheus 将无法拉取本地指标（期间 Grafana 曲线会出现断层）。Langfuse Cloud Tracing 为主动 HTTPS 推送，不受隧道影响。
+
+#### 方式 A：macOS `launchd` 后台自启保活（推荐，无感持续采集）
+
+使用仓库提供的模板 `deploy/vps-metrics/com.dawn-ai.vps-metrics-tunnel.plist` 注册为当前用户的后台常驻服务（开机自启、休眠唤醒/断网每 10s 自动重连，约占 5 MB 内存）：
+
+```bash
+# 1. 安装并启动（在项目根目录执行）
+sed "s|__PROJECT_DIR__|$(pwd)|g" deploy/vps-metrics/com.dawn-ai.vps-metrics-tunnel.plist \
+  > ~/Library/LaunchAgents/com.dawn-ai.vps-metrics-tunnel.plist
+launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.dawn-ai.vps-metrics-tunnel.plist
+
+# 2. 查看运行状态与日志
+launchctl print "gui/$(id -u)/com.dawn-ai.vps-metrics-tunnel" | grep -E "state|pid"
+tail -n 30 /tmp/dawn-ai-vps-metrics-tunnel.log
+
+# 3. 停止 / 卸载
+launchctl bootout "gui/$(id -u)/com.dawn-ai.vps-metrics-tunnel"
+rm -f ~/Library/LaunchAgents/com.dawn-ai.vps-metrics-tunnel.plist
+```
+
+安装完成后无需手动执行脚本，直接打开浏览器即可查看：
+- **Grafana**：http://localhost:3000（默认 `admin` / `admin123`，看板：`Dawn AI - Spring Boot`）
+- **Prometheus**：http://localhost:9090
+
+#### 方式 B：临时前台运行（不装常驻服务时）
+
+```bash
+./scripts/vps-metrics-tunnel.sh
 ```
 
 > **Tracing 总开关**：`MANAGEMENT_TRACING_ENABLED`（Spring Boot 原生 `management.tracing.enabled`）。
-> 主 compose 默认 `false`；叠加 `-f docker-compose.observe.yml` 时 overlay 会把它覆盖为 `true`。
-> 想强制覆盖时在 `.env` 里设置即可。⚠️ 这是整个 Spring Tracing 子系统的开关，
-> 关掉它所有 `@Observed` 和 OTLP exporter（不限后端）都会失效。
->
-> **Corner case**：单用 `--profile metrics`（叠加了 overlay 但没启 langfuse-web）时
-> tracing 仍被自动开为 `true`，会持续 OTLP warn。此时在 `.env` 里显式
-> `MANAGEMENT_TRACING_ENABLED=false` 静默即可。
-
-### 内存限制
-
-Docker Compose 不再为容器设置 `mem_limit` / `mem_reservation`，也不再为 Redis、Node 或 ClickHouse 额外设置本地开发内存上限。各组件按宿主机 / Docker Desktop 配额自适应。
-
-### Langfuse 登录
-
-Visit **http://localhost:3001**：
-
-| Field | Value (defaults from `.env.example`) |
-|---|---|
-| Email | `admin@dawn.local` |
-| Password | `dawn-admin-123` |
-
-`dawn-ai` 项目自动创建。新会话几秒后出现在 **Tracing**；**Sessions** 标签按
-你传入的 `sessionId` 聚合。
-
-### Rotating keys / production
-
-Change `LANGFUSE_INIT_PROJECT_PUBLIC_KEY` and `_SECRET_KEY` in `.env`,
-re-run `scripts/langfuse-auth-header.sh`, paste the new value into
-`LANGFUSE_AUTH_BASE64`, then:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.observe.yml \
-  --profile observe up -d --force-recreate langfuse-web app
-```
+> 未填入真实 `LANGFUSE_AUTH_BASE64` 时可在 `.env` 中暂时设为 `false` 避免 OTLP 401 warn。

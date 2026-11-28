@@ -17,7 +17,7 @@ import java.util.UUID;
 
 /**
  * Langfuse REST API 客户端，用于写入评分和同步 Dataset。
- * 通过 LANGFUSE_* 环境变量配置，默认使用 docker-compose.observe.yml 中的凭据。
+ * 通过 LANGFUSE_* 环境变量配置，默认指向 Langfuse Cloud JP Region。
  */
 @Component
 public class LangfuseScoringClient {
@@ -28,7 +28,7 @@ public class LangfuseScoringClient {
     private final String projectId;
 
     public LangfuseScoringClient(
-            @Value("${LANGFUSE_BASE_URL:http://localhost:3001}") String baseUrl,
+            @Value("${LANGFUSE_BASE_URL:https://jp.cloud.langfuse.com}") String baseUrl,
             @Value("${LANGFUSE_PUBLIC_KEY:pk-lf-dawn-dev}") String publicKey,
             @Value("${LANGFUSE_SECRET_KEY:sk-lf-dawn-dev}") String secretKey,
             @Value("${LANGFUSE_INIT_PROJECT_ID:dawn-ai}") String projectId) {

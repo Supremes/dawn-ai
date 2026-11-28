@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<clickhouse>
-    <!-- 强制只监听 IPv4。Docker 默认网络经常关了 IPv6，
-         默认的 `[::]:9000` 监听会悄悄失败，
-         langfuse-web 跑 clickhouse migration 时就会报 "connection refused"。 -->
-    <listen_host>0.0.0.0</listen_host>
-</clickhouse>
